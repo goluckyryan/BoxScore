@@ -26,7 +26,7 @@ COPTS	=	-fPIC -DLINUX -O2
 #FLAGS	=	-soname -s
 #FLAGS	=       -Wall,-soname -s
 #FLAGS	=	-Wall,-soname -nostartfiles -s
-FLAGS	=	-Walloca
+FLAGS	=	-w
 
 DEPLIBS	=	-lCAENDigitizer
 

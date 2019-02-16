@@ -181,7 +181,7 @@ void PrintInterface() {
 	printf("T ) Read ADC temperature\n");
 	printf("C ) Start ADC calibration\n");
 	printf("q ) Quit\n");
-	printf("t ) Send a software trigger\n");
-	printf("h ) Save Histograms to file\n");
-	printf("w ) Save waveforms to file\n\n\n");
+	//printf("t ) Send a software trigger\n");
+	//printf("h ) Save Histograms to file\n");
+	//printf("w ) Save waveforms to file\n\n\n");
 }

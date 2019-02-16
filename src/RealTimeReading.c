@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
 {
 	if( argc != 2 ) {
 		printf("Please input boardID! \n");
+		return -1;
 	}
 	
 	const int boardID = atoi(argv[1]);
@@ -200,13 +201,14 @@ int main(int argc, char *argv[])
 	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
 	Params.ChannelMask = 0x01;                               // Channel enable mask
 	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic)
-	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
+	//Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
+	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
 
 	/****************************\
-	*      DPP parameters        *
+	*      DPP parameters        * //TODO to be a reading file
 	\****************************/
 	for(ch=0; ch<MaxNChannels; ch++) {
-		DPPParams.thr[ch] = 100;   // Trigger Threshold (in LSB)
+		DPPParams.thr[ch] = 500;   // Trigger Threshold (in LSB)
 		DPPParams.k[ch] = 3000;     // Trapezoid Rise Time (ns) 
 		DPPParams.m[ch] = 900;      // Trapezoid Flat Top  (ns) 
 		DPPParams.M[ch] = 50000;      // Decay Time Constant (ns) 
@@ -248,6 +250,8 @@ int main(int argc, char *argv[])
 		goto QuitProgram;
 	}
 	printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
+	printf("Number of Channels : %d\n", BoardInfo.Channels);
+	printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
 	printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
 	printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
 
@@ -280,8 +284,7 @@ int main(int argc, char *argv[])
         printf("Can't allocate memory buffers\n");
         goto QuitProgram;    
     }
-
-        
+    
     /* *************************************************************************************** */
     /* Readout Loop                                                                            */
     /* *************************************************************************************** */
@@ -305,8 +308,7 @@ int main(int argc, char *argv[])
             char c;
             c = getch();
             if (c == 'q')  Quit = 1;
-            if (c == 't')
-                    CAEN_DGTZ_SendSWtrigger(handle); // Send a software trigger to each board
+            /*if (c == 't')  CAEN_DGTZ_SendSWtrigger(handle); // Send a software trigger to each board
             if (c == 'h')
                     for (ch = 0; ch < MaxNChannels; ch++)
                         if (ECnt[ch] != 0) 
@@ -314,6 +316,7 @@ int main(int argc, char *argv[])
             if (c == 'w')
                     for (ch = 0; ch < MaxNChannels; ch++)
                         DoSaveWave[ch] = 1; // save waveforms to file for each channel for each board (at next trigger)
+            */
             if (c == 'r')  {
                     CAEN_DGTZ_SWStopAcquisition(handle); 
                     printf("Restarted\n");
@@ -327,6 +330,7 @@ int main(int argc, char *argv[])
 				CAEN_DGTZ_SWStartAcquisition(handle);
 				printf("Acquisition Started for Board %d\n", b);
                 AcqRun = 1;
+                PrintInterface();
             }
             if (c == 'S')  {
 				// Stop Acquisition
@@ -343,12 +347,11 @@ int main(int argc, char *argv[])
 				}
 				printf("Type a command: ");
 			}
-			if (c == 'C') {
+			/*if (c == 'C') {
 				CAEN_DGTZ_Calibrate(handle);
 				printf("\nADC calibration ready\n");
 				printf("Type a command: ");
-
-			}
+			}*/
         }
         if (!AcqRun) {
             Sleep(10);
@@ -365,7 +368,7 @@ int main(int argc, char *argv[])
 			printf("\nBoard %d:\n",b);
 			for(i=0; i<MaxNChannels; i++) {
 				if (TrgCnt[i]>0)
-					printf("\tCh %d:\tTrgRate=%.2f KHz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime, (float)PurCnt[i]*100/(float)TrgCnt[i]);
+					printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
 				else
 					printf("\tCh %d:\tNo Data\n", i);
 				TrgCnt[i]=0;
@@ -402,8 +405,7 @@ int main(int argc, char *argv[])
 			for (ev = 0; ev < NumEvents[ch]; ev++) {
 				TrgCnt[ch]++;
 				/* Time Tag */
-				if (Events[ch][ev].TimeTag < PrevTime[ch]) 
-					ExtendedTT[ch]++;
+				if (Events[ch][ev].TimeTag < PrevTime[ch]) ExtendedTT[ch]++;
 				PrevTime[ch] = Events[ch][ev].TimeTag;
 				/* Energy */
 				if (Events[ch][ev].Energy > 0) {
@@ -413,8 +415,11 @@ int main(int argc, char *argv[])
 				} else {  /* PileUp */
 					PurCnt[ch]++;
 				}
+				
+				//printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
+				
 				/* Get Waveforms (only from 1st event in the buffer) */
-				if ((Params.AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List) && DoSaveWave[ch] && (ev == 0)) {
+				/* if ((Params.AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List) && DoSaveWave[ch] && (ev == 0)) {
 					int size;
 					int16_t *WaveLine;
 					uint8_t *DigitalWaveLine;
@@ -435,7 +440,8 @@ int main(int argc, char *argv[])
 					SaveDigitalProbe(b, ch, 2, size, DigitalWaveLine);
 					DoSaveWave[ch] = 0;
 					printf("Waveforms saved to 'Waveform_<board>_<channel>_<trace>.txt'\n");
-				} // loop to save waves        
+					} // loop to save waves       
+				*/  
 			} // loop on events
 		} // loop on channels
     } // End of readout loop
