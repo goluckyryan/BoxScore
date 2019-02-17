@@ -33,6 +33,8 @@ you can find this file in the src directory */
 #include "Functions.h"
 
 #include "TROOT.h"
+#include "TFile.h"
+#include "TTree.h"
 
 
 /* ###########################################################################
@@ -148,7 +150,7 @@ int main(int argc, char *argv[])
     NB: you must use the right type for different DPP analysis (in this case PHA) */
     char *buffer = NULL;                                 // readout buffer
     CAEN_DGTZ_DPP_PHA_Event_t       *Events[MaxNChannels];  // events buffer
-    CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform=NULL;     // waveforms buffer
+    //CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform=NULL;     // waveforms buffer
 
     /* The following variables will store the digitizer configuration parameters */
     CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
@@ -166,7 +168,7 @@ int main(int argc, char *argv[])
     int handle;
 
     /* Other variables */
-    int i, b, ch, ev;
+    int i, ch, ev;
     int Quit=0;
     int AcqRun = 0;
     uint32_t AllocatedSize, BufferSize;
@@ -175,6 +177,7 @@ int main(int argc, char *argv[])
     int MajorNumber;
     int BitMask = 0;
     uint64_t CurrentTime, PrevRateTime, ElapsedTime;
+    uint64_t StartTime, StopTime;
     uint32_t NumEvents[MaxNChannels];
     CAEN_DGTZ_BoardInfo_t           BoardInfo;
 	uint32_t temp;
@@ -235,22 +238,19 @@ int main(int argc, char *argv[])
 	
 	/* The following is for b boards connected via b USB direct links
 	in this case you must set Params.LinkType = CAEN_DGTZ_USB and Params.VMEBaseAddress = 0 */
-	CAEN_DGTZ_ErrorCode ret1 = CAEN_DGTZ_OpenDigitizer(Params.LinkType, b, 0, Params.VMEBaseAddress, &handle);
-
-	printf("------ %d \n", ret1);
-
+	CAEN_DGTZ_ErrorCode ret1 = CAEN_DGTZ_OpenDigitizer(Params.LinkType, boardID, 0, Params.VMEBaseAddress, &handle);
 	if (ret1 != 0) {
 		printf("Can't open digitizer\n");
-		goto QuitProgram;
+		return 0;
 	}
 	
 	/* Once we have the handler to the digitizer, we use it to call the other functions */
 	ret1 = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
 	if (ret1 != 0) {
 		printf("Can't read board info\n");
-		goto QuitProgram;
+		return 0;
 	}
-	printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
+	printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, boardID);
 	printf("Number of Channels : %d\n", BoardInfo.Channels);
 	printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
 	printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
 	sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
 	if (MajorNumber != V1730_DPP_PHA_CODE) {
 		printf("This digitizer has not a DPP-PHA firmware\n");
-		goto QuitProgram;
+		return 0;
 	}
 
     /* *************************************************************************************** */
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 	ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
 	if (ret != 0) {
 		printf("Failed to program the digitizer\n");
-		goto QuitProgram;
+		return 0;
 	}
 
     /* WARNING: The mallocs MUST be done after the digitizer programming,
@@ -280,11 +280,28 @@ int main(int argc, char *argv[])
     /* Allocate memory for the events */
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
     /* Allocate memory for the waveforms */
-    ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(Waveform), &AllocatedSize); 
+    //ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(Waveform), &AllocatedSize); 
     if (ret != 0) {
         printf("Can't allocate memory buffers\n");
-        goto QuitProgram;    
+		CAEN_DGTZ_SWStopAcquisition(handle);
+		CAEN_DGTZ_CloseDigitizer(handle);
+		CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+		CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+		return 0;
     }
+    
+    /* *************************************************************************************** */
+    /* ROOT TREE                                                                           */
+    /* *************************************************************************************** */
+    
+    TFile * fileout = new TFile("tree.root", "RECREATE");
+    TTree * tree = new TTree("tree", "tree");
+    
+    ULong64_t timeStamp;
+    UInt_t energy;
+    
+    tree->Branch("e", &energy, "energy/i");
+    tree->Branch("t", &timeStamp, "tempStemp/l");
     
     /* *************************************************************************************** */
     /* Readout Loop                                                                            */
@@ -300,6 +317,7 @@ int main(int argc, char *argv[])
     PrevRateTime = get_time();
     AcqRun = 0;
     PrintInterface();
+    int evCount = 0;
     printf("Type a command: ");
     while(!Quit) {
         // Check keyboard
@@ -312,36 +330,40 @@ int main(int argc, char *argv[])
                     for (ch = 0; ch < MaxNChannels; ch++)
                         DoSaveWave[ch] = 1; // save waveforms to file for each channel for each board (at next trigger)
             */
-            if (c == 'r')  {
-                    CAEN_DGTZ_SWStopAcquisition(handle); 
-                    printf("Restarted\n");
-                    CAEN_DGTZ_ClearData(handle);
-                    CAEN_DGTZ_SWStartAcquisition(handle);
-            }
+            //if (c == 'r')  {
+            //        CAEN_DGTZ_SWStopAcquisition(handle); 
+            //        printf("Restarted\n");
+            //        CAEN_DGTZ_ClearData(handle);
+            //        CAEN_DGTZ_SWStartAcquisition(handle);
+            //}
             if (c == 's')  {
 				// Start Acquisition
 				// NB: the acquisition for each board starts when the following line is executed
 				// so in general the acquisition does NOT starts syncronously for different boards
+				evCount = 0;
+				StartTime = get_time();
 				CAEN_DGTZ_SWStartAcquisition(handle);
-				printf("Acquisition Started for Board %d\n", b);
+				printf("Acquisition Started for Board %d\n", boardID);
                 AcqRun = 1;
-                PrintInterface();
             }
-            if (c == 'S')  {
+            if (c == 'a')  {
 				// Stop Acquisition
 				CAEN_DGTZ_SWStopAcquisition(handle); 
-				printf("Acquisition Stopped for Board %d\n", b);
+				StopTime = get_time();
+				printf("Acquisition Stopped for Board %d\n", boardID);
+				printf("---------- Duration : %lu msec\n", StopTime - StartTime);
+				PrintInterface();
                 AcqRun = 0;
             }
-			if (c == 'T') {
-				printf("\n");
-				for (ch = 0; ch < MaxNChannels; ch++) {
-					// Read ADC temperature
-					CAEN_DGTZ_ReadTemperature(handle, ch, &temp);
-					printf("Ch %d  ADC temperature: %d %cC\n", ch, temp, 248);
-				}
-				printf("Type a command: ");
-			}
+			//if (c == 'T') {
+			//	printf("\n");
+			//	for (ch = 0; ch < MaxNChannels; ch++) {
+			//		// Read ADC temperature
+			//		CAEN_DGTZ_ReadTemperature(handle, ch, &temp);
+			//		printf("Ch %d  ADC temperature: %d %cC\n", ch, temp, 248);
+			//	}
+			//	printf("Type a command: ");
+			//}
 			/*if (c == 'C') {
 				CAEN_DGTZ_Calibrate(handle);
 				printf("\nADC calibration ready\n");
@@ -349,18 +371,22 @@ int main(int argc, char *argv[])
 			}*/
         }
         if (!AcqRun) {
-            Sleep(10);
+            Sleep(10); // 10 mili-sec
             continue;
         }
     
         /* Calculate throughput and trigger rate (every second) */
         CurrentTime = get_time();
         ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
-        if (ElapsedTime > 1000) {
+        int updatePeriod = 1000;
+        if (ElapsedTime > updatePeriod) {
             system(CLEARSCR);
             PrintInterface();
-            printf("Readout Rate=%.2f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
-			printf("\nBoard %d:\n",b);
+            printf("\n============================ update every %.2f sec\n", updatePeriod/1000.);
+            printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
+            printf("Readout Rate = %.2f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
+            printf("Number of Event = %d \n", evCount);
+			printf("\nBoard %d:\n",boardID);
 			for(i=0; i<MaxNChannels; i++) {
 				if (TrgCnt[i]>0)
 					printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
@@ -376,10 +402,6 @@ int main(int argc, char *argv[])
         
 		/* Read data from the board */
 		ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-		if (ret) {
-			printf("Readout Error\n");
-			goto QuitProgram;    
-		}
 		if (BufferSize == 0)
 			continue;
 
@@ -388,7 +410,11 @@ int main(int argc, char *argv[])
 		ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
 		if (ret) {
 			printf("Data Error: %d\n", ret);
-			goto QuitProgram;
+			CAEN_DGTZ_SWStopAcquisition(handle);
+			CAEN_DGTZ_CloseDigitizer(handle);
+			CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+			CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+			return 0;
 		}
 		
 		/* Analyze data */
@@ -409,6 +435,11 @@ int main(int argc, char *argv[])
 					PurCnt[ch]++;
 				}
 				
+				energy = Events[ch][ev].Energy;
+				timeStamp = Events[ch][ev].TimeTag;
+				evCount ++;
+				tree->Fill();
+				
 				//printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
 				
 				/* Get Waveforms (only from 1st event in the buffer) */
@@ -421,34 +452,39 @@ int main(int argc, char *argv[])
 					// Use waveform data here...
 					size = (int)(Waveform->Ns); // Number of samples
 					WaveLine = Waveform->Trace1; // First trace (ANALOG_TRACE_1)
-					SaveWaveform(b, ch, 1, size, WaveLine);
+					SaveWaveform(boardID, ch, 1, size, WaveLine);
 
 					WaveLine = Waveform->Trace2; // Second Trace ANALOG_TRACE_2 (if single trace mode, it is a sequence of zeroes)
-					SaveWaveform(b, ch, 2, size, WaveLine);
+					SaveWaveform(boardID, ch, 2, size, WaveLine);
 
 					DigitalWaveLine = Waveform->DTrace1; // First Digital Trace (DIGITALPROBE1)
-					SaveDigitalProbe(b, ch, 1, size, DigitalWaveLine);
+					SaveDigitalProbe(boardID, ch, 1, size, DigitalWaveLine);
 
 					DigitalWaveLine = Waveform->DTrace2; // Second Digital Trace (for DPP-PHA it is ALWAYS Trigger)
-					SaveDigitalProbe(b, ch, 2, size, DigitalWaveLine);
+					SaveDigitalProbe(boardID, ch, 2, size, DigitalWaveLine);
 					DoSaveWave[ch] = 0;
 					printf("Waveforms saved to 'Waveform_<board>_<channel>_<trace>.txt'\n");
 					} // loop to save waves       
 				*/  
 			} // loop on events
 		} // loop on channels
+		
+		//if( ElapsedTime > updatePeriod ) tree->AutoSave("FlushBaskets");
+		tree->Write("tree", TObject::kOverwrite); 
     } // End of readout loop
 
+	tree->Write("tree", TObject::kOverwrite); 
+	fileout->Close();
 
-QuitProgram:
     /* stop the acquisition, close the device and free the buffers */
 	CAEN_DGTZ_SWStopAcquisition(handle);
 	CAEN_DGTZ_CloseDigitizer(handle);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-    CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
-	printf("\nPress a key to quit\n");
-	getch();
+    //CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
+	//printf("\nPress a key to quit\n");
+	//getch();
+	printf("\n");
     return ret;
 }
     

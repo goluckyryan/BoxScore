@@ -176,10 +176,10 @@ int SaveDigitalProbe(int b, int ch, int trace, int size, uint8_t *WaveData)
 /* --------------------------------------------------------------------------------------------------------- */
 void PrintInterface() {
 	printf("\ns ) Start acquisition\n");
-	printf("S ) Stop acquisition\n");
-	printf("r ) Restart acquisition\n");
-	printf("T ) Read ADC temperature\n");
-	printf("C ) Start ADC calibration\n");
+	printf("a ) Stop acquisition\n");
+	//printf("r ) Restart acquisition\n");
+	//printf("T ) Read ADC temperature\n");
+	//printf("C ) Start ADC calibration\n");
 	printf("q ) Quit\n");
 	//printf("t ) Send a software trigger\n");
 	//printf("h ) Save Histograms to file\n");
