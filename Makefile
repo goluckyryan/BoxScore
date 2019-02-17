@@ -19,14 +19,14 @@ OUT1     =    	$(OUTDIR)/$(OUTNAME1)
 OUTNAME2 =    	DetectDigitizer
 OUT2     =    	$(OUTDIR)/$(OUTNAME2)
 
-CC	=	gcc
+CC	=	g++
 
-COPTS	=	-fPIC -DLINUX -O2
+COPTS	=	-fPIC -DLINUX -w
 
 #FLAGS	=	-soname -s
 #FLAGS	=       -Wall,-soname -s
 #FLAGS	=	-Wall,-soname -nostartfiles -s
-FLAGS	=	-w
+#FLAGS	=	-w
 
 DEPLIBS	=	-lCAENDigitizer
 
@@ -34,7 +34,9 @@ LIBS	=	-L..
 
 INCLUDEDIR =	-I./include
 
-OBJS1	=	src/keyb.o src/Functions.o src/RealTimeReading.o 
+OBJS	=	src/RealTimeReading.o 
+
+OBJS1	=	src/keyb.o src/Functions.o 
 
 OBJS2   =   src/keyb.o src/DetectDigitizer.o 
 
@@ -45,13 +47,16 @@ INCLUDES =	./include/*
 all	:	$(OUT1) $(OUT2)
 
 clean	:
-		/bin/rm -f $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
+		/bin/rm -f $(OBJS) $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
 
-$(OUT1)	:	$(OBJS1)
-		$(CC) $(FLAGS) -o $(OUT1) $(OBJS1) $(DEPLIBS)
+$(OUT1)	:	$(OBJS) $(OBJS1)
+		$(CC) $(FLAGS) -o $(OUT1) $(OBJS) $(OBJS1) $(DEPLIBS) `root-config --cflags --glibs`
 
 $(OUT2)	:	$(OBJS2)
 		$(CC) $(FLAGS) -o $(OUT2) $(OBJS2) $(DEPLIBS)
+
+$(OBJS)	:	src/RealTimeReading.c
+		$(CC) $(FLAGS) $(INCLUDEDIR) -c -o $(OBJS) src/RealTimeReading.c `root-config --cflags --glibs`
 
 $(OBJS1)	:	$(INCLUDES) Makefile
 

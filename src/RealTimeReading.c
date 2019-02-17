@@ -32,6 +32,9 @@
 you can find this file in the src directory */
 #include "Functions.h"
 
+#include "TROOT.h"
+
+
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
@@ -137,8 +140,9 @@ int main(int argc, char *argv[])
     execution. For example:
     ret = CAEN_DGTZ_some_function(some_args);
     if(ret) printf("Some error"); */
-    CAEN_DGTZ_ErrorCode ret;
-
+    //CAEN_DGTZ_ErrorCode ;
+    int ret;
+	
     /* Buffers to store the data. The memory must be allocated using the appropriate
     CAENDigitizer API functions (see below), so they must not be initialized here
     NB: you must use the right type for different DPP analysis (in this case PHA) */
@@ -153,7 +157,6 @@ int main(int argc, char *argv[])
     /* Arrays for data analysis */
     uint64_t PrevTime[MaxNChannels];
     uint64_t ExtendedTT[MaxNChannels];
-    uint32_t *EHisto[MaxNChannels]; // Energy Histograms 
     int ECnt[MaxNChannels];
     int TrgCnt[MaxNChannels];
     int PurCnt[MaxNChannels];
@@ -184,10 +187,6 @@ int main(int argc, char *argv[])
     /* *************************************************************************************** */
     memset(&Params, 0, sizeof(DigitizerParams_t));
     memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
-    b = boardID;
-	for (ch = 0; ch < MaxNChannels; ch++)
-		EHisto[ch] = NULL; //set all histograms pointers to NULL (we will allocate them later)
-
 	/****************************\
 	* Communication Parameters   *
 	\****************************/
@@ -236,16 +235,18 @@ int main(int argc, char *argv[])
 	
 	/* The following is for b boards connected via b USB direct links
 	in this case you must set Params.LinkType = CAEN_DGTZ_USB and Params.VMEBaseAddress = 0 */
-	ret = CAEN_DGTZ_OpenDigitizer(Params.LinkType, b, 0, Params.VMEBaseAddress, &handle);
+	CAEN_DGTZ_ErrorCode ret1 = CAEN_DGTZ_OpenDigitizer(Params.LinkType, b, 0, Params.VMEBaseAddress, &handle);
 
-	if (ret) {
+	printf("------ %d \n", ret1);
+
+	if (ret1 != 0) {
 		printf("Can't open digitizer\n");
 		goto QuitProgram;
 	}
 	
 	/* Once we have the handler to the digitizer, we use it to call the other functions */
-	ret = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
-	if (ret) {
+	ret1 = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
+	if (ret1 != 0) {
 		printf("Can't read board info\n");
 		goto QuitProgram;
 	}
@@ -265,8 +266,8 @@ int main(int argc, char *argv[])
     /* *************************************************************************************** */
     /* Program the digitizer (see function ProgramDigitizer)                                   */
     /* *************************************************************************************** */
-	ret = ProgramDigitizer(handle, Params, DPPParams);
-	if (ret) {
+	ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
+	if (ret != 0) {
 		printf("Failed to program the digitizer\n");
 		goto QuitProgram;
 	}
@@ -277,10 +278,10 @@ int main(int argc, char *argv[])
     /* Allocate memory for the readout buffer */
     ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
     /* Allocate memory for the events */
-    ret |= CAEN_DGTZ_MallocDPPEvents(handle, Events, &AllocatedSize); 
+    ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
     /* Allocate memory for the waveforms */
-    ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, &Waveform, &AllocatedSize); 
-    if (ret) {
+    ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(Waveform), &AllocatedSize); 
+    if (ret != 0) {
         printf("Can't allocate memory buffers\n");
         goto QuitProgram;    
     }
@@ -290,8 +291,6 @@ int main(int argc, char *argv[])
     /* *************************************************************************************** */
     // Clear Histograms and counters
 	for (ch = 0; ch < MaxNChannels; ch++) {
-		EHisto[ch] = (uint32_t *)malloc((1 << MAXNBITS) * sizeof(uint32_t));
-		memset(EHisto[ch], 0, (1 << MAXNBITS) * sizeof(uint32_t));
 		TrgCnt[ch] = 0;
 		ECnt[ch] = 0;
 		PrevTime[ch] = 0;
@@ -309,10 +308,6 @@ int main(int argc, char *argv[])
             c = getch();
             if (c == 'q')  Quit = 1;
             /*if (c == 't')  CAEN_DGTZ_SendSWtrigger(handle); // Send a software trigger to each board
-            if (c == 'h')
-                    for (ch = 0; ch < MaxNChannels; ch++)
-                        if (ECnt[ch] != 0) 
-                            SaveHistogram("Histo", b, ch, EHisto[ch]);  // Save Histograms to file for each board
             if (c == 'w')
                     for (ch = 0; ch < MaxNChannels; ch++)
                         DoSaveWave[ch] = 1; // save waveforms to file for each channel for each board (at next trigger)
@@ -390,12 +385,12 @@ int main(int argc, char *argv[])
 
 		Nb += BufferSize;
 		//ret = DataConsistencyCheck((uint32_t *)buffer, BufferSize/4);
-		ret |= CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
+		ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
 		if (ret) {
 			printf("Data Error: %d\n", ret);
 			goto QuitProgram;
 		}
-
+		
 		/* Analyze data */
 		for (ch = 0; ch < MaxNChannels; ch++) {
 			if (!(Params.ChannelMask & (1<<ch)))
@@ -409,8 +404,6 @@ int main(int argc, char *argv[])
 				PrevTime[ch] = Events[ch][ev].TimeTag;
 				/* Energy */
 				if (Events[ch][ev].Energy > 0) {
-					// Fill the histograms
-					EHisto[ch][(Events[ch][ev].Energy)&BitMask]++;
 					ECnt[ch]++;
 				} else {  /* PileUp */
 					PurCnt[ch]++;
@@ -451,11 +444,8 @@ QuitProgram:
     /* stop the acquisition, close the device and free the buffers */
 	CAEN_DGTZ_SWStopAcquisition(handle);
 	CAEN_DGTZ_CloseDigitizer(handle);
-	for (ch = 0; ch < MaxNChannels; ch++)
-		if (EHisto[ch] != NULL)
-			free(EHisto[ch]);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-    CAEN_DGTZ_FreeDPPEvents(handle, Events);
+    CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
     CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
 	printf("\nPress a key to quit\n");
 	getch();

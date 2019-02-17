@@ -80,6 +80,7 @@ int main(int argc, char* argv[])
         See the manual for details */
         printf("------- checking boardID = %d / %d \n", b, MAXNB-1);
         ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_USB, b,0,0,&handle[b]);
+        //printf("----------- %d \n", ret);
         if(ret != CAEN_DGTZ_Success) {
             printf("Can't open digitizer, Probably not connected.\n");
             continue;
@@ -155,11 +156,11 @@ int main(int argc, char* argv[])
 			    ret = CAEN_DGTZ_GetEventInfo(handle[b],buffer,bsize,i,&eventInfo,&evtptr);
 
                 /* Decode the event to get the data */
-			    ret = CAEN_DGTZ_DecodeEvent(handle[b],evtptr,&Evt);
+			    ret = CAEN_DGTZ_DecodeEvent(handle[b],evtptr,reinterpret_cast<void**>(Evt));
 			    //*************************************
 			    // Event Elaboration
 			    //*************************************
-			    ret = CAEN_DGTZ_FreeEvent(handle[b],&Evt);
+			    ret = CAEN_DGTZ_FreeEvent(handle[b],reinterpret_cast<void**>(Evt));
 		    }
 		    c = checkCommand();
 		    if (c == 1) goto Continue;
