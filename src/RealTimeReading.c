@@ -38,6 +38,7 @@ you can find this file in the src directory */
 #include <string>
 #include <vector>
 #include <stdlib.h> 
+#include <vector>
 
 using namespace std;
 
@@ -156,7 +157,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
             ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x8000);
             
             // Set the Pre-Trigger size (in samples)
-            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, 1000);
+            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, 2000);
             
             // Set the polarity for the given channel (CAEN_DGTZ_PulsePolarityPositive or CAEN_DGTZ_PulsePolarityNegative)
             ret |= CAEN_DGTZ_SetChannelPulsePolarity(handle, i, Params.PulsePolarity);
@@ -245,9 +246,9 @@ int main(int argc, char *argv[])
 	\****************************/
 	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
 	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
+	Params.RecordLength = 20000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
 	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-	Params.EventAggr = 1;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
+	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
 	//Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
 	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
 
@@ -338,16 +339,24 @@ int main(int argc, char *argv[])
     /* ROOT TREE                                                                           */
     /* *************************************************************************************** */
     
+    vector<ULong64_t> rawTimeStamp;
+    vector<UInt_t> rawEnergy;
+    vector<int> rawChannel;
+    
     TFile * fileout = new TFile("tree.root", "RECREATE");
     TTree * tree = new TTree("tree", "tree");
     
-    ULong64_t timeStamp;
-    UInt_t energy;
-    int channel;
-
-    tree->Branch("ch", &channel, "channel/I");
-    tree->Branch("e", &energy, "energy/i");
-    tree->Branch("t", &timeStamp, "timeStamp/l");
+    ULong64_t timeStamp[2];
+    UInt_t energy[2];
+    int channel[2];
+    
+    tree->Branch("ch", channel, "channel[2]/I");
+    tree->Branch("e", energy, "energy[2]/i");
+    tree->Branch("t", timeStamp, "timeStamp[2]/l");
+    
+    tree->Write("tree", TObject::kOverwrite); 
+    
+    fileout->Close();
     
     /* *************************************************************************************** */
     /* Readout Loop                                                                            */
@@ -426,6 +435,56 @@ int main(int argc, char *argv[])
             Nb = 0;
             PrevRateTime = CurrentTime;
             printf("\n\n");
+            
+            //sort event from tree and append to exist root
+            //printf("---- append file \n");
+            TFile * fileAppend = new TFile("tree.root", "UPDATE");
+            tree = (TTree*) fileAppend->Get("tree");
+            
+            //UInt_t x[2];
+            //ULong64_t t[2];
+            //int ch[2];
+            tree->SetBranchAddress("e", energy);
+            tree->SetBranchAddress("t", timeStamp);
+            tree->SetBranchAddress("ch", channel);
+            
+            int n = rawChannel.size();
+            printf(" number of data to sort %d \n", n);
+            int count = 0;
+            for( int i = 0; i < n-1; i++){
+                //printf("---------------------------------- %d, %llu, %d \n", rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+                for( int j = 0; j < n ; j ++){
+                    if( rawChannel[i] == rawChannel[j] ) continue;
+                    
+                    int timediff = (int) (rawTimeStamp[i] - rawTimeStamp[j]) ;
+                    if( TMath::Abs( timediff ) < 10 ) { // 500 ns time diff
+                        //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
+                        channel[rawChannel[i]] = rawChannel[i];
+                        energy[rawChannel[i]] = rawEnergy[i];
+                        timeStamp[rawChannel[i]] = rawTimeStamp[i];
+
+                        channel[rawChannel[j]] = rawChannel[j];
+                        energy[rawChannel[j]] = rawEnergy[j];
+                        timeStamp[rawChannel[j]] = rawTimeStamp[j];
+                        count ++;
+                        tree->Fill();
+                        break;
+                    }
+                }
+            }
+            
+            printf(" number of data sorted %d \n", count);
+            
+            tree->Write("tree", TObject::kOverwrite); 
+    
+            fileAppend->Close();
+            
+            
+            //clear vectors
+            rawChannel.clear();
+            rawEnergy.clear();
+            rawTimeStamp.clear();
+            
         }
         
         /* Read data from the board */
@@ -452,6 +511,7 @@ int main(int argc, char *argv[])
             if (!(Params.ChannelMask & (1<<ch)))
                 continue;
             
+            
             /* Update display */
             for (ev = 0; ev < NumEvents[ch]; ev++) {
                 TrgCnt[ch]++;
@@ -469,13 +529,14 @@ int main(int argc, char *argv[])
                 
                 // Events[ch][ev].Extra2 is clock counter.
     
-                channel = ch;
-                energy = Events[ch][ev].Energy;
+                rawChannel.push_back(ch);
+                rawEnergy.push_back(Events[ch][ev].Energy);
                 ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
-                timeStamp = (ULong64_t) Events[ch][ev].TimeTag;
-                timeStamp += baseClock ; 
+                ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
+                timetag += baseClock ; 
+                rawTimeStamp.push_back(timetag);
                 evCount ++;
-                tree->Fill();
+                //tree->Fill();
                 
                 //printf("ch : %d ,  time: %llu, Energy : %d | %lu\n", ch, timeStamp, Events[ch][ev].Energy , Events[ch][ev].TimeTag);
                 //printf("time: %llu, | %10lu | %d | %d | %llu \n",timeStamp, Events[ch][ev].TimeTag, Events[ch][ev].Extras2, initClock[ch], baseClock);
@@ -483,11 +544,13 @@ int main(int argc, char *argv[])
             } // loop on events
         } // loop on channels
         
-        tree->Write("tree", TObject::kOverwrite); 
+        //tree->Write("tree", TObject::kOverwrite); 
+        //tree->Write("tree"); 
+        
     } // End of readout loop
 
-	tree->Write("tree", TObject::kOverwrite); 
-	fileout->Close();
+	//tree->Write("tree", TObject::kOverwrite); 
+	//fileout->Close();
 
     /* stop the acquisition, close the device and free the buffers */
 	CAEN_DGTZ_SWStopAcquisition(handle);
