@@ -18,15 +18,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 //Only support 1 digitizer or 1 board
 
 // NB: the following define MUST specify the ACTUAL max allowed number of board's channels
 // it is needed for consistency inside the CAENDigitizer's functions used to allocate the memory
 #define MaxNChannels 8
-
-// The following define MUST specify the number of bits used for the energy calculation
-#define MAXNBITS 15
 
 /* include some useful functions from file Functions.c
 you can find this file in the src directory */
@@ -165,9 +163,9 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
         }
     }
 
-    ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-    ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-    ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
 
     if (ret) {
         printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
@@ -224,17 +222,12 @@ int main(int argc, char *argv[])
     int AcqRun = 0;
     uint32_t AllocatedSize, BufferSize;
     int Nb=0;
-    int DoSaveWave[MaxNChannels];
     int MajorNumber;
-    int BitMask = 0;
     uint64_t CurrentTime, PrevRateTime, ElapsedTime;
     uint64_t StartTime, StopTime;
     uint32_t NumEvents[MaxNChannels];
     CAEN_DGTZ_BoardInfo_t           BoardInfo;
     uint32_t temp;
-    memset(DoSaveWave, 0, MaxNChannels*sizeof(int));
-    for (i = 0; i < MAXNBITS; i++)
-        BitMask |= 1<<i; /* Create a bit mask based on number of bits of the board */
 
     /* *************************************************************************************** */
     /* Set Parameters                                                                          */
@@ -250,16 +243,16 @@ int main(int argc, char *argv[])
 	/****************************\
 	*  Acquisition parameters    *
 	\****************************/
-	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
 	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
 	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic)
+	Params.EventAggr = 1;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
 	//Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
 	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
 
 	/****************************\
-	*      DPP parameters        * //TODO to be a reading file
+	*      DPP parameters        * 
 	\****************************/
 	for(ch=0; ch<MaxNChannels; ch++) {
 	  int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
@@ -331,6 +324,7 @@ int main(int argc, char *argv[])
     ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
     /* Allocate memory for the events */
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
+    
     if (ret != 0) {
         printf("Can't allocate memory buffers\n");
 		CAEN_DGTZ_SWStopAcquisition(handle);
@@ -353,7 +347,7 @@ int main(int argc, char *argv[])
 
     tree->Branch("ch", &channel, "channel/I");
     tree->Branch("e", &energy, "energy/i");
-    tree->Branch("t", &timeStamp, "tempStemp/l");
+    tree->Branch("t", &timeStamp, "timeStamp/l");
     
     /* *************************************************************************************** */
     /* Readout Loop                                                                            */
@@ -371,6 +365,9 @@ int main(int argc, char *argv[])
     PrintInterface();
     int evCount = 0;
     printf("Type a command: ");
+    
+    uint32_t initClock[8] = {0,0,0,0,0,0,0,0};
+    
     while(!Quit) {
         // Check keyboard
         if(kbhit()) {
@@ -414,7 +411,7 @@ int main(int argc, char *argv[])
             PrintInterface();
             printf("\n====================== Table update every %.2f sec\n", updatePeriod/1000.);
             printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
-            printf("Readout Rate = %.2f KB\n", (float)Nb/((float)ElapsedTime*1048.576f*1048.576f));
+            printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
             printf("Total number of Event = %d \n", evCount);
             printf("\nBoard %d:\n",boardID);
             for(i=0; i<MaxNChannels; i++) {
@@ -431,12 +428,12 @@ int main(int argc, char *argv[])
             printf("\n\n");
         }
         
-        //Sleep(500);
-        
         /* Read data from the board */
         ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
         if (BufferSize == 0)
             continue;
+            
+        //printf("%d, %d \n", BufferSize, AllocatedSize);
 
         Nb += BufferSize;
         //ret = DataConsistencyCheck((uint32_t *)buffer, BufferSize/4);
@@ -464,17 +461,24 @@ int main(int argc, char *argv[])
                 /* Energy */
                 if (Events[ch][ev].Energy > 0) {
                     ECnt[ch]++;
-                } else {  /* PileUp */
+                } else { /* PileUp */
                     PurCnt[ch]++;
                 }
+                
+                if( initClock[ch] == 0 ) initClock[ch] = Events[ch][ev].Extras2;
+                
+                // Events[ch][ev].Extra2 is clock counter.
     
                 channel = ch;
                 energy = Events[ch][ev].Energy;
-                timeStamp = Events[ch][ev].TimeTag;
+                ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
+                timeStamp = (ULong64_t) Events[ch][ev].TimeTag;
+                timeStamp += baseClock ; 
                 evCount ++;
                 tree->Fill();
                 
-                //printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
+                //printf("ch : %d ,  time: %llu, Energy : %d | %lu\n", ch, timeStamp, Events[ch][ev].Energy , Events[ch][ev].TimeTag);
+                //printf("time: %llu, | %10lu | %d | %d | %llu \n",timeStamp, Events[ch][ev].TimeTag, Events[ch][ev].Extras2, initClock[ch], baseClock);
                 
             } // loop on events
         } // loop on channels
@@ -490,8 +494,6 @@ int main(int argc, char *argv[])
 	CAEN_DGTZ_CloseDigitizer(handle);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-	//printf("\nPress a key to quit\n");
-	//getch();
 	printf("\n");
     return ret;
 }
