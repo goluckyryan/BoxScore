@@ -57,17 +57,17 @@ int* ReadChannelSetting(int ch, string fileName){
 
   if( !file_in){
     printf("ch: %d ------ default setting.\n", ch);
-    para[0] = 1500;   // Trigger Threshold (in LSB)
-    para[1] = 496;     // Trapezoid Rise Time (ns) 
-    para[2] = 496;      // Trapezoid Flat Top  (ns) 
+    para[0] = 100;   // Trigger Threshold (in LSB)
+    para[1] = 3000;     // Trapezoid Rise Time (ns) 
+    para[2] = 900;      // Trapezoid Flat Top  (ns) 
     para[3] = 50000;      // Decay Time Constant (ns) 
     para[4] = 500;    // Flat top delay (peaking time) (ns) 
     para[5] = 4;       // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
-    para[6] = 100;     // Input Signal Rise time (ns) 
-    para[7] = 496;  // Trigger Hold Off
+    para[6] = 200;     // Input Signal Rise time (ns) 
+    para[7] = 1200;  // Trigger Hold Off
     para[8] = 4;     //number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
     para[9] = 0;     //Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-    para[10] = 960;  //peak holdoff (ns)
+    para[10] = 2000;  //peak holdoff (ns)
     para[11] = 500;   //Baseline holdoff (ns)
     para[12] = 1.0; // Energy Normalization Factor
     para[13] = 0;  //decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
@@ -250,7 +250,8 @@ int main(int argc, char *argv[])
 	/****************************\
 	*  Acquisition parameters    *
 	\****************************/
-	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
 	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
 	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic)
@@ -376,26 +377,26 @@ int main(int argc, char *argv[])
             char c;
             c = getch();
             if (c == 'q') {
-	      printf("=========== bye bye ==============\n");
-	      Quit = 1;
-	    }
+                printf("=========== bye bye ==============\n");
+                Quit = 1;
+            }
             if (c == 's')  {
-				// Start Acquisition
-				// NB: the acquisition for each board starts when the following line is executed
-				// so in general the acquisition does NOT starts syncronously for different boards
-				evCount = 0;
-				StartTime = get_time();
-				CAEN_DGTZ_SWStartAcquisition(handle);
-				printf("Acquisition Started for Board %d\n", boardID);
+                // Start Acquisition
+                // NB: the acquisition for each board starts when the following line is executed
+                // so in general the acquisition does NOT starts syncronously for different boards
+                evCount = 0;
+                StartTime = get_time();
+                CAEN_DGTZ_SWStartAcquisition(handle);
+                printf("Acquisition Started for Board %d\n", boardID);
                 AcqRun = 1;
             }
             if (c == 'a')  {
-				// Stop Acquisition
-				CAEN_DGTZ_SWStopAcquisition(handle); 
-				StopTime = get_time();
-				printf("Acquisition Stopped for Board %d\n", boardID);
-				printf("---------- Duration : %lu msec\n", StopTime - StartTime);
-				PrintInterface();
+                // Stop Acquisition
+                CAEN_DGTZ_SWStopAcquisition(handle); 
+                StopTime = get_time();
+                printf("Acquisition Stopped for Board %d\n", boardID);
+                printf("---------- Duration : %lu msec\n", StopTime - StartTime);
+                PrintInterface();
                 AcqRun = 0;
             }
         }
@@ -413,69 +414,72 @@ int main(int argc, char *argv[])
             PrintInterface();
             printf("\n====================== Table update every %.2f sec\n", updatePeriod/1000.);
             printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
-            printf("Readout Rate = %.2f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
-            printf("Number of Event = %d \n", evCount);
-			printf("\nBoard %d:\n",boardID);
-			for(i=0; i<MaxNChannels; i++) {
-				if (TrgCnt[i]>0)
-					printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
-				else
-					printf("\tCh %d:\tNo Data\n", i);
-				TrgCnt[i]=0;
-				PurCnt[i]=0;
-			}
+            printf("Readout Rate = %.2f KB\n", (float)Nb/((float)ElapsedTime*1048.576f*1048.576f));
+            printf("Total number of Event = %d \n", evCount);
+            printf("\nBoard %d:\n",boardID);
+            for(i=0; i<MaxNChannels; i++) {
+                if (TrgCnt[i]>0){
+                    printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
+                }else{
+                    printf("\tCh %d:\tNo Data\n", i);
+                }
+                TrgCnt[i]=0;
+                PurCnt[i]=0;
+            }
             Nb = 0;
             PrevRateTime = CurrentTime;
             printf("\n\n");
         }
         
-		/* Read data from the board */
-		ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-		if (BufferSize == 0)
-			continue;
+        //Sleep(500);
+        
+        /* Read data from the board */
+        ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
+        if (BufferSize == 0)
+            continue;
 
-		Nb += BufferSize;
-		//ret = DataConsistencyCheck((uint32_t *)buffer, BufferSize/4);
-		ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
-		if (ret) {
-			printf("Data Error: %d\n", ret);
-			CAEN_DGTZ_SWStopAcquisition(handle);
-			CAEN_DGTZ_CloseDigitizer(handle);
-			CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-			CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-			return 0;
-		}
-		
-		/* Analyze data */
-		for (ch = 0; ch < MaxNChannels; ch++) {
-			if (!(Params.ChannelMask & (1<<ch)))
-				continue;
-			
-			/* Update display */
-			for (ev = 0; ev < NumEvents[ch]; ev++) {
-				TrgCnt[ch]++;
-				/* Time Tag */
-				if (Events[ch][ev].TimeTag < PrevTime[ch]) ExtendedTT[ch]++;
-				PrevTime[ch] = Events[ch][ev].TimeTag;
-				/* Energy */
-				if (Events[ch][ev].Energy > 0) {
-					ECnt[ch]++;
-				} else {  /* PileUp */
-					PurCnt[ch]++;
-				}
-
-				channel = ch;
-				energy = Events[ch][ev].Energy;
-				timeStamp = Events[ch][ev].TimeTag;
-				evCount ++;
-				tree->Fill();
-				
-				//printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
-				
-			} // loop on events
-		} // loop on channels
-		
-		tree->Write("tree", TObject::kOverwrite); 
+        Nb += BufferSize;
+        //ret = DataConsistencyCheck((uint32_t *)buffer, BufferSize/4);
+        ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
+        if (ret) {
+            printf("Data Error: %d\n", ret);
+            CAEN_DGTZ_SWStopAcquisition(handle);
+            CAEN_DGTZ_CloseDigitizer(handle);
+            CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+            CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+            return 0;
+        }
+        
+        /* Analyze data */
+        for (ch = 0; ch < MaxNChannels; ch++) {
+            if (!(Params.ChannelMask & (1<<ch)))
+                continue;
+            
+            /* Update display */
+            for (ev = 0; ev < NumEvents[ch]; ev++) {
+                TrgCnt[ch]++;
+                /* Time Tag */
+                if (Events[ch][ev].TimeTag < PrevTime[ch]) ExtendedTT[ch]++;
+                PrevTime[ch] = Events[ch][ev].TimeTag;
+                /* Energy */
+                if (Events[ch][ev].Energy > 0) {
+                    ECnt[ch]++;
+                } else {  /* PileUp */
+                    PurCnt[ch]++;
+                }
+    
+                channel = ch;
+                energy = Events[ch][ev].Energy;
+                timeStamp = Events[ch][ev].TimeTag;
+                evCount ++;
+                tree->Fill();
+                
+                //printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
+                
+            } // loop on events
+        } // loop on channels
+        
+        tree->Write("tree", TObject::kOverwrite); 
     } // End of readout loop
 
 	tree->Write("tree", TObject::kOverwrite); 

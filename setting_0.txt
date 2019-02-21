@@ -1,9 +1,9 @@
-1000   // Trigger Threshold (in LSB)
-496    // Trapezoid Rise Time (ns) 
-496    // Trapezoid Flat Top  (ns) 
+1100   // Trigger Threshold (in LSB)
+5000    // Trapezoid Rise Time (ns) 
+1000    // Trapezoid Flat Top  (ns) 
 50000  // Decay Time Constant (ns) 
-500    // Flat top delay (peaking time) (ns) 
-4      // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
+4000    // Flat top delay (peaking time) (ns) 
+1      // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
 100    // Input Signal Rise time (ns) 
 496    // Trigger Hold Off
 4      //number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
