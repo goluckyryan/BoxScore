@@ -36,10 +36,62 @@ you can find this file in the src directory */
 #include "TFile.h"
 #include "TTree.h"
 
+#include <fstream>
+#include <string>
+#include <vector>
+#include <stdlib.h> 
+
+using namespace std;
+
 
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
+
+int* ReadChannelSetting(int ch, string fileName){
+
+  int * para = new int[17];
+  
+  ifstream file_in;
+  file_in.open(fileName.c_str(), ios::in);
+
+  if( !file_in){
+    printf("ch: %d ------ default setting.\n", ch);
+    para[0] = 1500;   // Trigger Threshold (in LSB)
+    para[1] = 496;     // Trapezoid Rise Time (ns) 
+    para[2] = 496;      // Trapezoid Flat Top  (ns) 
+    para[3] = 50000;      // Decay Time Constant (ns) 
+    para[4] = 500;    // Flat top delay (peaking time) (ns) 
+    para[5] = 4;       // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
+    para[6] = 100;     // Input Signal Rise time (ns) 
+    para[7] = 496;  // Trigger Hold Off
+    para[8] = 4;     //number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
+    para[9] = 0;     //Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
+    para[10] = 960;  //peak holdoff (ns)
+    para[11] = 500;   //Baseline holdoff (ns)
+    para[12] = 1.0; // Energy Normalization Factor
+    para[13] = 0;  //decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
+    para[14] = 0;    //decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
+    para[15] = 0;  //Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
+    para[16] = 100;  //Rise Time Validation Window (ns)
+  }else{
+    printf("ch: %d ------ load from %s.\n", ch, fileName.c_str());
+    string line;
+    int count = 0;
+    while( file_in.good()){
+      getline(file_in, line);
+      size_t pos = line.find("//");
+      if( pos > 1 ){
+	if( count > 16) break;
+	para[count] = atoi(line.substr(0, pos).c_str());
+	//printf("%d | %d \n", count, para[count]);
+	count ++;
+      }
+    }
+  }
+
+  return para;
+}
 
 /* --------------------------------------------------------------------------------------------------------- */
 /*! \fn      int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPPParamsPHA_t DPPParams)
@@ -150,7 +202,6 @@ int main(int argc, char *argv[])
     NB: you must use the right type for different DPP analysis (in this case PHA) */
     char *buffer = NULL;                                 // readout buffer
     CAEN_DGTZ_DPP_PHA_Event_t       *Events[MaxNChannels];  // events buffer
-    //CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform=NULL;     // waveforms buffer
 
     /* The following variables will store the digitizer configuration parameters */
     CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
@@ -180,7 +231,7 @@ int main(int argc, char *argv[])
     uint64_t StartTime, StopTime;
     uint32_t NumEvents[MaxNChannels];
     CAEN_DGTZ_BoardInfo_t           BoardInfo;
-	uint32_t temp;
+    uint32_t temp;
     memset(DoSaveWave, 0, MaxNChannels*sizeof(int));
     for (i = 0; i < MAXNBITS; i++)
         BitMask |= 1<<i; /* Create a bit mask based on number of bits of the board */
@@ -201,7 +252,7 @@ int main(int argc, char *argv[])
 	\****************************/
 	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
 	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
-	Params.ChannelMask = 0x01;                               // Channel enable mask
+	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic)
 	//Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
 	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
@@ -210,24 +261,24 @@ int main(int argc, char *argv[])
 	*      DPP parameters        * //TODO to be a reading file
 	\****************************/
 	for(ch=0; ch<MaxNChannels; ch++) {
-		DPPParams.thr[ch] = 500;   // Trigger Threshold (in LSB)
-		DPPParams.k[ch] = 3000;     // Trapezoid Rise Time (ns) 
-		DPPParams.m[ch] = 900;      // Trapezoid Flat Top  (ns) 
-		DPPParams.M[ch] = 50000;      // Decay Time Constant (ns) 
-		DPPParams.ftd[ch] = 500;    // Flat top delay (peaking time) (ns) 
-		DPPParams.a[ch] = 4;       // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
-		DPPParams.b[ch] = 200;     // Input Signal Rise time (ns) 
-		DPPParams.trgho[ch] = 1200;  // Trigger Hold Off
-		DPPParams.nsbl[ch] = 4;     //number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
-		DPPParams.nspk[ch] = 0;     //Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-		DPPParams.pkho[ch] = 2000;  //peak holdoff (ns)
-		DPPParams.blho[ch] = 500;   //Baseline holdoff (ns)
-		DPPParams.enf[ch] = 1.0; // Energy Normalization Factor
-		DPPParams.decimation[ch] = 0;  //decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
-		DPPParams.dgain[ch] = 0;    //decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
-		DPPParams.otrej[ch] = 0;
-		DPPParams.trgwin[ch] = 0;  //Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
-		DPPParams.twwdt[ch] = 100;  //Rise Time Validation Window (ns)
+	  int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
+		DPPParams.thr[ch] = para[0]; 
+		DPPParams.k[ch] = para[1];  
+		DPPParams.m[ch] = para[2];  
+		DPPParams.M[ch] = para[3];   
+		DPPParams.ftd[ch] = para[4];  
+		DPPParams.a[ch] = para[5];    
+		DPPParams.b[ch] = para[6];    
+		DPPParams.trgho[ch] = para[7];  
+		DPPParams.nsbl[ch] = para[8];  
+		DPPParams.nspk[ch] = para[9];    
+		DPPParams.pkho[ch] = para[10]; 
+		DPPParams.blho[ch] = para[11]; 
+		DPPParams.enf[ch] = para[12]; 
+		DPPParams.decimation[ch] = para[13]; 
+		DPPParams.dgain[ch] = para[14];    
+		DPPParams.trgwin[ch] = para[15]; 
+		DPPParams.twwdt[ch] = para[16]; 
 	}
     
     /* *************************************************************************************** */
@@ -279,8 +330,6 @@ int main(int argc, char *argv[])
     ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
     /* Allocate memory for the events */
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
-    /* Allocate memory for the waveforms */
-    //ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(Waveform), &AllocatedSize); 
     if (ret != 0) {
         printf("Can't allocate memory buffers\n");
 		CAEN_DGTZ_SWStopAcquisition(handle);
@@ -299,7 +348,9 @@ int main(int argc, char *argv[])
     
     ULong64_t timeStamp;
     UInt_t energy;
-    
+    int channel;
+
+    tree->Branch("ch", &channel, "channel/I");
     tree->Branch("e", &energy, "energy/i");
     tree->Branch("t", &timeStamp, "tempStemp/l");
     
@@ -324,18 +375,10 @@ int main(int argc, char *argv[])
         if(kbhit()) {
             char c;
             c = getch();
-            if (c == 'q')  Quit = 1;
-            /*if (c == 't')  CAEN_DGTZ_SendSWtrigger(handle); // Send a software trigger to each board
-            if (c == 'w')
-                    for (ch = 0; ch < MaxNChannels; ch++)
-                        DoSaveWave[ch] = 1; // save waveforms to file for each channel for each board (at next trigger)
-            */
-            //if (c == 'r')  {
-            //        CAEN_DGTZ_SWStopAcquisition(handle); 
-            //        printf("Restarted\n");
-            //        CAEN_DGTZ_ClearData(handle);
-            //        CAEN_DGTZ_SWStartAcquisition(handle);
-            //}
+            if (c == 'q') {
+	      printf("=========== bye bye ==============\n");
+	      Quit = 1;
+	    }
             if (c == 's')  {
 				// Start Acquisition
 				// NB: the acquisition for each board starts when the following line is executed
@@ -355,20 +398,6 @@ int main(int argc, char *argv[])
 				PrintInterface();
                 AcqRun = 0;
             }
-			//if (c == 'T') {
-			//	printf("\n");
-			//	for (ch = 0; ch < MaxNChannels; ch++) {
-			//		// Read ADC temperature
-			//		CAEN_DGTZ_ReadTemperature(handle, ch, &temp);
-			//		printf("Ch %d  ADC temperature: %d %cC\n", ch, temp, 248);
-			//	}
-			//	printf("Type a command: ");
-			//}
-			/*if (c == 'C') {
-				CAEN_DGTZ_Calibrate(handle);
-				printf("\nADC calibration ready\n");
-				printf("Type a command: ");
-			}*/
         }
         if (!AcqRun) {
             Sleep(10); // 10 mili-sec
@@ -382,7 +411,7 @@ int main(int argc, char *argv[])
         if (ElapsedTime > updatePeriod) {
             system(CLEARSCR);
             PrintInterface();
-            printf("\n============================ update every %.2f sec\n", updatePeriod/1000.);
+            printf("\n====================== Table update every %.2f sec\n", updatePeriod/1000.);
             printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
             printf("Readout Rate = %.2f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
             printf("Number of Event = %d \n", evCount);
@@ -422,7 +451,7 @@ int main(int argc, char *argv[])
 			if (!(Params.ChannelMask & (1<<ch)))
 				continue;
 			
-			/* Update Histograms */
+			/* Update display */
 			for (ev = 0; ev < NumEvents[ch]; ev++) {
 				TrgCnt[ch]++;
 				/* Time Tag */
@@ -434,7 +463,8 @@ int main(int argc, char *argv[])
 				} else {  /* PileUp */
 					PurCnt[ch]++;
 				}
-				
+
+				channel = ch;
 				energy = Events[ch][ev].Energy;
 				timeStamp = Events[ch][ev].TimeTag;
 				evCount ++;
@@ -442,34 +472,9 @@ int main(int argc, char *argv[])
 				
 				//printf(" event ID : %7d, ch : %d ,  time: %lu, Energy : %d \n", ev, ch, Events[ch][ev].TimeTag, Events[ch][ev].Energy );
 				
-				/* Get Waveforms (only from 1st event in the buffer) */
-				/* if ((Params.AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List) && DoSaveWave[ch] && (ev == 0)) {
-					int size;
-					int16_t *WaveLine;
-					uint8_t *DigitalWaveLine;
-					CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform);
-
-					// Use waveform data here...
-					size = (int)(Waveform->Ns); // Number of samples
-					WaveLine = Waveform->Trace1; // First trace (ANALOG_TRACE_1)
-					SaveWaveform(boardID, ch, 1, size, WaveLine);
-
-					WaveLine = Waveform->Trace2; // Second Trace ANALOG_TRACE_2 (if single trace mode, it is a sequence of zeroes)
-					SaveWaveform(boardID, ch, 2, size, WaveLine);
-
-					DigitalWaveLine = Waveform->DTrace1; // First Digital Trace (DIGITALPROBE1)
-					SaveDigitalProbe(boardID, ch, 1, size, DigitalWaveLine);
-
-					DigitalWaveLine = Waveform->DTrace2; // Second Digital Trace (for DPP-PHA it is ALWAYS Trigger)
-					SaveDigitalProbe(boardID, ch, 2, size, DigitalWaveLine);
-					DoSaveWave[ch] = 0;
-					printf("Waveforms saved to 'Waveform_<board>_<channel>_<trace>.txt'\n");
-					} // loop to save waves       
-				*/  
 			} // loop on events
 		} // loop on channels
 		
-		//if( ElapsedTime > updatePeriod ) tree->AutoSave("FlushBaskets");
 		tree->Write("tree", TObject::kOverwrite); 
     } // End of readout loop
 
@@ -481,7 +486,6 @@ int main(int argc, char *argv[])
 	CAEN_DGTZ_CloseDigitizer(handle);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-    //CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
 	//printf("\nPress a key to quit\n");
 	//getch();
 	printf("\n");
