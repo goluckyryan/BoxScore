@@ -243,8 +243,8 @@ int main(int argc, char *argv[])
 	/****************************\
 	*  Acquisition parameters    *
 	\****************************/
-	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
 	Params.RecordLength = 2000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
 	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 	Params.EventAggr = 1;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
