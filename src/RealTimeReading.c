@@ -19,6 +19,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <pthread.h>
+
+//TODO 2) use root to plot histogram, TApplication
+//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
 
 //Only support 1 digitizer or 1 board
 
@@ -33,6 +37,9 @@ you can find this file in the src directory */
 #include "TROOT.h"
 #include "TFile.h"
 #include "TTree.h"
+#include "TCanvas.h"
+#include "TH1F.h"
+#include "TApplication.h"
 
 #include <fstream>
 #include <string>
@@ -42,6 +49,7 @@ you can find this file in the src directory */
 
 using namespace std;
 
+const int CONINCIDENTTIME = 30000; // real time = CONINCIDENTTIME * 50 ns 
 
 /* ###########################################################################
 *  Functions
@@ -81,10 +89,10 @@ int* ReadChannelSetting(int ch, string fileName){
       getline(file_in, line);
       size_t pos = line.find("//");
       if( pos > 1 ){
-	if( count > 16) break;
-	para[count] = atoi(line.substr(0, pos).c_str());
-	//printf("%d | %d \n", count, para[count]);
-	count ++;
+        if( count > 16) break;
+        para[count] = atoi(line.substr(0, pos).c_str());
+        //printf("%d | %d \n", count, para[count]);
+        count ++;
       }
     }
   }
@@ -92,11 +100,6 @@ int* ReadChannelSetting(int ch, string fileName){
   return para;
 }
 
-/* --------------------------------------------------------------------------------------------------------- */
-/*! \fn      int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPPParamsPHA_t DPPParams)
-*   \brief   Program the registers of the digitizer with the relevant parameters
-*   \return  0=success; -1=error */
-/* --------------------------------------------------------------------------------------------------------- */
 int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams)
 {
     /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
@@ -154,7 +157,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     for(i=0; i<MaxNChannels; i++) {
         if (Params.ChannelMask & (1<<i)) {
             // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
-            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x8000);
+            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
             
             // Set the Pre-Trigger size (in samples)
             ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, 2000);
@@ -181,194 +184,202 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
 /* ########################################################################### */
 int main(int argc, char *argv[])
 {
-	if( argc != 2 ) {
-		printf("Please input boardID! \n");
-		return -1;
-	}
-	
-	const int boardID = atoi(argv[1]);
-	
-    /* The following variable is the type returned from most of CAENDigitizer
-    library functions and is used to check if there was an error in function
-    execution. For example:
-    ret = CAEN_DGTZ_some_function(some_args);
-    if(ret) printf("Some error"); */
-    //CAEN_DGTZ_ErrorCode ;
-    int ret;
-	
-    /* Buffers to store the data. The memory must be allocated using the appropriate
-    CAENDigitizer API functions (see below), so they must not be initialized here
-    NB: you must use the right type for different DPP analysis (in this case PHA) */
-    char *buffer = NULL;                                 // readout buffer
-    CAEN_DGTZ_DPP_PHA_Event_t       *Events[MaxNChannels];  // events buffer
+  if( argc != 2 ) {
+    printf("Please input boardID! \n");
+    return -1;
+  }
+  
+  const int boardID = atoi(argv[1]);
 
-    /* The following variables will store the digitizer configuration parameters */
-    CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
-    DigitizerParams_t Params;
+  /* The following variable is the type returned from most of CAENDigitizer
+  library functions and is used to check if there was an error in function
+  execution. For example:
+  ret = CAEN_DGTZ_some_function(some_args);
+  if(ret) printf("Some error"); */
+  //CAEN_DGTZ_ErrorCode ;
+  int ret;
 
-    /* Arrays for data analysis */
-    uint64_t PrevTime[MaxNChannels];
-    uint64_t ExtendedTT[MaxNChannels];
-    int ECnt[MaxNChannels];
-    int TrgCnt[MaxNChannels];
-    int PurCnt[MaxNChannels];
+  /* Buffers to store the data. The memory must be allocated using the appropriate
+  CAENDigitizer API functions (see below), so they must not be initialized here
+  NB: you must use the right type for different DPP analysis (in this case PHA) */
+  char *buffer = NULL;                                 // readout buffer
+  CAEN_DGTZ_DPP_PHA_Event_t       *Events[MaxNChannels];  // events buffer
 
-    /* The following variable will be used to get an handler for the digitizer. The
-    handler will be used for most of CAENDigitizer functions to identify the board */
-    int handle;
+  /* The following variables will store the digitizer configuration parameters */
+  CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
+  DigitizerParams_t Params;
 
-    /* Other variables */
-    int i, ch, ev;
-    int Quit=0;
-    int AcqRun = 0;
-    uint32_t AllocatedSize, BufferSize;
-    int Nb=0;
-    int MajorNumber;
-    uint64_t CurrentTime, PrevRateTime, ElapsedTime;
-    uint64_t StartTime, StopTime;
-    uint32_t NumEvents[MaxNChannels];
-    CAEN_DGTZ_BoardInfo_t           BoardInfo;
-    uint32_t temp;
+  /* Arrays for data analysis */
+  uint64_t PrevTime[MaxNChannels];
+  uint64_t ExtendedTT[MaxNChannels];
+  int ECnt[MaxNChannels];
+  int TrgCnt[MaxNChannels];
+  int PurCnt[MaxNChannels];
 
-    /* *************************************************************************************** */
-    /* Set Parameters                                                                          */
-    /* *************************************************************************************** */
-    memset(&Params, 0, sizeof(DigitizerParams_t));
-    memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
-	/****************************\
-	* Communication Parameters   *
-	\****************************/
-	Params.LinkType = CAEN_DGTZ_USB;  // Link Type
-	Params.VMEBaseAddress = 0;  // For direct USB connection, VMEBaseAddress must be 0
-	Params.IOlev = CAEN_DGTZ_IOLevel_NIM;
-	/****************************\
-	*  Acquisition parameters    *
-	\****************************/
-	//Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-	Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-	Params.RecordLength = 20000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
-	Params.ChannelMask = 0xff;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-	Params.EventAggr = 0;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
-	//Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
-	Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
+  /* The following variable will be used to get an handler for the digitizer. The
+  handler will be used for most of CAENDigitizer functions to identify the board */
+  int handle;
 
-	/****************************\
-	*      DPP parameters        * 
-	\****************************/
-	for(ch=0; ch<MaxNChannels; ch++) {
-	  int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
-		DPPParams.thr[ch] = para[0]; 
-		DPPParams.k[ch] = para[1];  
-		DPPParams.m[ch] = para[2];  
-		DPPParams.M[ch] = para[3];   
-		DPPParams.ftd[ch] = para[4];  
-		DPPParams.a[ch] = para[5];    
-		DPPParams.b[ch] = para[6];    
-		DPPParams.trgho[ch] = para[7];  
-		DPPParams.nsbl[ch] = para[8];  
-		DPPParams.nspk[ch] = para[9];    
-		DPPParams.pkho[ch] = para[10]; 
-		DPPParams.blho[ch] = para[11]; 
-		DPPParams.enf[ch] = para[12]; 
-		DPPParams.decimation[ch] = para[13]; 
-		DPPParams.dgain[ch] = para[14];    
-		DPPParams.trgwin[ch] = para[15]; 
-		DPPParams.twwdt[ch] = para[16]; 
-	}
+  /* Other variables */
+  int i, ch, ev;
+  int Quit=0;
+  int AcqRun = 0;
+  uint32_t AllocatedSize, BufferSize;
+  int Nb=0;
+  int MajorNumber;
+  uint64_t CurrentTime, PrevRateTime, ElapsedTime;
+  uint64_t StartTime, StopTime;
+  uint32_t NumEvents[MaxNChannels];
+  CAEN_DGTZ_BoardInfo_t           BoardInfo;
+  uint32_t temp;
+
+  /* *************************************************************************************** */
+  /* Set Parameters                                                                          */
+  /* *************************************************************************************** */
+  memset(&Params, 0, sizeof(DigitizerParams_t));
+  memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
+  /****************************\
+  * Communication Parameters   *
+  \****************************/
+  Params.LinkType = CAEN_DGTZ_USB;  // Link Type
+  Params.VMEBaseAddress = 0;  // For direct USB connection, VMEBaseAddress must be 0
+  Params.IOlev = CAEN_DGTZ_IOLevel_NIM;
+  /****************************\
+  *  Acquisition parameters    *
+  \****************************/
+  //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  Params.RecordLength = 20000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
+  Params.ChannelMask = 0xFC;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  Params.EventAggr = 1;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
+  //Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
+  Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
+
+  /****************************\
+  *      DPP parameters        * 
+  \****************************/
+  for(ch=0; ch<MaxNChannels; ch++) {
+    int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
+    DPPParams.thr[ch] = para[0]; 
+    DPPParams.k[ch] = para[1];  
+    DPPParams.m[ch] = para[2];  
+    DPPParams.M[ch] = para[3];   
+    DPPParams.ftd[ch] = para[4];  
+    DPPParams.a[ch] = para[5];    
+    DPPParams.b[ch] = para[6];    
+    DPPParams.trgho[ch] = para[7];  
+    DPPParams.nsbl[ch] = para[8];  
+    DPPParams.nspk[ch] = para[9];    
+    DPPParams.pkho[ch] = para[10]; 
+    DPPParams.blho[ch] = para[11]; 
+    DPPParams.enf[ch] = para[12]; 
+    DPPParams.decimation[ch] = para[13]; 
+    DPPParams.dgain[ch] = para[14];    
+    DPPParams.trgwin[ch] = para[15]; 
+    DPPParams.twwdt[ch] = para[16]; 
+  }
     
-    /* *************************************************************************************** */
-    /* Open the digitizer and read board information                                           */
-    /* *************************************************************************************** */
-    /* The following function is used to open the digitizer with the given connection parameters
-    and get the handler to it */
-	
-	/* The following is for b boards connected via b USB direct links
-	in this case you must set Params.LinkType = CAEN_DGTZ_USB and Params.VMEBaseAddress = 0 */
-	CAEN_DGTZ_ErrorCode ret1 = CAEN_DGTZ_OpenDigitizer(Params.LinkType, boardID, 0, Params.VMEBaseAddress, &handle);
-	if (ret1 != 0) {
-		printf("Can't open digitizer\n");
-		return 0;
-	}
-	
-	/* Once we have the handler to the digitizer, we use it to call the other functions */
-	ret1 = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
-	if (ret1 != 0) {
-		printf("Can't read board info\n");
-		return 0;
-	}
-	printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, boardID);
-	printf("Number of Channels : %d\n", BoardInfo.Channels);
-	printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
-	printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
-	printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
+  /* *************************************************************************************** */
+  /* Open the digitizer and read board information                                           */
+  /* *************************************************************************************** */
+  CAEN_DGTZ_ErrorCode ret1 = CAEN_DGTZ_OpenDigitizer(Params.LinkType, boardID, 0, Params.VMEBaseAddress, &handle);
+  if (ret1 != 0) {
+    printf("Can't open digitizer\n");
+    return 0;
+  }
 
-	/* Check firmware revision (only DPP firmwares can be used with this Demo) */
-	sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
-	if (MajorNumber != V1730_DPP_PHA_CODE) {
-		printf("This digitizer has not a DPP-PHA firmware\n");
-		return 0;
-	}
+  /* Once we have the handler to the digitizer, we use it to call the other functions */
+  ret1 = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
+  if (ret1 != 0) {
+    printf("Can't read board info\n");
+    return 0;
+  }
+  printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, boardID);
+  printf("Number of Channels : %d\n", BoardInfo.Channels);
+  printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
+  printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
+  printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
+
+  /* Check firmware revision (only DPP firmwares can be used with this Demo) */
+  sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
+  if (MajorNumber != V1730_DPP_PHA_CODE) {
+    printf("This digitizer has not a DPP-PHA firmware\n");
+    return 0;
+  }
 
     /* *************************************************************************************** */
     /* Program the digitizer (see function ProgramDigitizer)                                   */
     /* *************************************************************************************** */
-	ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
-	if (ret != 0) {
-		printf("Failed to program the digitizer\n");
-		return 0;
-	}
+  ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
+  if (ret != 0) {
+    printf("Failed to program the digitizer\n");
+    return 0;
+  }
 
-    /* WARNING: The mallocs MUST be done after the digitizer programming,
-    because the following functions needs to know the digitizer configuration
-    to allocate the right memory amount */
-    /* Allocate memory for the readout buffer */
-    ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
-    /* Allocate memory for the events */
-    ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
+  /* WARNING: The mallocs MUST be done after the digitizer programming,
+  because the following functions needs to know the digitizer configuration
+  to allocate the right memory amount */
+  /* Allocate memory for the readout buffer */
+  ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
+  /* Allocate memory for the events */
+  ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
+  
+  if (ret != 0) {
+    printf("Can't allocate memory buffers\n");
+    CAEN_DGTZ_SWStopAcquisition(handle);
+    CAEN_DGTZ_CloseDigitizer(handle);
+    CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+    CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+    return 0;
+  }
+  
+  /* *************************************************************************************** */
+  /* ROOT TREE                                                                           */
+  /* *************************************************************************************** */
+  
+  vector<ULong64_t> rawTimeStamp;
+  vector<UInt_t> rawEnergy;
+  vector<int> rawChannel;
+  
+  TFile * fileout = new TFile("tree.root", "RECREATE");
+  TTree * tree = new TTree("tree", "tree");
+  
+  ULong64_t timeStamp[8];
+  UInt_t energy[8];
+  int channel[8];
+  
+  tree->Branch("ch", channel, "channel[8]/I");
+  tree->Branch("e", energy, "energy[8]/i");
+  tree->Branch("t", timeStamp, "timeStamp[8]/l");
+  
+  tree->Write("tree", TObject::kOverwrite); 
+  
+  fileout->Close();
+  
+  //=== Raw tree
+  TFile * fileRaw = new TFile("raw.root", "RECREATE");
+  TTree * rawTree = new TTree("tree", "tree");
+  
+  ULong64_t t_r;
+  UInt_t e_r;
+  int ch_r;
+  
+  rawTree->Branch("ch", &ch_r, "channel/I");
+  rawTree->Branch("e", &e_r, "energy/i");
+  rawTree->Branch("t", &t_r, "timeStamp/l");
     
-    if (ret != 0) {
-        printf("Can't allocate memory buffers\n");
-		CAEN_DGTZ_SWStopAcquisition(handle);
-		CAEN_DGTZ_CloseDigitizer(handle);
-		CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-		CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-		return 0;
-    }
     
-    /* *************************************************************************************** */
-    /* ROOT TREE                                                                           */
-    /* *************************************************************************************** */
-    
-    vector<ULong64_t> rawTimeStamp;
-    vector<UInt_t> rawEnergy;
-    vector<int> rawChannel;
-    
-    TFile * fileout = new TFile("tree.root", "RECREATE");
-    TTree * tree = new TTree("tree", "tree");
-    
-    ULong64_t timeStamp[2];
-    UInt_t energy[2];
-    int channel[2];
-    
-    tree->Branch("ch", channel, "channel[2]/I");
-    tree->Branch("e", energy, "energy[2]/i");
-    tree->Branch("t", timeStamp, "timeStamp[2]/l");
-    
-    tree->Write("tree", TObject::kOverwrite); 
-    
-    fileout->Close();
-    
-    /* *************************************************************************************** */
-    /* Readout Loop                                                                            */
-    /* *************************************************************************************** */
-    // Clear Histograms and counters
-	for (ch = 0; ch < MaxNChannels; ch++) {
-		TrgCnt[ch] = 0;
-		ECnt[ch] = 0;
-		PrevTime[ch] = 0;
-		ExtendedTT[ch] = 0;
-		PurCnt[ch] = 0;
-	}
+  /* *************************************************************************************** */
+  /* Readout Loop                                                                            */
+  /* *************************************************************************************** */
+  // Clear Histograms and counters
+  for (ch = 0; ch < MaxNChannels; ch++) {
+    TrgCnt[ch] = 0;
+    ECnt[ch] = 0;
+    PrevTime[ch] = 0;
+    ExtendedTT[ch] = 0;
+    PurCnt[ch] = 0;
+  }
     PrevRateTime = get_time();
     AcqRun = 0;
     PrintInterface();
@@ -395,11 +406,13 @@ int main(int argc, char *argv[])
                 CAEN_DGTZ_SWStartAcquisition(handle);
                 printf("Acquisition Started for Board %d\n", boardID);
                 AcqRun = 1;
+                
+                //system("root reader.C+");
             }
             if (c == 'a')  {
                 // Stop Acquisition
                 CAEN_DGTZ_SWStopAcquisition(handle); 
-                StopTime = get_time();
+                StopTime = get_time();  
                 printf("Acquisition Stopped for Board %d\n", boardID);
                 printf("---------- Duration : %lu msec\n", StopTime - StartTime);
                 PrintInterface();
@@ -453,12 +466,18 @@ int main(int argc, char *argv[])
             int count = 0;
             for( int i = 0; i < n-1; i++){
                 //printf("---------------------------------- %d, %llu, %d \n", rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
-                for( int j = 0; j < n ; j ++){
+                for( int j = i+1; j < n ; j ++){
                     if( rawChannel[i] == rawChannel[j] ) continue;
                     
                     int timediff = (int) (rawTimeStamp[i] - rawTimeStamp[j]) ;
-                    if( TMath::Abs( timediff ) < 10 ) { // 500 ns time diff
+                    if( TMath::Abs( timediff ) < CONINCIDENTTIME ) { // 6000 ns time diff
                         //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
+                        for( int k = 0 ; k < 8 ; k++){
+                            channel[k] = -1;
+                            energy[k] = 0;
+                            timeStamp[k] = 0;
+                        }
+                        
                         channel[rawChannel[i]] = rawChannel[i];
                         energy[rawChannel[i]] = rawEnergy[i];
                         timeStamp[rawChannel[i]] = rawTimeStamp[i];
@@ -466,8 +485,10 @@ int main(int argc, char *argv[])
                         channel[rawChannel[j]] = rawChannel[j];
                         energy[rawChannel[j]] = rawEnergy[j];
                         timeStamp[rawChannel[j]] = rawTimeStamp[j];
+                        
                         count ++;
                         tree->Fill();
+                        
                         break;
                     }
                 }
@@ -527,8 +548,6 @@ int main(int argc, char *argv[])
                 
                 if( initClock[ch] == 0 ) initClock[ch] = Events[ch][ev].Extras2;
                 
-                // Events[ch][ev].Extra2 is clock counter.
-    
                 rawChannel.push_back(ch);
                 rawEnergy.push_back(Events[ch][ev].Energy);
                 ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
@@ -536,7 +555,11 @@ int main(int argc, char *argv[])
                 timetag += baseClock ; 
                 rawTimeStamp.push_back(timetag);
                 evCount ++;
-                //tree->Fill();
+                
+                ch_r = ch;
+                e_r = Events[ch][ev].Energy;
+                t_r = timetag;
+                rawTree->Fill();
                 
                 //printf("ch : %d ,  time: %llu, Energy : %d | %lu\n", ch, timeStamp, Events[ch][ev].Energy , Events[ch][ev].TimeTag);
                 //printf("time: %llu, | %10lu | %d | %d | %llu \n",timeStamp, Events[ch][ev].TimeTag, Events[ch][ev].Extras2, initClock[ch], baseClock);
@@ -544,20 +567,19 @@ int main(int argc, char *argv[])
             } // loop on events
         } // loop on channels
         
-        //tree->Write("tree", TObject::kOverwrite); 
-        //tree->Write("tree"); 
+        rawTree->Write("tree", TObject::kOverwrite); 
         
     } // End of readout loop
 
-	//tree->Write("tree", TObject::kOverwrite); 
-	//fileout->Close();
+  rawTree->Write("tree", TObject::kOverwrite); 
+  fileRaw->Close();
 
-    /* stop the acquisition, close the device and free the buffers */
-	CAEN_DGTZ_SWStopAcquisition(handle);
-	CAEN_DGTZ_CloseDigitizer(handle);
-    CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-    CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-	printf("\n");
-    return ret;
+  /* stop the acquisition, close the device and free the buffers */
+  CAEN_DGTZ_SWStopAcquisition(handle);
+  CAEN_DGTZ_CloseDigitizer(handle);
+  CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+  CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+  printf("\n");
+  return ret;
 }
     
