@@ -1,4 +1,4 @@
-1000   // Trigger Threshold (in LSB)
+2000   // Trigger Threshold (in LSB)
 5000    // Trapezoid Rise Time (ns) 
 1000    // Trapezoid Flat Top  (ns) 
 50000  // Decay Time Constant (ns) 

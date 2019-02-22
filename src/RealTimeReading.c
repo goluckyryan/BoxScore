@@ -20,40 +20,71 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
-
-//TODO 2) use root to plot histogram, TApplication
-//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
-
-//Only support 1 digitizer or 1 board
-
-// NB: the following define MUST specify the ACTUAL max allowed number of board's channels
-// it is needed for consistency inside the CAENDigitizer's functions used to allocate the memory
-#define MaxNChannels 8
-
-/* include some useful functions from file Functions.c
-you can find this file in the src directory */
-#include "Functions.h"
-
-#include "TROOT.h"
-#include "TFile.h"
-#include "TTree.h"
-#include "TCanvas.h"
-#include "TH1F.h"
-#include "TApplication.h"
-
+#include <thread>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <stdlib.h> 
 #include <vector>
 
+#include "Functions.h"
+
+#include "TROOT.h"
+#include "TSystem.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TCanvas.h"
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TApplication.h"
+
 using namespace std;
 
+//TODO 2) use root to plot histogram, TApplication, multi-thread
+//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
+
+//========== General Digitizer setting;
+#define MaxNChannels 8
+
+const float DCOFFSET = 0.2;
+const bool PositivePulse = true;
+const int RECORDLENGTH = 20000;   // Num of samples of the waveforms (only for waveform mode)
+const int PreTriggerSize = 2000;
+const int CHANNELMASK = 0xFF;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+
 const int CONINCIDENTTIME = 30000; // real time = CONINCIDENTTIME * 50 ns 
+
+//========= Histogram
+TCanvas * cCanvas = NULL;
+TH1F * hE = NULL;
+TH1F * htotE = NULL;
+TH1F * hdE = NULL;
+TH2F * hEdE = NULL; 
+
+const int chE = 4;
+const int chDE = 6;
 
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
+
+void paintCanvas(int argc, char* argv[] ){
+  
+  TApplication app ("app", &argc, argv);
+  
+  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 400);
+  cCanvas->Divide(4,1);
+  
+  hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, 0, 10000);
+  htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, 0, 10000);
+  hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, 0, 10000);
+  hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, 0, 10000, 500, 0, 10000);
+    
+  cCanvas->Draw();
+  
+  app.Run();
+  
+}
 
 int* ReadChannelSetting(int ch, string fileName){
 
@@ -100,8 +131,7 @@ int* ReadChannelSetting(int ch, string fileName){
   return para;
 }
 
-int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams)
-{
+int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams){
     /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
     int i, ret = 0;
 
@@ -157,10 +187,11 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     for(i=0; i<MaxNChannels; i++) {
         if (Params.ChannelMask & (1<<i)) {
             // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
-            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
+            //ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
+            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, int( 0xffff * DCOFFSET ));
             
             // Set the Pre-Trigger size (in samples)
-            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, 2000);
+            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, PreTriggerSize);
             
             // Set the polarity for the given channel (CAEN_DGTZ_PulsePolarityPositive or CAEN_DGTZ_PulsePolarityNegative)
             ret |= CAEN_DGTZ_SetChannelPulsePolarity(handle, i, Params.PulsePolarity);
@@ -182,8 +213,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
 /* ########################################################################### */
 /* MAIN                                                                        */
 /* ########################################################################### */
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
   if( argc != 2 ) {
     printf("Please input boardID! \n");
     return -1;
@@ -248,13 +278,15 @@ int main(int argc, char *argv[])
   *  Acquisition parameters    *
   \****************************/
   //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  Params.RecordLength = 20000;                              // Num of samples of the waveforms (only for Oscilloscope mode)
-  Params.ChannelMask = 0xFC;                               // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-  Params.EventAggr = 1;                                   // number of events in one aggregate (0=automatic), number of event acculated for read-off
-  //Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; // Pulse Polarity (this parameter can be individual)
-  Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
-
+  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  Params.RecordLength = RECORDLENGTH;                       // Num of samples of the waveforms (only for Oscilloscope mode)
+  Params.ChannelMask = CHANNELMASK;                         // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  Params.EventAggr = 1;                                     // number of events in one aggregate (0=automatic), number of event acculated for read-off
+  if( PositivePulse ) {
+    Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
+  }else{
+    Params.PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
+  }
   /****************************\
   *      DPP parameters        * 
   \****************************/
@@ -358,7 +390,7 @@ int main(int argc, char *argv[])
   
   //=== Raw tree
   TFile * fileRaw = new TFile("raw.root", "RECREATE");
-  TTree * rawTree = new TTree("tree", "tree");
+  TTree * rawTree = new TTree("rawtree", "rawtree");
   
   ULong64_t t_r;
   UInt_t e_r;
@@ -367,8 +399,10 @@ int main(int argc, char *argv[])
   rawTree->Branch("ch", &ch_r, "channel/I");
   rawTree->Branch("e", &e_r, "energy/i");
   rawTree->Branch("t", &t_r, "timeStamp/l");
-    
-    
+  
+  //thread t1(paintCanvas, argc, argv);
+  //t1.join();
+  
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
   /* *************************************************************************************** */
@@ -489,6 +523,9 @@ int main(int argc, char *argv[])
                         count ++;
                         tree->Fill();
                         
+                        htotE->Fill(energy[chDE] + energy[chE]); // x, y
+                        hEdE->Fill(energy[chDE] + energy[chE], energy[chDE]); // x, y
+                        
                         break;
                     }
                 }
@@ -500,6 +537,12 @@ int main(int argc, char *argv[])
     
             fileAppend->Close();
             
+            cCanvas->cd(1); hEdE->Draw("colz");
+            cCanvas->cd(2); hdE->Draw("colz");
+            cCanvas->cd(3); hE->Draw("colz");
+            cCanvas->cd(4); htotE->Draw("colz");
+            cCanvas->Update();
+            gSystem->ProcessEvents();
             
             //clear vectors
             rawChannel.clear();
@@ -561,17 +604,20 @@ int main(int argc, char *argv[])
                 t_r = timetag;
                 rawTree->Fill();
                 
+                if( chDE == ch )  hdE->Fill(e_r); 
+                if( chE == ch )  hE->Fill(e_r); 
+                
                 //printf("ch : %d ,  time: %llu, Energy : %d | %lu\n", ch, timeStamp, Events[ch][ev].Energy , Events[ch][ev].TimeTag);
                 //printf("time: %llu, | %10lu | %d | %d | %llu \n",timeStamp, Events[ch][ev].TimeTag, Events[ch][ev].Extras2, initClock[ch], baseClock);
                 
             } // loop on events
         } // loop on channels
-        
-        rawTree->Write("tree", TObject::kOverwrite); 
+        fileRaw->cd();
+        rawTree->Write("rawtree", TObject::kOverwrite); 
         
     } // End of readout loop
 
-  rawTree->Write("tree", TObject::kOverwrite); 
+  rawTree->Write("rawtree", TObject::kOverwrite); 
   fileRaw->Close();
 
   /* stop the acquisition, close the device and free the buffers */
