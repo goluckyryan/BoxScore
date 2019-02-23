@@ -38,8 +38,10 @@
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TGraph.h"
+#include "TCutG.h"
 #include "TMultiGraph.h"
 #include "TApplication.h"
+#include "TObjArray.h"
 #include "TLegend.h"
 #include "TRandom.h"
 
@@ -67,9 +69,21 @@ TH1F * hE = NULL;
 TH1F * htotE = NULL;
 TH1F * hdE = NULL;
 TH2F * hEdE = NULL; 
+//======== Rate Graph
 TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
+TGraph ** graphRateCut; //!
 
+//======== TCutG
+TString cutName;
+TCutG* cutG; //!
+TObjArray * cutList = NULL;
+TString cutTag;
+Bool_t isCutFileOpen;
+int numCut;
+vector<int> countFromCut;
+
+//channel ID for dE and E
 const int chE = 0;
 const int chDE = 1;
 
@@ -426,6 +440,29 @@ int main(int argc, char *argv[]){
   
   TLegend * legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
   legend->AddEntry(graphRate, "Total Beam rate");
+  
+  //check is there any cut.root
+  TFile * fCut = new TFile("cutsFile.root");  // open file
+  isCutFileOpen = fCut->IsOpen(); 
+  numCut = 0 ;
+  if( isCutFileOpen ){
+    cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+    numCut = cutList->GetEntries();
+    printf("=========== found %d cutG \n", numCut);
+    cutG = new TCutG();
+    graphRateCut = new TGraph * [numCut];
+    for(int i = 0; i < numCut ; i++){
+      printf(" cut name : %s \n", cutList->At(i)->GetName());
+      countFromCut.push_back(0);
+        
+      graphRateCut[i] = new TGraph();
+      graphRateCut[i]->SetMarkerColor(i+1);
+      graphRateCut[i]->SetMarkerStyle(20+i);
+      graphRateCut[i]->SetMarkerSize(1);
+      rateGraph->Add(graphRateCut[i]);
+      legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
+    }
+  }
 
   thread th(painCanvas); // using loop keep root responding
 
@@ -482,9 +519,61 @@ int main(int argc, char *argv[]){
                 AcqRun = 0;
                 
             }
-            if( c == 'c'){
+            if( c == 'c' && cutList == NULL ){
+                /*
                 // pause and make cuts
+                CAEN_DGTZ_SWStopAcquisition(handle); 
+                StopTime = get_time();  
+                printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
+                printf("---------- Duration : %lu msec\n", StopTime - StartTime);
+                AcqRun = 0;
                 
+                //make cuts
+                if( !cCanvas->GetShowToolBar() ) cCanvas->ToggleToolBar();
+                
+                TFile * cutFile = new TFile("cutsFile.root", "recreate");
+                TCutG * cutTemp = NULL ;
+                cutList = new TObjArray();
+                
+                numCut = 1;
+                do{
+                  cCanvas->cd(1); gPad->cd(1);
+                  gPad->WaitPrimitive();
+                  
+                  cutTemp = (TCutG*) gROOT->FindObject("CUTG");
+                  
+                  if( cutTemp == NULL ){
+                    printf(" cannot find TCutG object \n");
+                    numCut -- ;
+                    break;
+                  }
+                  
+                  TString name; name.Form("cut%d", numCut);
+                  cutTemp->SetName(name);
+                  cutTemp->SetLineColor(numCut);
+                  cutList->Add(cutTemp);
+                  
+                  printf(" cut-%d \n", numCut);
+                  numCut++;
+                }while( cutTemp != NULL );
+                
+                cutList->Write("cutList", TObject::kSingleKey);
+                printf("====> saved %d cuts into cutsFile.root\n", numCut);
+
+                if( numCut >= 1 ){
+                  countFromCut.clear();
+                  graphRateCut = new TGraph * [numCut];
+                  countFromCut.push_back(0);
+                  for(int i = 0; i < numCut ; i++){
+                    countFromCut.push_back(0);
+                    graphRateCut[i] = new TGraph();
+                    graphRateCut[i]->SetMarkerColor(i+1);
+                    graphRateCut[i]->SetMarkerStyle(20+i);
+                    graphRateCut[i]->SetMarkerSize(1);
+                    rateGraph->Add(graphRateCut[i]);
+                    legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
+                  }
+                }*/
             }
         }
         if (!AcqRun) {
@@ -534,6 +623,11 @@ int main(int argc, char *argv[]){
             printf(" number of data to sort %d \n", n);
             
             countEventBuilt = 0;
+            if(isCutFileOpen){
+              for( int i = 0 ; i < numCut; i++ ){
+                countFromCut[i] = 0;
+              }
+            }
             for( int i = 0; i < n-1; i++){
                 //printf("---------------------------------- %d, %llu, %d \n", rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
                 for( int j = i+1; j < n ; j ++){
@@ -559,8 +653,21 @@ int main(int argc, char *argv[]){
                         countEventBuilt ++;
                         tree->Fill();
                         
-                        htotE->Fill(energy[chDE] + energy[chE]); // x, y
-                        hEdE->Fill(energy[chDE] + energy[chE], energy[chDE]); // x, y
+                        float deltaE = energy[chDE] ;
+                        float totalE = energy[chDE] + energy[chE];
+                        
+                        htotE->Fill(totalE); // x, y
+                        hEdE->Fill(totalE, deltaE); // x, y
+                        
+                        if(isCutFileOpen){
+                          cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+                          for( int i = 0 ; i < numCut; i++ ){
+                            cutG = (TCutG *)cutList->At(i) ;
+                            if( cutG->IsInside(totalE, deltaE)){
+                              countFromCut[i] += 1;
+                            }
+                          }
+                        }
                         
                         break;
                     }
@@ -580,7 +687,15 @@ int main(int argc, char *argv[]){
             //filling rate graph
             graphIndex ++;
             graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
-            
+            if(isCutFileOpen){
+              cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+              for( int i = 0 ; i < numCut; i++ ){
+                  graphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
+                  cutG = (TCutG *)cutList->At(i) ;
+                  printf("                           Rate(%s) : %f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
+                  cCanvas->cd(1); gPad->cd(1); cutG->Draw("same");
+              }
+            }
             cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
             cCanvas->Update();
             
