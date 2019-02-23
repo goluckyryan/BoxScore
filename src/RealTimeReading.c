@@ -31,16 +31,20 @@
 
 #include "TROOT.h"
 #include "TSystem.h"
+#include "TStyle.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TApplication.h"
+#include "TRandom.h"
 
 using namespace std;
 
-//TODO 2) use root to plot histogram, TApplication, multi-thread
+//TODO 1) change eventbuild method
+//TODO 2) add cutting method
+//TODO 4) add rate graph
 //TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
 
 //========== General Digitizer setting;
@@ -61,31 +65,12 @@ TH1F * htotE = NULL;
 TH1F * hdE = NULL;
 TH2F * hEdE = NULL; 
 
-const int chE = 4;
-const int chDE = 6;
+const int chE = 0;
+const int chDE = 1;
 
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
-
-void paintCanvas(int argc, char* argv[] ){
-  
-  TApplication app ("app", &argc, argv);
-  
-  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 400);
-  cCanvas->Divide(4,1);
-  
-  hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, 0, 10000);
-  htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, 0, 10000);
-  hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, 0, 10000);
-  hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, 0, 10000, 500, 0, 10000);
-    
-  cCanvas->Draw();
-  
-  app.Run();
-  
-}
-
 int* ReadChannelSetting(int ch, string fileName){
 
   int * para = new int[17];
@@ -95,23 +80,23 @@ int* ReadChannelSetting(int ch, string fileName){
 
   if( !file_in){
     printf("ch: %d ------ default setting.\n", ch);
-    para[0] = 100;   // Trigger Threshold (in LSB)
+    para[0] = 100;      // Trigger Threshold (in LSB)
     para[1] = 3000;     // Trapezoid Rise Time (ns) 
     para[2] = 900;      // Trapezoid Flat Top  (ns) 
-    para[3] = 50000;      // Decay Time Constant (ns) 
-    para[4] = 500;    // Flat top delay (peaking time) (ns) 
-    para[5] = 4;       // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
-    para[6] = 200;     // Input Signal Rise time (ns) 
-    para[7] = 1200;  // Trigger Hold Off
-    para[8] = 4;     //number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
-    para[9] = 0;     //Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-    para[10] = 2000;  //peak holdoff (ns)
-    para[11] = 500;   //Baseline holdoff (ns)
-    para[12] = 1.0; // Energy Normalization Factor
-    para[13] = 0;  //decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
-    para[14] = 0;    //decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
-    para[15] = 0;  //Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
-    para[16] = 100;  //Rise Time Validation Window (ns)
+    para[3] = 50000;    // Decay Time Constant (ns) 
+    para[4] = 500;      // Flat top delay (peaking time) (ns) 
+    para[5] = 4;        // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
+    para[6] = 200;      // Input Signal Rise time (ns) 
+    para[7] = 1200;     // Trigger Hold Off
+    para[8] = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
+    para[9] = 0;        // Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
+    para[10] = 2000;    // peak holdoff (ns)
+    para[11] = 500;     // Baseline holdoff (ns)
+    para[12] = 1.0;     // Energy Normalization Factor
+    para[13] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
+    para[14] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
+    para[15] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
+    para[16] = 100;     // Rise Time Validation Window (ns)
   }else{
     printf("ch: %d ------ load from %s.\n", ch, fileName.c_str());
     string line;
@@ -210,10 +195,20 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     }
 }
 
+void painCanvas(){
+  //This function is running in a parrellel thread.
+  //This continously update the Root system with user input
+  //avoid frozen
+  do{
+    gSystem->ProcessEvents();
+  }while(true);
+}
+
 /* ########################################################################### */
 /* MAIN                                                                        */
 /* ########################################################################### */
 int main(int argc, char *argv[]){
+    
   if( argc != 2 ) {
     printf("Please input boardID! \n");
     return -1;
@@ -221,6 +216,8 @@ int main(int argc, char *argv[]){
   
   const int boardID = atoi(argv[1]);
 
+  TApplication app ("app", &argc, argv);
+  
   /* The following variable is the type returned from most of CAENDigitizer
   library functions and is used to check if there was an error in function
   execution. For example:
@@ -339,9 +336,9 @@ int main(int argc, char *argv[]){
     return 0;
   }
 
-    /* *************************************************************************************** */
-    /* Program the digitizer (see function ProgramDigitizer)                                   */
-    /* *************************************************************************************** */
+  /* *************************************************************************************** */
+  /* Program the digitizer (see function ProgramDigitizer)                                   */
+  /* *************************************************************************************** */
   ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
   if (ret != 0) {
     printf("Failed to program the digitizer\n");
@@ -400,9 +397,17 @@ int main(int argc, char *argv[]){
   rawTree->Branch("e", &e_r, "energy/i");
   rawTree->Branch("t", &t_r, "timeStamp/l");
   
-  //thread t1(paintCanvas, argc, argv);
-  //t1.join();
+  gStyle->SetOptStat("neiou");
+  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 400);
+  cCanvas->Divide(4,1);
   
+  hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, 0, 5000);
+  htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, 0, 5000);
+  hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, 0, 5000);
+  hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, 0, 5000, 500, 0, 5000);  
+
+  thread th(painCanvas); // using loop to update Canvas
+
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
   /* *************************************************************************************** */
@@ -451,6 +456,11 @@ int main(int argc, char *argv[]){
                 printf("---------- Duration : %lu msec\n", StopTime - StartTime);
                 PrintInterface();
                 AcqRun = 0;
+                
+            }
+            if( c == 'c'){
+                // pause and make cuts
+                
             }
         }
         if (!AcqRun) {
@@ -538,11 +548,11 @@ int main(int argc, char *argv[]){
             fileAppend->Close();
             
             cCanvas->cd(1); hEdE->Draw("colz");
-            cCanvas->cd(2); hdE->Draw("colz");
-            cCanvas->cd(3); hE->Draw("colz");
-            cCanvas->cd(4); htotE->Draw("colz");
+            cCanvas->cd(2); hE->Draw();
+            cCanvas->cd(3); hdE->Draw();
+            cCanvas->cd(4); htotE->Draw();
             cCanvas->Update();
-            gSystem->ProcessEvents();
+            
             
             //clear vectors
             rawChannel.clear();
@@ -575,7 +585,6 @@ int main(int argc, char *argv[]){
             if (!(Params.ChannelMask & (1<<ch)))
                 continue;
             
-            
             /* Update display */
             for (ev = 0; ev < NumEvents[ch]; ev++) {
                 TrgCnt[ch]++;
@@ -590,25 +599,24 @@ int main(int argc, char *argv[]){
                 }
                 
                 if( initClock[ch] == 0 ) initClock[ch] = Events[ch][ev].Extras2;
-                
-                rawChannel.push_back(ch);
-                rawEnergy.push_back(Events[ch][ev].Energy);
                 ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
                 ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
                 timetag += baseClock ; 
-                rawTimeStamp.push_back(timetag);
+                
                 evCount ++;
                 
                 ch_r = ch;
-                e_r = Events[ch][ev].Energy;
+                e_r = Events[ch][ev].Energy + int(gRandom->Gaus(0, 100));
                 t_r = timetag;
                 rawTree->Fill();
                 
+                rawChannel.push_back(ch);
+                rawEnergy.push_back(e_r);
+                rawTimeStamp.push_back(timetag);
+                
+                //printf("ch : %d , energy: %d \n", ch, e_r);
                 if( chDE == ch )  hdE->Fill(e_r); 
                 if( chE == ch )  hE->Fill(e_r); 
-                
-                //printf("ch : %d ,  time: %llu, Energy : %d | %lu\n", ch, timeStamp, Events[ch][ev].Energy , Events[ch][ev].TimeTag);
-                //printf("time: %llu, | %10lu | %d | %d | %llu \n",timeStamp, Events[ch][ev].TimeTag, Events[ch][ev].Extras2, initClock[ch], baseClock);
                 
             } // loop on events
         } // loop on channels
