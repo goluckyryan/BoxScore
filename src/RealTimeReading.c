@@ -37,7 +37,10 @@
 #include "TCanvas.h"
 #include "TH1F.h"
 #include "TH2F.h"
+#include "TGraph.h"
+#include "TMultiGraph.h"
 #include "TApplication.h"
+#include "TLegend.h"
 #include "TRandom.h"
 
 using namespace std;
@@ -64,6 +67,8 @@ TH1F * hE = NULL;
 TH1F * htotE = NULL;
 TH1F * hdE = NULL;
 TH2F * hEdE = NULL; 
+TMultiGraph * rateGraph = NULL;
+TGraph * graphRate = NULL;
 
 const int chE = 0;
 const int chDE = 1;
@@ -397,21 +402,37 @@ int main(int argc, char *argv[]){
   rawTree->Branch("e", &e_r, "energy/i");
   rawTree->Branch("t", &t_r, "timeStamp/l");
   
+  //==== Drawing 
   gStyle->SetOptStat("neiou");
-  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 400);
-  cCanvas->Divide(4,1);
+  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 800);
+  cCanvas->Divide(1,2);
+  cCanvas->cd(1); gPad->Divide(4,1);
   
   hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, 0, 5000);
   htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, 0, 5000);
   hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, 0, 5000);
   hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, 0, 5000, 500, 0, 5000);  
+  
+  rateGraph = new TMultiGraph();
+  rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
+ 
+  graphRate = new TGraph();
+  graphRate->SetTitle("Total Rate [pps]");
+  graphRate->SetMarkerColor(4);
+  graphRate->SetMarkerStyle(20);
+  graphRate->SetMarkerSize(1);
+  
+  rateGraph->Add(graphRate);
+  
+  TLegend * legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
+  legend->AddEntry(graphRate, "Total Beam rate");
 
-  thread th(painCanvas); // using loop to update Canvas
+  thread th(painCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
   /* *************************************************************************************** */
-  // Clear Histograms and counters
+
   for (ch = 0; ch < MaxNChannels; ch++) {
     TrgCnt[ch] = 0;
     ECnt[ch] = 0;
@@ -419,13 +440,14 @@ int main(int argc, char *argv[]){
     ExtendedTT[ch] = 0;
     PurCnt[ch] = 0;
   }
-    PrevRateTime = get_time();
-    AcqRun = 0;
-    PrintInterface();
-    int evCount = 0;
-    printf("Type a command: ");
-    
-    uint32_t initClock[8] = {0,0,0,0,0,0,0,0};
+  PrevRateTime = get_time();
+  AcqRun = 0;
+  PrintInterface();
+  int evCount = 0;
+  int graphIndex = 0;
+  printf("Type a command: ");
+  
+  uint32_t initClock[8] = {0,0,0,0,0,0,0,0};
     
     while(!Quit) {
         // Check keyboard
@@ -440,8 +462,10 @@ int main(int argc, char *argv[]){
                 // Start Acquisition
                 // NB: the acquisition for each board starts when the following line is executed
                 // so in general the acquisition does NOT starts syncronously for different boards
-                evCount = 0;
-                StartTime = get_time();
+                if( graphIndex == 0 ) {
+                  StartTime = get_time();
+                  evCount = 0;
+                }
                 CAEN_DGTZ_SWStartAcquisition(handle);
                 printf("Acquisition Started for Board %d\n", boardID);
                 AcqRun = 1;
@@ -452,7 +476,7 @@ int main(int argc, char *argv[]){
                 // Stop Acquisition
                 CAEN_DGTZ_SWStopAcquisition(handle); 
                 StopTime = get_time();  
-                printf("Acquisition Stopped for Board %d\n", boardID);
+                printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
                 printf("---------- Duration : %lu msec\n", StopTime - StartTime);
                 PrintInterface();
                 AcqRun = 0;
@@ -472,10 +496,11 @@ int main(int argc, char *argv[]){
         CurrentTime = get_time();
         ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
         int updatePeriod = 1000;
+        int countEventBuilt = 0;
         if (ElapsedTime > updatePeriod) {
             system(CLEARSCR);
             PrintInterface();
-            printf("\n====================== Table update every %.2f sec\n", updatePeriod/1000.);
+            printf("\n======== Tree, Histograms and Table update every ~%.2f sec\n", updatePeriod/1000.);
             printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
             printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
             printf("Total number of Event = %d \n", evCount);
@@ -491,7 +516,7 @@ int main(int argc, char *argv[]){
             }
             Nb = 0;
             PrevRateTime = CurrentTime;
-            printf("\n\n");
+            printf("\n");
             
             //sort event from tree and append to exist root
             //printf("---- append file \n");
@@ -507,7 +532,8 @@ int main(int argc, char *argv[]){
             
             int n = rawChannel.size();
             printf(" number of data to sort %d \n", n);
-            int count = 0;
+            
+            countEventBuilt = 0;
             for( int i = 0; i < n-1; i++){
                 //printf("---------------------------------- %d, %llu, %d \n", rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
                 for( int j = i+1; j < n ; j ++){
@@ -530,7 +556,7 @@ int main(int argc, char *argv[]){
                         energy[rawChannel[j]] = rawEnergy[j];
                         timeStamp[rawChannel[j]] = rawTimeStamp[j];
                         
-                        count ++;
+                        countEventBuilt ++;
                         tree->Fill();
                         
                         htotE->Fill(energy[chDE] + energy[chE]); // x, y
@@ -541,18 +567,22 @@ int main(int argc, char *argv[]){
                 }
             }
             
-            printf(" number of data sorted %d \n", count);
+            printf(" number of data sorted %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
             
             tree->Write("tree", TObject::kOverwrite); 
     
             fileAppend->Close();
             
-            cCanvas->cd(1); hEdE->Draw("colz");
-            cCanvas->cd(2); hE->Draw();
-            cCanvas->cd(3); hdE->Draw();
-            cCanvas->cd(4); htotE->Draw();
-            cCanvas->Update();
+            cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
+            cCanvas->cd(1); gPad->cd(2); hE->Draw();
+            cCanvas->cd(1); gPad->cd(3); hdE->Draw();
+            cCanvas->cd(1); gPad->cd(4); htotE->Draw();
+            //filling rate graph
+            graphIndex ++;
+            graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
             
+            cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+            cCanvas->Update();
             
             //clear vectors
             rawChannel.clear();
