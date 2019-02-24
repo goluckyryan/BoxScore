@@ -32,14 +32,20 @@ TObjArray * cutList = NULL;
 
 int main(int argc, char* argv[] ){
   
-  if( argc != 3 ) {
+  if( argc != 7 ) {
     printf("Please input channel for dE and E. \n");
-    printf("./CutCreator dE E \n");
+    printf("./CutCreator dE E rangeDE_min rangeDE_max rangeE_min rangeE_max\n");
     return 0;
   }
   
   int chDE = atoi(argv[1]);
   int chEE = atoi(argv[2]);
+  
+  int rangeDE_min = atoi(argv[3]);
+  int rangeDE_max = atoi(argv[4]);
+  
+  int rangeE_min = atoi(argv[5]);
+  int rangeE_max = atoi(argv[6]);
 
   TApplication app ("app", &argc, argv);
 
@@ -51,10 +57,10 @@ int main(int argc, char* argv[] ){
   TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 400, 400);
   if( !cCutCreator->GetShowToolBar() ) cCutCreator->ToggleToolBar();
 
-  TH2F * hEdE = new TH2F("hEdE", "dE - E ; dE [ch] ; E [ch]", 500, 0, 10000, 500, 0, 10000);
+  TH2F * hEdE = new TH2F("hEdE", "dE - E ; E [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeE_min , rangeE_max );
   
   TString expression;
-  expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chDE, chEE);
+  expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
 
   tree->Draw(expression, "", "colz");
   gSystem->ProcessEvents();
