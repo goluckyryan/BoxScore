@@ -1,17 +1,11 @@
 /******************************************************************************
-*
-* CAEN SpA - Front End Division
-* Via Vetraia, 11 - 55049 - Viareggio ITALY
-* +390594388398 - www.caen.it
-*
-***************************************************************************//**
-* \note TERMS OF USE:
-* This program is free software; you can redistribute it and/or modify it under
-* the terms of the GNU General Public License as published by the Free Software
-* Foundation. This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. The user relies on the
-* software, documentation and results solely at his own risk.
+*  This program is build upon the sample from CAEN. The use of CERN/ROOT 
+*  Library is wrote by myself.
+* 
+*  User can change the general setting from line 50 to line 67
+* 
+*  Tsz Leung (Ryan) TANG, Feb 23rd, 2019
+*  ttang@anl.gov
 ******************************************************************************/
 
 #include <CAENDigitizer.h>
@@ -60,11 +54,11 @@ const int RECORDLENGTH = 20000;   // Num of samples of the waveforms (only for w
 const int PreTriggerSize = 2000;
 const int CHANNELMASK = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
-const int CONINCIDENTTIME = 30000; // real time = CONINCIDENTTIME * 50 ns 
 const int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
 
 const int chE = 0;   //channel ID for E
 const int chDE = 1;  //channel ID for dE
+const int COINCIDENTWINDOW = 30000; // real time = COINCIDENTWINDOW * 2 ns 
 
 const int rangeDE[2] = {0, 5000}; // range for dE
 const int rangeE[2] = {0, 5000};  // range for E
@@ -84,7 +78,6 @@ TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
 TGraph ** graphRateCut = NULL; 
 TLegend * legend = NULL ; 
-
 //======== TCutG
 TFile * fCut = NULL;
 TString cutName;
@@ -95,7 +88,6 @@ int numCut = 0 ;
 vector<int> countFromCut;
 
 bool  QuitFlag = false;
-
 
 /* ###########################################################################
 *  Functions
@@ -639,7 +631,7 @@ int main(int argc, char *argv[]){
         for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
           int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
-          if( TMath::Abs( timeDiff ) < CONINCIDENTTIME ) { // 6000 ns time diff
+          if( TMath::Abs( timeDiff ) < COINCIDENTWINDOW ) { 
             //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
             for( int k = 0 ; k < MaxNChannels ; k++){
               channel[k] = -1;
