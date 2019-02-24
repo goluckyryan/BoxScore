@@ -75,6 +75,7 @@ TH1F * hE = NULL;
 TH1F * htotE = NULL;
 TH1F * hdE = NULL;
 TH2F * hEdE = NULL; 
+TH1F * hTDiff = NULL;
 //======== Rate Graph
 TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
@@ -465,12 +466,13 @@ int main(int argc, char *argv[]){
   gStyle->SetOptStat("neiou");
   cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 800);
   cCanvas->Divide(1,2);
-  cCanvas->cd(1); gPad->Divide(4,1);
+  cCanvas->cd(1); gPad->Divide(2,1); gPad->cd(2); gPad->Divide(2,2); gPad->cd(4)->SetLogy();
   
   hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, rangeDE[0], rangeDE[1]);
   hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeE[0], rangeE[1]);  
+  hTDiff = new TH1F("hTDiff", "timeDiff; count; time [unit = 2 ns]", 500, 0, 5e7);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
@@ -482,6 +484,15 @@ int main(int argc, char *argv[]){
   graphRate->SetMarkerSize(1);
   
   ReadCut("cutsFile.root");
+  
+  
+  cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
+  cCanvas->cd(1); gPad->cd(2); gPad->cd(1); hE->Draw();
+  cCanvas->cd(1); gPad->cd(2); gPad->cd(2); hdE->Draw();
+  cCanvas->cd(1); gPad->cd(2); gPad->cd(3); htotE->Draw();
+  cCanvas->cd(1); gPad->cd(2); gPad->cd(4); hTDiff->Draw();
+  cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+  cCanvas->Update();
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
@@ -607,13 +618,21 @@ int main(int argc, char *argv[]){
         }
       }
       
+      //Fill TDiff
+      for( int i = 0; i < n-1; i++){
+        for( int j = i+1; j < n ; j++){
+          if( rawChannel[i] == rawChannel[j] ) continue;
+          ULong64_t timeDiff = rawTimeStamp[j]- rawTimeStamp[i] ;
+          hTDiff->Fill(timeDiff);
+        }
+      }
+      
       //=== Event Build
       for( int i = 0; i < n-1; i++){
-        for( int j = i+1; j < n ; j ++){
+        for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
-          
-          int timediff = (int) (rawTimeStamp[i] - rawTimeStamp[j]) ;
-          if( TMath::Abs( timediff ) < CONINCIDENTTIME ) { // 6000 ns time diff
+          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
+          if( TMath::Abs( timeDiff ) < CONINCIDENTTIME ) { // 6000 ns time diff
             //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
             for( int k = 0 ; k < MaxNChannels ; k++){
               channel[k] = -1;
@@ -660,9 +679,10 @@ int main(int argc, char *argv[]){
       fileAppend->Close();
       
       cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
-      cCanvas->cd(1); gPad->cd(2); hE->Draw();
-      cCanvas->cd(1); gPad->cd(3); hdE->Draw();
-      cCanvas->cd(1); gPad->cd(4); htotE->Draw();
+      cCanvas->cd(1); gPad->cd(2); gPad->cd(1); hE->Draw();
+      cCanvas->cd(1); gPad->cd(2); gPad->cd(2); hdE->Draw();
+      cCanvas->cd(1); gPad->cd(2); gPad->cd(3); htotE->Draw();
+      cCanvas->cd(1); gPad->cd(2); gPad->cd(4); hTDiff->Draw();
       //filling rate graph
       graphIndex ++;
       graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
