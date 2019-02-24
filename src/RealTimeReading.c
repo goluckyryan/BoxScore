@@ -47,13 +47,13 @@
 
 using namespace std;
 
-//TODO 1) change eventbuild method
-//TODO 2) Add TimeDifferent Plot.
-//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
-
-//========== General Digitizer setting;
 #define MaxNChannels 8
 
+//TODO 1) change eventbuild method
+//TODO 2) put General Setting into a file
+//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
+
+//========== General setting;
 const float DCOFFSET = 0.2;
 const bool PositivePulse = true;
 const int RECORDLENGTH = 20000;   // Num of samples of the waveforms (only for waveform mode)
@@ -61,13 +61,14 @@ const int PreTriggerSize = 2000;
 const int CHANNELMASK = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
 const int CONINCIDENTTIME = 30000; // real time = CONINCIDENTTIME * 50 ns 
-const int updatePeriod = 2000; //Table, tree, Plots update period in mili-sec.
+const int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
 
 const int chE = 0;   //channel ID for E
 const int chDE = 1;  //channel ID for dE
 
 const int rangeDE[2] = {0, 5000}; // range for dE
 const int rangeE[2] = {0, 5000};  // range for E
+const ULong64_t rangeTime = 5e7;  // range for Tdiff
 
 //========= Histogram
 TCanvas * cCanvas = NULL;
@@ -240,7 +241,7 @@ void ReadCut(TString fileName){
   rateGraph->Add(graphRate);
   
   legend->Clear();
-  legend->AddEntry(graphRate, "Total Beam rate");
+  legend->AddEntry(graphRate, "Total");
   
   fCut = new TFile(fileName);
   isCutFileOpen = fCut->IsOpen(); 
@@ -468,14 +469,14 @@ int main(int argc, char *argv[]){
   cCanvas->Divide(1,2);
   cCanvas->cd(1); gPad->Divide(2,1); gPad->cd(2); gPad->Divide(2,2); gPad->cd(4)->SetLogy();
   
-  hE    = new TH1F(   "hE", "E ; count ; E [ch]",          500, rangeE[0], rangeE[1]);
-  htotE = new TH1F("htotE", "total E ; count ; totE [ch]", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
-  hdE   = new TH1F(  "hdE", "dE ; count ; dE [ch]",        500, rangeDE[0], rangeDE[1]);
-  hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeE[0], rangeE[1]);  
-  hTDiff = new TH1F("hTDiff", "timeDiff; count; time [unit = 2 ns]", 500, 0, 5e7);
+  hE    = new TH1F(   "hE", "E ; E [ch] ;count ",          500, rangeE[0], rangeE[1]);
+  htotE = new TH1F("htotE", "total E ; totE [ch] ; count", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
+  hdE   = new TH1F(  "hdE", "dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
+  hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeE[0], rangeE[1]);  
+  hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, 0, rangeTime);
   
   rateGraph = new TMultiGraph();
-  legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
+  legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
   
   graphRate = new TGraph();
   graphRate->SetTitle("Total Rate [pps]");
@@ -485,14 +486,14 @@ int main(int argc, char *argv[]){
   
   ReadCut("cutsFile.root");
   
-  
   cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
   cCanvas->cd(1); gPad->cd(2); gPad->cd(1); hE->Draw();
   cCanvas->cd(1); gPad->cd(2); gPad->cd(2); hdE->Draw();
   cCanvas->cd(1); gPad->cd(2); gPad->cd(3); htotE->Draw();
   cCanvas->cd(1); gPad->cd(2); gPad->cd(4); hTDiff->Draw();
-  cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+  //cCanvas->cd(2); rateGraph->Draw("AP"); //legend->Draw();
   cCanvas->Update();
+
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
@@ -696,6 +697,7 @@ int main(int argc, char *argv[]){
         }
       }
       cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+      cCanvas->Modified();
       cCanvas->Update();
         
       //clear vectors

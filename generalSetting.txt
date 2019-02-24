@@ -1,0 +1,13 @@
+0.2    //DCOFFSET
+true   //Pulse parity
+20000  // Num of samples of the waveforms (only for waveform mode)
+2000   // Pre trigger size;
+0x03   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+30000  // coincident time for event building, real time = coincident * 2 ns 
+2000   //Table, tree, Plots update period in mili-sec.
+0      //channel ID for E
+1      //channel ID for dE
+0      // range for dE
+5000 
+0      // range for dE
+5000  
