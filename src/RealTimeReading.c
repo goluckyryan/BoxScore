@@ -90,6 +90,8 @@ Bool_t isCutFileOpen = false;
 int numCut = 0 ;
 vector<int> countFromCut;
 
+bool  QuitFlag = false;
+
 
 /* ###########################################################################
 *  Functions
@@ -218,13 +220,15 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     }
 }
 
-void painCanvas(){
+void paintCanvas(){
   //This function is running in a parrellel thread.
   //This continously update the Root system with user input
   //avoid frozen
   do{
+    //cCanvas->Modified();
     gSystem->ProcessEvents();
-  }while(true);
+    //Sleep(10); // 10 mili-sec
+  }while(!QuitFlag);
 }
 
 void ReadCut(TString fileName){
@@ -307,8 +311,7 @@ int main(int argc, char *argv[]){
   int handle;
 
   /* Other variables */
-  int i, ch, ev;
-  int Quit=0;
+  int i, ch, ev; 
   int AcqRun = 0;
   uint32_t AllocatedSize, BufferSize;
   int Nb=0;
@@ -480,7 +483,7 @@ int main(int argc, char *argv[]){
   
   ReadCut("cutsFile.root");
 
-  thread th(painCanvas); // using loop keep root responding
+  thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -503,13 +506,13 @@ int main(int argc, char *argv[]){
   uint32_t initClock[MaxNChannels];
   for( int i = 0; i < MaxNChannels; i++) initClock[i] = 0;
     
-  while(!Quit) {
+  while(!QuitFlag) {
     // Check keyboard
     if(kbhit()) {
       char c;
       c = getch();
       if (c == 'q') {
-        Quit = 1;
+        QuitFlag = true;
       }
       if (c == 's')  {
         // Start Acquisition
@@ -740,10 +743,12 @@ int main(int argc, char *argv[]){
     rawTree->Write("rawtree", TObject::kOverwrite); 
     
   } // End of readout loop
-
+  
   rawTree->Write("rawtree", TObject::kOverwrite); 
   fileRaw->Close();
   //gROOT->ProcessLine(".q");
+  
+  paintCanvasThread.detach();
   
   /* stop the acquisition, close the device and free the buffers */
   CAEN_DGTZ_SWStopAcquisition(handle);
