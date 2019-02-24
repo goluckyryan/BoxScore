@@ -44,7 +44,7 @@ INCLUDES =	./include/*
 
 #########################################################################
 
-all	:	$(OUT1) $(OUT2) thread
+all	:	$(OUT1) $(OUT2) CutsCreator
 
 clean	:
 		/bin/rm -f $(OBJS) $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
@@ -55,8 +55,8 @@ $(OUT1)	:	$(OBJS) $(OBJS1)
 $(OUT2)	:	$(OBJS2)
 		$(CC) $(FLAGS) -o $(OUT2) $(OBJS2) $(DEPLIBS)
 		
-thread:	$(OBJS3) thread.c
-		g++ -std=c++11 -pthread thread.c -o thread `root-config --cflags --glibs`
+CutsCreator:	$(OBJS3) CutsCreator.c
+		g++ -std=c++11 -pthread CutsCreator.c -o CutsCreator `root-config --cflags --glibs`
 
 $(OBJS)	:	src/RealTimeReading.c
 		$(CC) $(FLAGS) $(INCLUDEDIR) -c -o $(OBJS) src/RealTimeReading.c `root-config --cflags --glibs`

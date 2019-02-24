@@ -72,9 +72,11 @@ TH2F * hEdE = NULL;
 //======== Rate Graph
 TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
-TGraph ** graphRateCut; //!
+TGraph ** graphRateCut = NULL; 
+TLegend * legend = NULL ; 
 
 //======== TCutG
+TFile * fCut = NULL;
 TString cutName;
 TCutG* cutG; //!
 TObjArray * cutList = NULL;
@@ -221,6 +223,42 @@ void painCanvas(){
   do{
     gSystem->ProcessEvents();
   }while(true);
+}
+
+void ReadCut(TString fileName){
+  
+  printf("\n");
+  rateGraph->Clear();
+  rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
+  rateGraph->Add(graphRate);
+  
+  legend->Clear();
+  legend->AddEntry(graphRate, "Total Beam rate");
+  
+  fCut = new TFile(fileName);
+  isCutFileOpen = fCut->IsOpen(); 
+  numCut = 0 ;
+  if( isCutFileOpen ){
+    cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+    numCut = cutList->GetEntries();
+    printf(" =========== found %d TCutG in %s \n", numCut, fileName.Data());
+    cutG = new TCutG();
+    graphRateCut = new TGraph * [numCut];
+    for(int i = 0; i < numCut ; i++){
+      printf(" cut name : %s \n", cutList->At(i)->GetName());
+      countFromCut.push_back(0);
+        
+      graphRateCut[i] = new TGraph();
+      graphRateCut[i]->SetMarkerColor(i+1);
+      graphRateCut[i]->SetMarkerStyle(20+i);
+      graphRateCut[i]->SetMarkerSize(1);
+      rateGraph->Add(graphRateCut[i]);
+      legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
+    }
+  }else{
+    printf(" =========== Cannot find %s \n", fileName.Data());
+  }
+  
 }
 
 /* ########################################################################### */
@@ -389,6 +427,7 @@ int main(int argc, char *argv[]){
   vector<UInt_t> rawEnergy;
   vector<int> rawChannel;
   
+  // ===== Sorted Tree
   TFile * fileout = new TFile("tree.root", "RECREATE");
   TTree * tree = new TTree("tree", "tree");
   
@@ -428,41 +467,15 @@ int main(int argc, char *argv[]){
   hEdE  = new TH2F( "hEdE", "dE - totE ; dE [ch ; totalE [ch]", 500, 0, 5000, 500, 0, 5000);  
   
   rateGraph = new TMultiGraph();
-  rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
- 
+  legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
+  
   graphRate = new TGraph();
   graphRate->SetTitle("Total Rate [pps]");
   graphRate->SetMarkerColor(4);
   graphRate->SetMarkerStyle(20);
   graphRate->SetMarkerSize(1);
   
-  rateGraph->Add(graphRate);
-  
-  TLegend * legend = new TLegend( 0.6, 0.2, 0.9, 0.4); 
-  legend->AddEntry(graphRate, "Total Beam rate");
-  
-  //check is there any cut.root
-  TFile * fCut = new TFile("cutsFile.root");  // open file
-  isCutFileOpen = fCut->IsOpen(); 
-  numCut = 0 ;
-  if( isCutFileOpen ){
-    cutList = (TObjArray *) fCut->FindObjectAny("cutList");
-    numCut = cutList->GetEntries();
-    printf("=========== found %d cutG \n", numCut);
-    cutG = new TCutG();
-    graphRateCut = new TGraph * [numCut];
-    for(int i = 0; i < numCut ; i++){
-      printf(" cut name : %s \n", cutList->At(i)->GetName());
-      countFromCut.push_back(0);
-        
-      graphRateCut[i] = new TGraph();
-      graphRateCut[i]->SetMarkerColor(i+1);
-      graphRateCut[i]->SetMarkerStyle(20+i);
-      graphRateCut[i]->SetMarkerSize(1);
-      rateGraph->Add(graphRateCut[i]);
-      legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
-    }
-  }
+  ReadCut("cutsFile.root");
 
   thread th(painCanvas); // using loop keep root responding
 
@@ -515,65 +528,21 @@ int main(int argc, char *argv[]){
                 StopTime = get_time();  
                 printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
                 printf("---------- Duration : %lu msec\n", StopTime - StartTime);
-                PrintInterface();
                 AcqRun = 0;
                 
             }
-            if( c == 'c' && cutList == NULL ){
-                /*
+            if( c == 'c' ){
                 // pause and make cuts
                 CAEN_DGTZ_SWStopAcquisition(handle); 
-                StopTime = get_time();  
                 printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
-                printf("---------- Duration : %lu msec\n", StopTime - StartTime);
+                
+                string expression = "./CutsCreator " + to_string(chDE) + " " + to_string(chE);
+                system(expression.c_str());
+                
+                ReadCut("cutsFile.root");
+                
+                PrintInterface();
                 AcqRun = 0;
-                
-                //make cuts
-                if( !cCanvas->GetShowToolBar() ) cCanvas->ToggleToolBar();
-                
-                TFile * cutFile = new TFile("cutsFile.root", "recreate");
-                TCutG * cutTemp = NULL ;
-                cutList = new TObjArray();
-                
-                numCut = 1;
-                do{
-                  cCanvas->cd(1); gPad->cd(1);
-                  gPad->WaitPrimitive();
-                  
-                  cutTemp = (TCutG*) gROOT->FindObject("CUTG");
-                  
-                  if( cutTemp == NULL ){
-                    printf(" cannot find TCutG object \n");
-                    numCut -- ;
-                    break;
-                  }
-                  
-                  TString name; name.Form("cut%d", numCut);
-                  cutTemp->SetName(name);
-                  cutTemp->SetLineColor(numCut);
-                  cutList->Add(cutTemp);
-                  
-                  printf(" cut-%d \n", numCut);
-                  numCut++;
-                }while( cutTemp != NULL );
-                
-                cutList->Write("cutList", TObject::kSingleKey);
-                printf("====> saved %d cuts into cutsFile.root\n", numCut);
-
-                if( numCut >= 1 ){
-                  countFromCut.clear();
-                  graphRateCut = new TGraph * [numCut];
-                  countFromCut.push_back(0);
-                  for(int i = 0; i < numCut ; i++){
-                    countFromCut.push_back(0);
-                    graphRateCut[i] = new TGraph();
-                    graphRateCut[i]->SetMarkerColor(i+1);
-                    graphRateCut[i]->SetMarkerStyle(20+i);
-                    graphRateCut[i]->SetMarkerSize(1);
-                    rateGraph->Add(graphRateCut[i]);
-                    legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
-                  }
-                }*/
             }
         }
         if (!AcqRun) {
@@ -612,9 +581,6 @@ int main(int argc, char *argv[]){
             TFile * fileAppend = new TFile("tree.root", "UPDATE");
             tree = (TTree*) fileAppend->Get("tree");
             
-            //UInt_t x[2];
-            //ULong64_t t[2];
-            //int ch[2];
             tree->SetBranchAddress("e", energy);
             tree->SetBranchAddress("t", timeStamp);
             tree->SetBranchAddress("ch", channel);
@@ -772,7 +738,8 @@ int main(int argc, char *argv[]){
 
   rawTree->Write("rawtree", TObject::kOverwrite); 
   fileRaw->Close();
-
+  //gROOT->ProcessLine(".q");
+  
   /* stop the acquisition, close the device and free the buffers */
   CAEN_DGTZ_SWStopAcquisition(handle);
   CAEN_DGTZ_CloseDigitizer(handle);
