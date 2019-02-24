@@ -70,6 +70,8 @@ const int rangeDE[2] = {0, 5000}; // range for dE
 const int rangeE[2] = {0, 5000};  // range for E
 const ULong64_t rangeTime = 5e7;  // range for Tdiff
 
+const bool isSaveRaw = false; // saving Raw data
+
 //========= Histogram
 TCanvas * cCanvas = NULL;
 TH1F * hE = NULL;
@@ -452,26 +454,31 @@ int main(int argc, char *argv[]){
   fileout->Close();
   
   //=== Raw tree
-  TFile * fileRaw = new TFile("raw.root", "RECREATE");
-  TTree * rawTree = new TTree("rawtree", "rawtree");
-  
   ULong64_t t_r;
   UInt_t e_r;
   int ch_r;
   
-  rawTree->Branch("ch", &ch_r, "channel/I");
-  rawTree->Branch("e", &e_r, "energy/i");
-  rawTree->Branch("t", &t_r, "timeStamp/l");
-  
+  TFile * fileRaw = NULL;
+  TTree * rawTree = NULL;
+  if( isSaveRaw ) {
+    fileRaw = new TFile("raw.root", "RECREATE");
+    rawTree = new TTree("rawtree", "rawtree");
+    
+    rawTree->Branch("ch", &ch_r, "channel/I");
+    rawTree->Branch("e", &e_r, "energy/i");
+    rawTree->Branch("t", &t_r, "timeStamp/l");
+  }
   //==== Drawing 
   gStyle->SetOptStat("neiou");
   cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 800);
   cCanvas->Divide(1,2);
-  cCanvas->cd(1); gPad->Divide(2,1); gPad->cd(2); gPad->Divide(2,2); gPad->cd(4)->SetLogy();
+  cCanvas->cd(1)->Divide(2,1); 
+  cCanvas->cd(1)->cd(2)->Divide(2,2); 
+  cCanvas->cd(1)->cd(2)->cd(4)->SetLogy();
   
-  hE    = new TH1F(   "hE", "E ; E [ch] ;count ",          500, rangeE[0], rangeE[1]);
-  htotE = new TH1F("htotE", "total E ; totE [ch] ; count", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
-  hdE   = new TH1F(  "hdE", "dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
+  hE    = new TH1F(   "hE", "raw E ; E [ch] ;count ",         500, rangeE[0], rangeE[1]);
+  htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
+  hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
   hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeE[0], rangeE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, 0, rangeTime);
   
@@ -486,11 +493,11 @@ int main(int argc, char *argv[]){
   
   ReadCut("cutsFile.root");
   
-  cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
-  cCanvas->cd(1); gPad->cd(2); gPad->cd(1); hE->Draw();
-  cCanvas->cd(1); gPad->cd(2); gPad->cd(2); hdE->Draw();
-  cCanvas->cd(1); gPad->cd(2); gPad->cd(3); htotE->Draw();
-  cCanvas->cd(1); gPad->cd(2); gPad->cd(4); hTDiff->Draw();
+  cCanvas->cd(1)->cd(1); hEdE->Draw("colz");
+  cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
+  cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
+  cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
+  cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
   //cCanvas->cd(2); rateGraph->Draw("AP"); //legend->Draw();
   cCanvas->Update();
 
@@ -513,8 +520,6 @@ int main(int argc, char *argv[]){
   PrintInterface();
   int evCount = 0;
   int graphIndex = 0;
-  printf("Type a command: ");
-  
   uint32_t initClock[MaxNChannels];
   for( int i = 0; i < MaxNChannels; i++) initClock[i] = 0;
     
@@ -551,6 +556,7 @@ int main(int argc, char *argv[]){
         CAEN_DGTZ_SWStopAcquisition(handle); 
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         
+        fCut->Close();
         string expression = "./CutsCreator " + to_string(chDE) + " " ;
         expression = expression + to_string(chE) + " ";
         expression = expression + to_string(rangeDE[0]) + " ";
@@ -675,15 +681,28 @@ int main(int argc, char *argv[]){
         
       printf(" number of data sorted %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
-      tree->Write("tree", TObject::kOverwrite); 
+      // write histograms and tree
+      tree->Write("", TObject::kOverwrite); 
+      hEdE->Write("", TObject::kOverwrite); 
+      hE->Write("", TObject::kOverwrite); 
+      hdE->Write("", TObject::kOverwrite); 
+      htotE->Write("", TObject::kOverwrite);
+      hTDiff->Write("", TObject::kOverwrite);
+      rateGraph->Write("rateGraph", TObject::kOverwrite); 
 
       fileAppend->Close();
       
-      cCanvas->cd(1); gPad->cd(1); hEdE->Draw("colz");
-      cCanvas->cd(1); gPad->cd(2); gPad->cd(1); hE->Draw();
-      cCanvas->cd(1); gPad->cd(2); gPad->cd(2); hdE->Draw();
-      cCanvas->cd(1); gPad->cd(2); gPad->cd(3); htotE->Draw();
-      cCanvas->cd(1); gPad->cd(2); gPad->cd(4); hTDiff->Draw();
+      if( isSaveRaw ) {
+        fileRaw->cd();
+        rawTree->Write("rawtree", TObject::kOverwrite); 
+      }
+      
+      
+      cCanvas->cd(1)->cd(1); hEdE->Draw("colz");
+      cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
       //filling rate graph
       graphIndex ++;
       graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
@@ -693,9 +712,10 @@ int main(int argc, char *argv[]){
           graphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           printf("                           Rate(%s) : %f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
-          cCanvas->cd(1); gPad->cd(1); cutG->Draw("same");
+          cCanvas->cd(1)->cd(1); cutG->Draw("same");
         }
       }
+      rateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3);
       cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
       cCanvas->Modified();
       cCanvas->Update();
@@ -748,8 +768,9 @@ int main(int argc, char *argv[]){
           
           ch_r = ch;
           e_r = Events[ch][ev].Energy + int(gRandom->Gaus(0, 100));
+          if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
           t_r = timetag;
-          rawTree->Fill();
+          if( isSaveRaw ) rawTree->Fill();
           
           rawChannel.push_back(ch);
           rawEnergy.push_back(e_r);
@@ -761,14 +782,13 @@ int main(int argc, char *argv[]){
           
       } // loop on events
     } // loop on channels
-    fileRaw->cd();
-    rawTree->Write("rawtree", TObject::kOverwrite); 
-    
   } // End of readout loop
   
-  rawTree->Write("rawtree", TObject::kOverwrite); 
-  fileRaw->Close();
-  //gROOT->ProcessLine(".q");
+  if( isSaveRaw ) {
+    rawTree->Write("rawtree", TObject::kOverwrite); 
+    fileRaw->Close();
+  }
+  fCut->Close();
   
   paintCanvasThread.detach();
   
