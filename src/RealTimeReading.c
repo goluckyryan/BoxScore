@@ -806,15 +806,6 @@ int main(int argc, char *argv[]){
         }
       }
       
-      //Fill TDiff
-      for( int i = 0; i < n-1; i++){
-        //printf("%d,  raw event : ch %d , e: %d, t: %f ms \n",i,  rawChannel[i], rawEnergy[i], rawTimeStamp[i] * ch2ns * 1e-6);
-        for( int j = i+1; j < n ; j++){
-          if( rawChannel[i] == rawChannel[j] ) continue;
-          ULong64_t timeDiff = rawTimeStamp[j]- rawTimeStamp[i] ;
-          hTDiff->Fill(timeDiff);
-        }
-      }
       
       //=== Event Building by sorrting 
       // bubble sort
@@ -842,6 +833,17 @@ int main(int argc, char *argv[]){
         rawEnergy[i] = energyT[sortIndex[i]];
         //printf("%d,  %llu \n", i, rawTimeStamp[i]);
       }
+      
+      //Fill TDiff
+      for( int i = 0; i < n-1; i++){
+        //printf("%d,  raw event : ch %d , e: %d, t: %f ms \n",i,  rawChannel[i], rawEnergy[i], rawTimeStamp[i] * ch2ns * 1e-6);
+        //for( int j = i+1; j < n ; j++){
+          //if( rawChannel[i] == rawChannel[j] ) continue;
+          ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
+          hTDiff->Fill(timeDiff);
+        //}
+      }
+      
       // build event base on coincident window
       for( int i = 0; i < n-1; i++){
         int numRawEventGrouped = 1;
