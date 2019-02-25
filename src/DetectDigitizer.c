@@ -2,6 +2,7 @@
 #include "CAENDigitizer.h"
 
 #include "keyb.h"
+#include <cmath>
 
 #define CAEN_USE_DIGITIZERS
 #define IGNORE_DPP_DEPRECATED
@@ -16,11 +17,52 @@ int checkCommand() {
     case 's':  return 9; break;
     case 'k':  return 1; break;
     case 'r':  return 3; break;
-    case 'w':  return 4; break;
+    case 'p':  return 4; break;
     case 'q':  return 2; break;
   }
   return 0;
 }
+void GetChannelSetting(int handle, int ch){
+  
+  uint32_t * value = new uint32_t[8];
+  
+  printf("================ Getting setting for channel %d \n", ch);
+  
+  printf("--------------- input \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
+  CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
+  
+  //DPP algorithm Control
+  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
+  int polarity = int(value[0] >> 16); //in bit[16]
+  printf("%20s  %s \n", "polarity",  (polarity & 1) ==  0 ? "Positive" : "negative"); //Polarity
+  int baseline = int(value[0] >> 20) ; // in bit[22:20]
+  printf("%20s  %.0f sample \n", "Ns baseline",  pow(4, 1 + baseline & 7)); //Ns baseline
+  int NsPeak = int(value[0] >> 12); // in bit[13:12]
+  
+  CAEN_DGTZ_ReadRegister(handle, 0x1098 + (ch << 8), value); printf("%20s  %.2f %% \n", "DC offset",  value[0] * 100./ int(0xffff) ); //DC offset
+  CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value); printf("%20s  %.1f Vpp \n", "input Dynamic",  value[0] == 0 ? 2 : 0.5); //InputDynamic
+  
+  printf("--------------- discriminator \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
+  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off",  value[0] * 8); //Trigger Hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] *2 ); //Fast Discriminator smoothing
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time",  value[0] * 2); //Input rise time
+  
+  printf("--------------- Trapezoid \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time",  value[0] * 8 ); //Trap. rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. flat time",  value[0] * 8); //Trap. flat time
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns \n", "peaking time",  value[0] * 8); //Peaking time
+  printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off",  value[0] * 8 ); //Peak hold off
+  
+  printf("--------------- Other \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); //Energy fine gain
+    
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -125,11 +167,13 @@ int main(int argc, char* argv[])
     printf("\n\nPress 's' to start the acquisition\n"); // c = 9
     printf("Press 'k' to stop  the acquisition\n");   // c  = 1
     printf("Press 'r' to read  a register\n");         // c = 3
+    printf("Press 'p' to read Channel Setting\n");         // c = 3
     printf("Press 'q' to quit  the application\n\n");  // c = 2
     while (1) {
       c = checkCommand();
       if (c == 9) break;
       if (c == 3) break;
+      if (c == 4) break;
       if (c == 2) return 0;
       Sleep(100);
     }
@@ -154,6 +198,18 @@ int main(int argc, char* argv[])
       for(b=0; b<MAXNB; b++)
         ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
       return 0;
+    }
+    
+    if( c == 4 ){
+      printf(" Get from Board 1 \n");
+      for( int ch = 0; ch < 8; ch++){
+        GetChannelSetting(handle[1], ch);
+      }
+      
+      for(b=0; b<MAXNB; b++)
+        ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
+      return 0;
+      
     }
     
     /* Malloc Readout Buffer.

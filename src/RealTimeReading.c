@@ -43,7 +43,8 @@ using namespace std;
 
 #define MaxNChannels 8
 
-//TODO 1) change eventbuild method
+//TODO 1) change DCoffset, pulseParity to channel
+//TODO 2) add energy fine gain, address 0x1n4C
 
 //========== General setting;
 double ch2ns = 2;
@@ -210,6 +211,47 @@ int* ReadChannelSetting(int ch, string fileName){
   }
 
   return para;
+}
+
+void GetChannelSetting(int handle, int ch){
+  
+  uint32_t * value = new uint32_t[8];
+  
+  printf("================ Getting setting for channel %d \n", ch);
+  
+  printf("--------------- input \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
+  CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
+  
+  //DPP algorithm Control
+  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
+  int polarity = int(value[0] >> 16); //in bit[16]
+  printf("%20s  %s \n", "polarity",  (polarity & 1) ==  0 ? "Positive" : "negative"); //Polarity
+  int baseline = int(value[0] >> 20) ; // in bit[22:20]
+  printf("%20s  %.0f sample \n", "Ns baseline",  pow(4, 1 + baseline & 7)); //Ns baseline
+  int NsPeak = int(value[0] >> 12); // in bit[13:12]
+  
+  CAEN_DGTZ_ReadRegister(handle, 0x1098 + (ch << 8), value); printf("%20s  %.2f %% \n", "DC offset",  value[0] * 100./ int(0xffff) ); //DC offset
+  CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value); printf("%20s  %.1f Vpp \n", "input Dynamic",  value[0] == 0 ? 2 : 0.5); //InputDynamic
+  
+  printf("--------------- discriminator \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
+  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off",  value[0] * 8); //Trigger Hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] *2 ); //Fast Discriminator smoothing
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time",  value[0] * 2); //Input rise time
+  
+  printf("--------------- Trapezoid \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time",  value[0] * 8 ); //Trap. rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. flat time",  value[0] * 8); //Trap. flat time
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns \n", "peaking time",  value[0] * 8); //Peaking time
+  printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off",  value[0] * 8 ); //Peak hold off
+  
+  printf("--------------- Other \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); //Energy fine gain
+    
 }
 
 int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams, int inputDynamicRange[]){
@@ -642,6 +684,16 @@ int main(int argc, char *argv[]){
       c = getch();
       if (c == 'q') {
         QuitFlag = true;
+      }
+      if (c == 'p') {
+        //read channel setting form digitizer
+        CAEN_DGTZ_SWStopAcquisition(handle); 
+        printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
+        for( int id = 0 ; id < MaxNChannels ; id++ ) {
+          if (Params.ChannelMask & (1<<id)) GetChannelSetting(handle, 0);
+        }
+        printf("===================================\n");
+        PrintInterface();
       }
       if (c == 's')  {
         // Start Acquisition
