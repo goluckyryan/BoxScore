@@ -83,13 +83,27 @@ int main(int argc, char* argv[])
         /* Once we have the handler to the digitizer, we use it to call the other functions */
         ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);
         printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
-        printf("\tROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
-        printf("\tAMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
+        printf("\tBoard Model Familty %d\n", BoardInfo.FamilyCode);
+        printf("\tR0C (Read-out-Controller) FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
+        printf("\tAMC (ADC & Memory Controller) FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
         
         // Check firmware revision (DPP firmwares cannot be used with this demo */
         sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
         if (MajorNumber >= 128) {
           printf("\t==== This digitizer has a DPP firmware!\n");
+          switch (MajorNumber){
+            case 0x80: printf("\tDPP-PHA for x724 boards \n"); break;
+            case 0x82: printf("\tDPP-CI for x720 boards  \n"); break;
+            case 0x83: printf("\tDPP-PSD for x720 boards \n"); break;
+            case 0x84: printf("\tDPP-PSD for x751 boards \n"); break;
+            case 0x85: printf("\tDPP-ZLE for x751 boards \n"); break;
+            case 0x86: printf("\tDPP-PSD for x743 boards \n"); break;
+            case 0x87: printf("\tDPP-QDC for x740 boards \n"); break;
+            case 0x88: printf("\tDPP-PSD for x730 boards \n"); break;
+            case 0x8B: printf("\tDPP-PHA for x730 boards \n"); break;
+            case 0x8C: printf("\tDPP-ZLE for x730 boards \n"); break;
+            case 0x8D: printf("\tDPP-DAW for x730 boards \n"); break;
+          }
           //goto QuitProgram;
         }
 
@@ -124,16 +138,17 @@ int main(int argc, char* argv[])
       
       printf(" Getting Board 1 Register \n");
       
-      ret = CAEN_DGTZ_WriteRegister(handle[1], 0xEF24, 0); // software reset
+      //ret = CAEN_DGTZ_WriteRegister(handle[1], 0xEF24, 0); // software reset
       
       // write Input Dynamic Range 
-      ret = CAEN_DGTZ_WriteRegister(handle[1], 0x8028, 0); // all channel to be 0
-      ret = CAEN_DGTZ_WriteRegister(handle[1], 0x1028, 1); // ch0 to be 1
+      //ret = CAEN_DGTZ_WriteRegister(handle[1], 0x8028, 0); // all channel to be 0
+      //ret = CAEN_DGTZ_WriteRegister(handle[1], 0x1028, 1); // ch0 to be 1
       // read 
+      
       for( int ch = 0 ; ch < 8 ; ch++){
         uint32_t * value = new uint32_t[8];
-        ret = CAEN_DGTZ_ReadRegister(handle[1], 0x1028 + (ch << 8), value);
-        printf(" InputDynamic Range (ch:%d): %d \n", ch, value[0]);
+        ret = CAEN_DGTZ_ReadRegister(handle[1], 0x10A0 + (ch << 8), value);
+        printf(" DPP Algorithm Control 2  (ch:%d): 0x%08x \n", ch, value[0]);
       }
       
       for(b=0; b<MAXNB; b++)

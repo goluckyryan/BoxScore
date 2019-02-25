@@ -124,7 +124,7 @@ void ReadGeneralSetting(string fileName){
         if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
         if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
         if( count == 5  )   updatePeriod = atoi(line.substr(0, pos).c_str());
-        if( count == 6  ) CoincidentWindow = atoi(line.substr(0, pos).c_str());
+        if( count == 6  ) CoincidentWindow = int(atof(line.substr(0, pos).c_str()));
         if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
         if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
         if( count == 9  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
@@ -200,7 +200,7 @@ int* ReadChannelSetting(int ch, string fileName){
       if( pos > 1 ){
         if( count > numPara - 1) break;
         para[count] = atoi(line.substr(0, pos).c_str());
-        //printf("%d | %d \n", count, para[count]);
+        printf("%d | %d \n", count, para[count]);
         count ++;
       }
     }
@@ -282,6 +282,13 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
             //uint32_t * value = new uint32_t[8];
             //ret = CAEN_DGTZ_ReadRegister(handle, 0x1028 + (i << 8), value);
             //printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
+            
+            // Set DPP Algorithm Control 2
+            //ret |= CAEN_DGTZ_WriteRegister(handle, 0x10A0 +  (i<<8), 0x00000207);
+            
+            uint32_t * value = new uint32_t[8];
+            ret = CAEN_DGTZ_ReadRegister(handle, 0x1080 + (i << 8), value);
+            printf(" DPP Algorithm Control 1  (ch:%d): 0x%08x \n", i, value[0]);
         }
     }
 
@@ -350,13 +357,14 @@ void ReadCut(TString fileName){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
-  if( argc != 3 ) {
-    printf("Please input boardID! and root file name!\n");
+  if( argc != 2 && argc != 3 ) {
+    printf("Please input boardID! (optional root file name)\n");
     return -1;
   }
   
   const int boardID = atoi(argv[1]);
-  const string rootFileName = argv[2];
+  string rootFileName = "tree.root";
+  if( argc == 3 ) rootFileName = argv[2];
   
   printf("******************************************** \n");
   printf("****         Real Time PID              **** \n");
@@ -403,7 +411,7 @@ int main(int argc, char *argv[]){
   int i, ch, ev; 
   int AcqRun = 0;
   uint32_t AllocatedSize, BufferSize;
-  int Nb=0;
+  int Nb=0;  // buffer number
   int MajorNumber;
   uint64_t CurrentTime, PrevRateTime, ElapsedTime;
   uint64_t StartTime, StopTime;
@@ -425,8 +433,8 @@ int main(int argc, char *argv[]){
   /****************************\
   *  Acquisition parameters    *
   \****************************/
-  //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   Params.RecordLength = RecordLength;                       // Num of samples of the waveforms (only for Oscilloscope mode)
   Params.ChannelMask = ChannelMask;                         // Channel enable mask, 0x01, only frist channel, 0xff, all channel
   Params.EventAggr = 1;                                     // number of events in one aggregate (0=automatic), number of event acculated for read-off
@@ -440,24 +448,28 @@ int main(int argc, char *argv[]){
   \****************************/
   for(ch=0; ch<MaxNChannels; ch++) {
     int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
-    DPPParams.thr[ch] = para[0]; 
-    DPPParams.k[ch] = para[1];  
-    DPPParams.m[ch] = para[2];  
-    DPPParams.M[ch] = para[3];   
-    DPPParams.ftd[ch] = para[4];  
-    DPPParams.a[ch] = para[5];    
-    DPPParams.b[ch] = para[6];    
-    DPPParams.trgho[ch] = para[7];  
-    DPPParams.nsbl[ch] = para[8];  
-    DPPParams.nspk[ch] = para[9];    
-    DPPParams.pkho[ch] = para[10]; 
-    DPPParams.blho[ch] = para[11]; 
-    DPPParams.enf[ch] = para[12]; 
-    DPPParams.decimation[ch] = para[13]; 
-    DPPParams.dgain[ch] = para[14];    
-    DPPParams.trgwin[ch] = para[15]; 
-    DPPParams.twwdt[ch] = para[16]; 
-    InputDynamicRange[ch] = para[17];
+    DPPParams.thr[ch] = para[0];              // Trigger Threshold (in LSB)
+    DPPParams.trgho[ch] = para[1];            // Trigger Hold Off
+    DPPParams.a[ch] = para[2];                // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to a
+    DPPParams.b[ch] = para[3];                // Input Signal Rise time (ns) 
+    
+    DPPParams.k[ch] = para[4];                // Trapezoid Rise Time (ns) 
+    DPPParams.m[ch] = para[5];                // Trapezoid Flat Top  (ns) 
+    DPPParams.M[ch] = para[6];                // Decay Time Constant (ns) 
+    DPPParams.ftd[ch] = para[7];              // Flat top delay (peaking time) (ns) 
+    DPPParams.nspk[ch] = para[8];             // Ns peak, Peak mean (number of samples to average for trapezoid he
+    DPPParams.pkho[ch] = para[9];            // peak holdoff (ns)
+    
+    DPPParams.nsbl[ch] = para[10];             // Ns baseline, number of samples for baseline average calculation. Opti
+    DPPParams.blho[ch] = para[11];            // Baseline holdoff (ns)
+    InputDynamicRange[ch] = para[12];
+    
+    DPPParams.enf[ch] = para[13];             // Energy Normalization Factor, it is float, but please us
+    DPPParams.decimation[ch] = para[14];      // decimation (the input signal samples are averaged within
+    DPPParams.dgain[ch] = para[15];           // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGa
+    DPPParams.trgwin[ch] = para[16];          // Enable Rise time Discrimination. Options: 0->disabled; 1
+    DPPParams.twwdt[ch] = para[17];           // Rise Time Validation Window (ns)
+    
   }
   printf("====================================== \n");
   
@@ -610,8 +622,6 @@ int main(int argc, char *argv[]){
   int rawEvCount = 0;
   int evCount = 0;
   int graphIndex = 0;
-  uint32_t initClock[MaxNChannels];
-  for( int i = 0; i < MaxNChannels; i++) initClock[i] = 0;
     
   while(!QuitFlag) {
     // Check keyboard
@@ -727,8 +737,9 @@ int main(int argc, char *argv[]){
           hTDiff->Fill(timeDiff);
         }
       }
+      
+      //=== Event Building by sorrting 
       /*
-      //=== Event Building
       // bubble sort
       int sortIndex[n];
       double bubbleSortTime[n];
@@ -800,16 +811,16 @@ int main(int argc, char *argv[]){
         
         i += numRawEventGrouped-1; 
         
-      }*/
-      // end of event building
+      }/**/// end of event building
       
-      
+      // Event  building simple
       for( int i = 0; i < n-1; i++){
+        //printf("%d --- %d, %llu, %d \n",i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
         for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
           int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
           if( TMath::Abs( timeDiff ) < CoincidentWindow ) { 
-            //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
+            //printf("           %d,    %d, %llu, %d \n", j, rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
             for( int k = 0 ; k < MaxNChannels ; k++){
               channel[k] = -1;
               energy[k] = 0;
@@ -848,7 +859,7 @@ int main(int argc, char *argv[]){
           }
         }
       }// end of event build
-      
+      /**/
         
       printf(" number of data sorted %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
@@ -929,15 +940,12 @@ int main(int argc, char *argv[]){
               PurCnt[ch]++;
           }
           
-          if( initClock[ch] == 0 ) initClock[ch] = Events[ch][ev].Extras2;
-          ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
+          // Extras2 : bits[31:16] = roll over, bits[15:0] depends see DPP algorithm Control 2
+          ULong64_t rollOver = Events[ch][ev].Extras2 >> 16;
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-          timetag += baseClock ; 
+          timetag  += rollOver << 31;
           
-          printf(" %d, %d, %lu \n", Events[ch][ev].Extras, Events[ch][ev].Extras2, Events[ch][ev].TimeTag);
-          
-          //printf("ch: %d %llu, %llu, %lu \n", ch, timetag, baseClock, initClock[ch]);
-        
+          //printf(" %llu, %15lu, %15llu, %f sec \n", rollOver, Events[ch][ev].TimeTag, timetag, timetag * ch2ns * 1e-9);
           
           rawEvCount ++;
           
