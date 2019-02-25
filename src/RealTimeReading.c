@@ -221,9 +221,9 @@ void GetChannelSetting(int handle, int ch){
   printf("================ Getting setting for channel %d \n", ch);
   //DPP algorithm Control
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
-  printf("                         32  28  24  20  16  12   8   4   0\n");
-  printf("                          |   |   |   |   |   |   |   |   |\n");
-  cout <<" DPP algorith Control  :   " << bitset<32>(value[0]) << endl;
+  printf("                          32  28  24  20  16  12   8   4   0\n");
+  printf("                           |   |   |   |   |   |   |   |   |\n");
+  cout <<" DPP algorithm Control  :   " << bitset<32>(value[0]) << endl;
   
   int trapRescaling = int(value[0]) & 31 ;
   int polarity = int(value[0] >> 16); //in bit[16]
@@ -231,7 +231,7 @@ void GetChannelSetting(int handle, int ch){
   int NsPeak = int(value[0] >> 12); // in bit[13:12]
   //DPP algorithm Control 2
   CAEN_DGTZ_ReadRegister(handle, 0x10A0 + (ch << 8), value);
-  cout <<" DPP algorith Control 2:   " << bitset<32>(value[0]) << endl;
+  cout <<" DPP algorithm Control 2:   " << bitset<32>(value[0]) << endl;
   
   printf("--------------- input \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
@@ -809,7 +809,6 @@ int main(int argc, char *argv[]){
         }
       }
       
-      
       //=== Event Building by sorrting 
       // bubble sort
       int sortIndex[n];
@@ -848,7 +847,13 @@ int main(int argc, char *argv[]){
       }
       
       // build event base on coincident window
+      int endID = 0;
       for( int i = 0; i < n-1; i++){
+        int timeToEnd = (int) (rawTimeStamp[n-1] - rawTimeStamp[i]) ;
+        if( timeToEnd < CoincidentWindow) {
+          endID = i;
+          break;
+        }
         int numRawEventGrouped = 1;
         for( int j = i+1; j < n; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
@@ -894,6 +899,12 @@ int main(int argc, char *argv[]){
         i += numRawEventGrouped-1; 
         
       }/**/// end of event building
+      
+      //clear vectors but keep from endID
+      rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
+      rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
+      rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
+      printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
         
       printf(" number of event built %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
@@ -922,7 +933,6 @@ int main(int argc, char *argv[]){
       graphIndex ++;
       graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
       if(isCutFileOpen){
-        //cutList = (TObjArray *) fCut->FindObjectAny("cutList");
         for( int i = 0 ; i < numCut; i++ ){
           graphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
@@ -934,11 +944,6 @@ int main(int argc, char *argv[]){
       cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
       cCanvas->Modified();
       cCanvas->Update();
-        
-      //clear vectors
-      rawChannel.clear();
-      rawEnergy.clear();
-      rawTimeStamp.clear();
         
     }
     
