@@ -46,8 +46,8 @@ int main(int argc, char* argv[] ){
   int rangeDE_min = atoi(argv[4]);
   int rangeDE_max = atoi(argv[5]);
   
-  int rangeE_min = atoi(argv[5]);
-  int rangeE_max = atoi(argv[6]);
+  int rangeE_min = atoi(argv[6]);
+  int rangeE_max = atoi(argv[7]);
 
   TApplication app ("app", &argc, argv);
 

@@ -623,7 +623,7 @@ int main(int argc, char *argv[]){
   AcqRun = 0;
   PrintInterface();
   int rawEvCount = 0;
-  int evCount = 0;
+  int totEventBuilt = 0;
   int graphIndex = 0;
   ULong64_t rollOver = 0;
   
@@ -650,7 +650,7 @@ int main(int argc, char *argv[]){
         if( graphIndex == 0 ) {
           StartTime = get_time();
           rawEvCount = 0;
-          evCount = 0;
+          totEventBuilt = 0;
         }
         CAEN_DGTZ_SWStartAcquisition(handle);
         printf("Acquisition Started for Board %d\n", boardID);
@@ -696,13 +696,13 @@ int main(int argc, char *argv[]){
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
     if (ElapsedTime > updatePeriod) {
-      //system(CLEARSCR);
+      system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
       printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
       printf("Total number of Raw Event = %d \n", rawEvCount);
-      printf("Total number of Event Built = %d \n", evCount);
+      printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Built-event save to  : %s \n", rootFileName.c_str() );
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
@@ -752,13 +752,14 @@ int main(int argc, char *argv[]){
       }
       
       //=== Event Building by sorrting 
-      /*
       // bubble sort
       int sortIndex[n];
       double bubbleSortTime[n];
       for( int i = 0; i < n; i++){
         bubbleSortTime[i] = double(rawTimeStamp[i]/1e12);
+        //printf("%d,  %llu \n", i,rawTimeStamp[i]);
       }
+      //printf("----------------------\n");
       TMath::BubbleLow(n,bubbleSortTime,sortIndex);
       //printf("sortted \n");
       // Re-map
@@ -766,15 +767,15 @@ int main(int argc, char *argv[]){
       UInt_t energyT[n];
       ULong64_t timeStampT[n]; //TODO, when fill directly from Digitizer, using energyT 
       for( int i = 0; i < n ; i++){
-        channelT[i] = channel[i];
-        energyT[i] = energy[i];
-        timeStampT[i] = timeStamp[i]; 
+        channelT[i] = rawChannel[i];
+        energyT[i] = rawEnergy[i];
+        timeStampT[i] = rawTimeStamp[i]; 
       }
       for( int i = 0; i < n ; i++){
-        channel[i] = channelT[sortIndex[i]];
-        timeStamp[i] = timeStampT[sortIndex[i]];
-        energy[i] = energyT[sortIndex[i]];
-        //printf(" %llu \n", timeStamp[i]);
+        rawChannel[i] = channelT[sortIndex[i]];
+        rawTimeStamp[i] = timeStampT[sortIndex[i]];
+        rawEnergy[i] = energyT[sortIndex[i]];
+        //printf("%d,  %llu \n", i, rawTimeStamp[i]);
       }
       // build event base on coincident window
       for( int i = 0; i < n-1; i++){
@@ -789,44 +790,42 @@ int main(int argc, char *argv[]){
           }
         }
         //printf("---- %d/ %d,  num in Group : %d \n", i, n,  numRawEventGrouped);
+        countEventBuilt ++;
+        for( int k = 0 ; k < MaxNChannels ; k++){
+          channel[k] = -1;
+          energy[k] = 0;
+          timeStamp[k] = 0;
+        }
         
-        for( int j = i ; j < i + numRawEventGrouped ; j++){
-          for( int k = 0 ; k < MaxNChannels ; k++){
-            channel[k] = -1;
-            energy[k] = 0;
-            timeStamp[k] = 0;
-          }
-          
+        for( int j = i ; j < i + numRawEventGrouped ; j++){          
           channel[rawChannel[j]] = rawChannel[j];
           energy[rawChannel[j]] = rawEnergy[j];
           timeStamp[rawChannel[j]] = rawTimeStamp[j];
+          totEventBuilt++;
+        }
+        
+        tree->Fill();
           
-          countEventBuilt ++;
-          evCount++;
-          tree->Fill();
-          
-          float deltaE = energy[chDE] ;
-          float totalE = energy[chDE] + energy[chE];
-          
-          htotE->Fill(totalE); // x, y
-          hEdE->Fill(totalE, deltaE); // x, y
-          
-          if(isCutFileOpen){
-            for( int k = 0 ; k < numCut; k++ ){
-              cutG = (TCutG *)cutList->At(k) ;
-              if( cutG->IsInside(totalE, deltaE)){
-                countFromCut[k] += 1;
-              }
+        float deltaE = energy[chDE] ;
+        float totalE = energy[chDE] + energy[chE];
+        
+        htotE->Fill(totalE); // x, y
+        hEdE->Fill(totalE, deltaE); // x, y
+        
+        if(isCutFileOpen){
+          for( int k = 0 ; k < numCut; k++ ){
+            cutG = (TCutG *)cutList->At(k) ;
+            if( cutG->IsInside(totalE, deltaE)){
+              countFromCut[k] += 1;
             }
           }
-          
         }
         
         i += numRawEventGrouped-1; 
         
       }/**/// end of event building
       
-      // Event  building simple
+      /*// Event  building simple
       for( int i = 0; i < n-1; i++){
         //printf("%d --- %d, %llu, %d \n",i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
         for( int j = i+1; j < n ; j++){
@@ -849,7 +848,7 @@ int main(int argc, char *argv[]){
             timeStamp[rawChannel[j]] = rawTimeStamp[j];
             
             countEventBuilt ++;
-            evCount++;
+            totEventBuilt++;
             tree->Fill();
             
             float deltaE = energy[chDE] ;
