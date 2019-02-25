@@ -217,9 +217,7 @@ int* ReadChannelSetting(int ch, string fileName){
 void GetChannelSetting(int handle, int ch){
   
   uint32_t * value = new uint32_t[8];
-  
   printf("================ Getting setting for channel %d \n", ch);
-  
   //DPP algorithm Control
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
   printf("                        32  28  24  20  16  12   8   4   0\n");
@@ -313,6 +311,11 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     
     // Set the DPP specific parameters for the channels in the given channelMask
     ret |= CAEN_DGTZ_SetDPPParameters(handle, Params.ChannelMask, &DPPParams);
+    
+    // Set Extras 2 to enable
+    uint32_t * value = new uint32_t[1];
+    ret |= CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
+    ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value[0] | (uint32_t(111) << 17) );
     
     for(i=0; i<MaxNChannels; i++) {
         if (Params.ChannelMask & (1<<i)) {
@@ -558,6 +561,14 @@ int main(int argc, char *argv[]){
     printf("Failed to program the digitizer\n");
     return 0;
   }
+  
+  // Board Configuration
+  uint32_t * value = new uint32_t[1];
+  CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
+  printf("                        32  28  24  20  16  12   8   4   0\n");
+  printf("                         |   |   |   |   |   |   |   |   |\n");
+  cout <<" Board Configuratio   : 0x" << bitset<32>(value[0]) << endl;
+  
 
   printf("====================================== \n");
 
@@ -1012,21 +1023,21 @@ int main(int argc, char *argv[]){
           
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
           
-          if( Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed) {
+          //if( Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed) {
             // Extras2 : bits[31:16] = roll over, bits[15:0] depends see DPP algorithm Control 2
             rollOver = Events[ch][ev].Extras2 >> 16;
             timetag  += rollOver << 31;
-          }
+          //}
           
-          //printf(" %llu, %15lu, %15llu, %f sec \n", rollOver, Events[ch][ev].TimeTag, timetag, timetag * ch2ns * 1e-9);
+          printf(" %llu, %15lu, %15llu, %f sec \n", rollOver, Events[ch][ev].TimeTag, timetag, timetag * ch2ns * 1e-9);
           
-          if(  Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ){
-            if( lastTimeStamp[ch] > timetag ){
-              rollOverCh[ch] ++;
-            }
-            lastTimeStamp[ch] = timetag;
-            timetag  += rollOverCh[ch] << 31;
-          }
+          //if(  Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ){
+          //  if( lastTimeStamp[ch] > timetag ){
+          //    rollOverCh[ch] ++;
+          //  }
+          //  lastTimeStamp[ch] = timetag;
+          //  timetag  += rollOverCh[ch] << 31;
+          //}
           
           //printf(" %llu,  %lu, %llu sec \n", rollOverCh[ch], Events[ch][ev].TimeTag, timetag);
           
