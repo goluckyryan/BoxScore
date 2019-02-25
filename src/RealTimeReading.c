@@ -45,7 +45,6 @@ using namespace std;
 #define MaxNChannels 8
 
 //TODO 1) change DCoffset, pulseParity to channel
-//TODO 2) add energy fine gain, address 0x1n4C
 
 //========== General setting;
 double ch2ns = 2;
@@ -514,7 +513,7 @@ int main(int argc, char *argv[]){
     
     EnergyFinegain[ch] = para[12];            // Energy Fine Gain
     DPPParams.blho[ch] = para[13];            // Baseline holdoff (ns)
-    DPPParams.enf[ch] = para[14];             // Energy Normalization Factor, it is float, but please us
+    DPPParams.enf[ch] = para[14]/100.;             // Energy Normalization Factor, it is float, but please us
     DPPParams.decimation[ch] = para[15];      // decimation (the input signal samples are averaged within
     DPPParams.dgain[ch] = para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
     DPPParams.trgwin[ch] = para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
