@@ -15,3 +15,4 @@
 0      //decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
 0      //Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100    //Rise Time Validation Window (ns)
+0      // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp

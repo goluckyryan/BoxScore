@@ -9,23 +9,17 @@
 #define MAXNB 8 /* Number of connected boards */
 
 int checkCommand() {
-	int c = 0;
-	if(!kbhit())
-			return 0;
-
-	c = getch();
-	switch (c) {
-		case 's': 
-			return 9;
-			break;
-		case 'k':
-			return 1;
-			break;
-		case 'q':
-			return 2;
-			break;
-	}
-	return 0;
+  int c = 0;
+  if(!kbhit()) return 0;
+  c = getch();
+  switch (c) {
+    case 's':  return 9; break;
+    case 'k':  return 1; break;
+    case 'r':  return 3; break;
+    case 'w':  return 4; break;
+    case 'q':  return 2; break;
+  }
+  return 0;
 }
 
 int main(int argc, char* argv[])
@@ -35,23 +29,23 @@ int main(int argc, char* argv[])
     execution. For example:
     ret = CAEN_DGTZ_some_function(some_args);
     if(ret) printf("Some error"); */
-	CAEN_DGTZ_ErrorCode ret;
+    CAEN_DGTZ_ErrorCode ret;
 
     /* The following variable will be used to get an handler for the digitizer. The
     handler will be used for most of CAENDigitizer functions to identify the board */
-	int	handle[MAXNB];
+    int	handle[MAXNB];
 
     CAEN_DGTZ_BoardInfo_t BoardInfo;
-	CAEN_DGTZ_EventInfo_t eventInfo;
-	CAEN_DGTZ_UINT16_EVENT_t *Evt = NULL;
-	char *buffer = NULL;
-	int MajorNumber;
-	int i,b;
-	int c = 0, count[MAXNB];
-	char * evtptr = NULL;
-	uint32_t size,bsize;
-	uint32_t numEvents;
-	i = sizeof(CAEN_DGTZ_TriggerMode_t);
+    CAEN_DGTZ_EventInfo_t eventInfo;
+    CAEN_DGTZ_UINT16_EVENT_t *Evt = NULL;
+    char *buffer = NULL;
+    int MajorNumber;
+    int i,b;
+    int c = 0, count[MAXNB];
+    char * evtptr = NULL;
+    uint32_t size,bsize;
+    uint32_t numEvents;
+    i = sizeof(CAEN_DGTZ_TriggerMode_t);
 
     for(b=0; b<MAXNB; b++){
         /* IMPORTANT: The following function identifies the different boards with a system which may change
@@ -91,22 +85,22 @@ int main(int argc, char* argv[])
         printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
         printf("\tROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
         printf("\tAMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
-	    
-		// Check firmware revision (DPP firmwares cannot be used with this demo */
-		sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
-		if (MajorNumber >= 128) {
-			printf("\t==== This digitizer has a DPP firmware!\n");
-			//goto QuitProgram;
-		}
+        
+        // Check firmware revision (DPP firmwares cannot be used with this demo */
+        sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
+        if (MajorNumber >= 128) {
+          printf("\t==== This digitizer has a DPP firmware!\n");
+          //goto QuitProgram;
+        }
 
         ret = CAEN_DGTZ_Reset(handle[b]);                                               /* Reset Digitizer */
-	    ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);                                 /* Get Board Info */
-	    ret = CAEN_DGTZ_SetRecordLength(handle[b],4096);                                /* Set the lenght of each waveform (in samples) */
-	    ret = CAEN_DGTZ_SetChannelEnableMask(handle[b],1);                              /* Enable channel 0 */
-	    ret = CAEN_DGTZ_SetChannelTriggerThreshold(handle[b],0,32768);                  /* Set selfTrigger threshold */
-	    ret = CAEN_DGTZ_SetChannelSelfTrigger(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY,1);  /* Set trigger on channel 0 to be ACQ_ONLY */
-	    ret = CAEN_DGTZ_SetSWTriggerMode(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY);         /* Set the behaviour when a SW tirgger arrives */
-	    ret = CAEN_DGTZ_SetMaxNumEventsBLT(handle[b],3);                                /* Set the max number of events to transfer in a sigle readout */
+        ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);                                 /* Get Board Info */
+        ret = CAEN_DGTZ_SetRecordLength(handle[b],4096);                                /* Set the lenght of each waveform (in samples) */
+        ret = CAEN_DGTZ_SetChannelEnableMask(handle[b],1);                              /* Enable channel 0 */
+        ret = CAEN_DGTZ_SetChannelTriggerThreshold(handle[b],0,32768);                  /* Set selfTrigger threshold */
+        ret = CAEN_DGTZ_SetChannelSelfTrigger(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY,1);  /* Set trigger on channel 0 to be ACQ_ONLY */
+        ret = CAEN_DGTZ_SetSWTriggerMode(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY);         /* Set the behaviour when a SW tirgger arrives */
+        ret = CAEN_DGTZ_SetMaxNumEventsBLT(handle[b],3);                                /* Set the max number of events to transfer in a sigle readout */
         ret = CAEN_DGTZ_SetAcquisitionMode(handle[b],CAEN_DGTZ_SW_CONTROLLED);          /* Set the acquisition mode */
         if(ret != CAEN_DGTZ_Success) {
             printf("Errors during Digitizer Configuration.\n");
@@ -114,15 +108,39 @@ int main(int argc, char* argv[])
         }
         printf("\n");
     }
-	printf("\n\nPress 's' to start the acquisition\n");
-    printf("Press 'k' to stop  the acquisition\n");
-    printf("Press 'q' to quit  the application\n\n");
+    printf("\n\nPress 's' to start the acquisition\n"); // c = 9
+    printf("Press 'k' to stop  the acquisition\n");   // c  = 1
+    printf("Press 'r' to read  a register\n");         // c = 3
+    printf("Press 'q' to quit  the application\n\n");  // c = 2
     while (1) {
-		c = checkCommand();
-		if (c == 9) break;
-		if (c == 2) return 0;
-		Sleep(100);
+      c = checkCommand();
+      if (c == 9) break;
+      if (c == 3) break;
+      if (c == 2) return 0;
+      Sleep(100);
     }
+    
+    if( c == 3 ) {
+      
+      printf(" Getting Board 1 Register \n");
+      
+      ret = CAEN_DGTZ_WriteRegister(handle[1], 0xEF24, 0); // software reset
+      
+      // write Input Dynamic Range 
+      ret = CAEN_DGTZ_WriteRegister(handle[1], 0x8028, 0); // all channel to be 0
+      ret = CAEN_DGTZ_WriteRegister(handle[1], 0x1028, 1); // ch0 to be 1
+      // read 
+      for( int ch = 0 ; ch < 8 ; ch++){
+        uint32_t * value = new uint32_t[8];
+        ret = CAEN_DGTZ_ReadRegister(handle[1], 0x1028 + (ch << 8), value);
+        printf(" InputDynamic Range (ch:%d): %d \n", ch, value[0]);
+      }
+      
+      for(b=0; b<MAXNB; b++)
+        ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
+      return 0;
+    }
+    
     /* Malloc Readout Buffer.
     NOTE1: The mallocs must be done AFTER digitizer's configuration!
     NOTE2: In this example we use the same buffer, for every board. We
@@ -139,34 +157,33 @@ int main(int argc, char* argv[])
             ret = CAEN_DGTZ_SWStartAcquisition(handle[b]);
 
     // Start acquisition loop
-	while(1) {
+    while(1) {
         for(b=0; b<MAXNB; b++) {
-		    ret = CAEN_DGTZ_SendSWtrigger(handle[b]); /* Send a SW Trigger */
-
-		    ret = CAEN_DGTZ_ReadData(handle[b],CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT,buffer,&bsize); /* Read the buffer from the digitizer */
-
+        ret = CAEN_DGTZ_SendSWtrigger(handle[b]); /* Send a SW Trigger */
+  
+        ret = CAEN_DGTZ_ReadData(handle[b],CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT,buffer,&bsize); /* Read the buffer from the digitizer */
+  
             /* The buffer red from the digitizer is used in the other functions to get the event data
             The following function returns the number of events in the buffer */
-		    ret = CAEN_DGTZ_GetNumEvents(handle[b],buffer,bsize,&numEvents);
-
-		    printf(".");
-		    count[b] +=numEvents;
-		    for (i=0;i<numEvents;i++) {
+        ret = CAEN_DGTZ_GetNumEvents(handle[b],buffer,bsize,&numEvents);
+  
+        printf(".");
+        count[b] +=numEvents;
+        for (i=0;i<numEvents;i++) {
                 /* Get the Infos and pointer to the event */
-			    ret = CAEN_DGTZ_GetEventInfo(handle[b],buffer,bsize,i,&eventInfo,&evtptr);
-
+          ret = CAEN_DGTZ_GetEventInfo(handle[b],buffer,bsize,i,&eventInfo,&evtptr);
                 /* Decode the event to get the data */
-			    ret = CAEN_DGTZ_DecodeEvent(handle[b],evtptr,reinterpret_cast<void**>(Evt));
-			    //*************************************
-			    // Event Elaboration
-			    //*************************************
-			    ret = CAEN_DGTZ_FreeEvent(handle[b],reinterpret_cast<void**>(Evt));
-		    }
-		    c = checkCommand();
-		    if (c == 1) goto Continue;
-		    if (c == 2) goto Continue;
+          ret = CAEN_DGTZ_DecodeEvent(handle[b],evtptr,reinterpret_cast<void**>(Evt));
+          //*************************************
+          // Event Elaboration
+          //*************************************
+          ret = CAEN_DGTZ_FreeEvent(handle[b],reinterpret_cast<void**>(Evt));
+        }
+        c = checkCommand();
+        if (c == 1) goto Continue;
+        if (c == 2) goto Continue;
         } // end of loop on boards
-    } // end of readout loop
+    } //    end of readout loop
 
 Continue:
     for(b=0; b<MAXNB; b++)
@@ -176,11 +193,11 @@ Continue:
 /* Quit program routine */
 QuitProgram:
     // Free the buffers and close the digitizers
-	ret = CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+    ret = CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     for(b=0; b<MAXNB; b++)
         ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
-	printf("Press 'Enter' key to exit\n");
-	c = getchar();
-	return 0;
+    printf("Press 'Enter' key to exit\n");
+    c = getchar();
+    return 0;
 }
 

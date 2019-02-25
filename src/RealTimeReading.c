@@ -44,7 +44,6 @@ using namespace std;
 #define MaxNChannels 8
 
 //TODO 1) change eventbuild method
-//TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
 
 //========== General setting;
 double ch2ns = 2;
@@ -165,7 +164,7 @@ void ReadGeneralSetting(string fileName){
 
 int* ReadChannelSetting(int ch, string fileName){
 
-  const int numPara = 17;
+  const int numPara = 18;
   int * para = new int[numPara];
   
   ifstream file_in;
@@ -190,6 +189,7 @@ int* ReadChannelSetting(int ch, string fileName){
     para[14] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
     para[15] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
     para[16] = 100;     // Rise Time Validation Window (ns)
+    para[17] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -209,7 +209,7 @@ int* ReadChannelSetting(int ch, string fileName){
   return para;
 }
 
-int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams){
+int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams, int inputDynamicRange[]){
     /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
     int i, ret = 0;
 
@@ -274,6 +274,14 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
             
             // Set the polarity for the given channel (CAEN_DGTZ_PulsePolarityPositive or CAEN_DGTZ_PulsePolarityNegative)
             ret |= CAEN_DGTZ_SetChannelPulsePolarity(handle, i, Params.PulsePolarity);
+            
+            // Set InputDynamic Range
+            ret |= CAEN_DGTZ_WriteRegister(handle, 0x1028 +  (i<<8), inputDynamicRange[i]);
+            
+            // read the register to check the input is correct
+            //uint32_t * value = new uint32_t[8];
+            //ret = CAEN_DGTZ_ReadRegister(handle, 0x1028 + (i << 8), value);
+            //printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
         }
     }
 
@@ -378,6 +386,7 @@ int main(int argc, char *argv[]){
   /* The following variables will store the digitizer configuration parameters */
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
   DigitizerParams_t Params;
+  int InputDynamicRange[MaxNChannels];
 
   /* Arrays for data analysis */
   uint64_t PrevTime[MaxNChannels];
@@ -448,6 +457,7 @@ int main(int argc, char *argv[]){
     DPPParams.dgain[ch] = para[14];    
     DPPParams.trgwin[ch] = para[15]; 
     DPPParams.twwdt[ch] = para[16]; 
+    InputDynamicRange[ch] = para[17];
   }
   printf("====================================== \n");
   
@@ -482,7 +492,7 @@ int main(int argc, char *argv[]){
   /* *************************************************************************************** */
   /* Program the digitizer (see function ProgramDigitizer)                                   */
   /* *************************************************************************************** */
-  ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams);
+  ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams, InputDynamicRange);
   if (ret != 0) {
     printf("Failed to program the digitizer\n");
     return 0;
