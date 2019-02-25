@@ -20,6 +20,7 @@
 #include <vector>
 #include <stdlib.h> 
 #include <vector>
+#include <bitset>
 
 #include "Functions.h"
 
@@ -165,7 +166,7 @@ void ReadGeneralSetting(string fileName){
 
 int* ReadChannelSetting(int ch, string fileName){
 
-  const int numPara = 18;
+  const int numPara = 19;
   int * para = new int[numPara];
   
   ifstream file_in;
@@ -188,12 +189,13 @@ int* ReadChannelSetting(int ch, string fileName){
     para[10] = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
     para[11] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 
-    para[12] = 500;     // Baseline holdoff (ns)        
-    para[13] = 1.0;     // Energy Normalization Factor
-    para[14] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
-    para[15] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
-    para[16] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
-    para[17] = 100;     // Rise Time Validation Window (ns)
+    para[12] = 10;      // Energy Fine gain
+    para[13] = 500;     // Baseline holdoff (ns)        
+    para[14] = 1.0;     // Energy Normalization Factor
+    para[15] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
+    para[16] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
+    para[17] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
+    para[18] = 100;     // Rise Time Validation Window (ns)
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -219,18 +221,22 @@ void GetChannelSetting(int handle, int ch){
   
   printf("================ Getting setting for channel %d \n", ch);
   
+  //DPP algorithm Control
+  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
+  printf("                        32  28  24  20  16  12   8   4   0\n");
+  printf("                         |   |   |   |   |   |   |   |   |\n");
+  cout <<" DPP algorith Control : 0x" << bitset<32>(value[0]) << endl;
+  
+  int trapRescaling = int(value[0]) & 31 ;
+  int polarity = int(value[0] >> 16); //in bit[16]
+  int baseline = int(value[0] >> 20) ; // in bit[22:20]
+  int NsPeak = int(value[0] >> 12); // in bit[13:12]
+  
   printf("--------------- input \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
   CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
-  
-  //DPP algorithm Control
-  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
-  int polarity = int(value[0] >> 16); //in bit[16]
   printf("%20s  %s \n", "polarity",  (polarity & 1) ==  0 ? "Positive" : "negative"); //Polarity
-  int baseline = int(value[0] >> 20) ; // in bit[22:20]
   printf("%20s  %.0f sample \n", "Ns baseline",  pow(4, 1 + baseline & 7)); //Ns baseline
-  int NsPeak = int(value[0] >> 12); // in bit[13:12]
-  
   CAEN_DGTZ_ReadRegister(handle, 0x1098 + (ch << 8), value); printf("%20s  %.2f %% \n", "DC offset",  value[0] * 100./ int(0xffff) ); //DC offset
   CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value); printf("%20s  %.1f Vpp \n", "input Dynamic",  value[0] == 0 ? 2 : 0.5); //InputDynamic
   
@@ -241,6 +247,7 @@ void GetChannelSetting(int handle, int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time",  value[0] * 2); //Input rise time
   
   printf("--------------- Trapezoid \n");
+  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise * decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
   CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time",  value[0] * 8 ); //Trap. rise time
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. flat time",  value[0] * 8); //Trap. flat time
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero",  value[0] * 8); //Trap. pole zero
@@ -254,7 +261,7 @@ void GetChannelSetting(int handle, int ch){
     
 }
 
-int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams, int inputDynamicRange[]){
+int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Params_t DPPParams, int inputDynamicRange[], int energyFineGain []){
     /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
     int i, ret = 0;
 
@@ -323,17 +330,13 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
             // Set InputDynamic Range
             ret |= CAEN_DGTZ_WriteRegister(handle, 0x1028 +  (i<<8), inputDynamicRange[i]);
             
+            // Set Energy Fine gain
+            ret |= CAEN_DGTZ_WriteRegister(handle, 0x104C +  (i<<8), energyFineGain[i]);
+            
             // read the register to check the input is correct
             //uint32_t * value = new uint32_t[8];
             //ret = CAEN_DGTZ_ReadRegister(handle, 0x1028 + (i << 8), value);
             //printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
-            
-            // Set DPP Algorithm Control 2
-            //ret |= CAEN_DGTZ_WriteRegister(handle, 0x10A0 +  (i<<8), 0x00000207);
-            
-            uint32_t * value = new uint32_t[8];
-            ret = CAEN_DGTZ_ReadRegister(handle, 0x1080 + (i << 8), value);
-            printf(" DPP Algorithm Control 1  (ch:%d): 0x%08x \n", i, value[0]);
         }
     }
 
@@ -440,6 +443,7 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
   DigitizerParams_t Params;
   int InputDynamicRange[MaxNChannels];
+  int EnergyFinegain[MaxNChannels];
 
   /* Arrays for data analysis */
   uint64_t PrevTime[MaxNChannels];
@@ -494,26 +498,27 @@ int main(int argc, char *argv[]){
   for(ch=0; ch<MaxNChannels; ch++) {
     int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
     DPPParams.thr[ch] = para[0];              // Trigger Threshold (in LSB)
-    DPPParams.trgho[ch] = para[1];            // Trigger Hold Off
+    DPPParams.trgho[ch] = para[1];            // Trigger Hold Off (ns)
     DPPParams.a[ch] = para[2];                // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to a
     DPPParams.b[ch] = para[3];                // Input Signal Rise time (ns) 
     
     DPPParams.k[ch] = para[4];                // Trapezoid Rise Time (ns) 
     DPPParams.m[ch] = para[5];                // Trapezoid Flat Top  (ns) 
     DPPParams.M[ch] = para[6];                // Decay Time Constant (ns) 
-    DPPParams.ftd[ch] = para[7];              // Flat top delay (peaking time) (ns) 
+    DPPParams.ftd[ch] = para[7];              // Flat top delay (peaking time?) (ns) 
     DPPParams.nspk[ch] = para[8];             // Ns peak, Peak mean (number of samples to average for trapezoid he
     DPPParams.pkho[ch] = para[9];             // peak holdoff (ns)
     
     DPPParams.nsbl[ch] = para[10];            // Ns baseline, number of samples for baseline average calculation. Opti
     InputDynamicRange[ch] = para[11];
     
-    DPPParams.blho[ch] = para[12];            // Baseline holdoff (ns)
-    DPPParams.enf[ch] = para[13];             // Energy Normalization Factor, it is float, but please us
-    DPPParams.decimation[ch] = para[14];      // decimation (the input signal samples are averaged within
-    DPPParams.dgain[ch] = para[15];           // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGa
-    DPPParams.trgwin[ch] = para[16];          // Enable Rise time Discrimination. Options: 0->disabled; 1
-    DPPParams.twwdt[ch] = para[17];           // Rise Time Validation Window (ns)
+    EnergyFinegain[ch] = para[12];            // Energy Fine Gain
+    DPPParams.blho[ch] = para[13];            // Baseline holdoff (ns)
+    DPPParams.enf[ch] = para[14];             // Energy Normalization Factor, it is float, but please us
+    DPPParams.decimation[ch] = para[15];      // decimation (the input signal samples are averaged within
+    DPPParams.dgain[ch] = para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
+    DPPParams.trgwin[ch] = para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
+    DPPParams.twwdt[ch] = para[18];           // Rise Time Validation Window (ns)
     
   }
   printf("====================================== \n");
@@ -549,7 +554,7 @@ int main(int argc, char *argv[]){
   /* *************************************************************************************** */
   /* Program the digitizer (see function ProgramDigitizer)                                   */
   /* *************************************************************************************** */
-  ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams, InputDynamicRange);
+  ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer(handle, Params, DPPParams, InputDynamicRange, EnergyFinegain);
   if (ret != 0) {
     printf("Failed to program the digitizer\n");
     return 0;
@@ -690,10 +695,11 @@ int main(int argc, char *argv[]){
         CAEN_DGTZ_SWStopAcquisition(handle); 
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         for( int id = 0 ; id < MaxNChannels ; id++ ) {
-          if (Params.ChannelMask & (1<<id)) GetChannelSetting(handle, 0);
+          if (Params.ChannelMask & (1<<id)) GetChannelSetting(handle, id);
         }
         printf("===================================\n");
         PrintInterface();
+        AcqRun = 0;
       }
       if (c == 's')  {
         // Start Acquisition
