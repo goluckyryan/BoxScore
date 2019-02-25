@@ -44,7 +44,6 @@ using namespace std;
 #define MaxNChannels 8
 
 //TODO 1) change eventbuild method
-//TODO 2) put General Setting into a file
 //TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
 
 //========== General setting;
@@ -343,12 +342,20 @@ void ReadCut(TString fileName){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
-  if( argc != 2 ) {
-    printf("Please input boardID! \n");
+  if( argc != 3 ) {
+    printf("Please input boardID! and root file name!\n");
     return -1;
   }
   
   const int boardID = atoi(argv[1]);
+  const string rootFileName = argv[2];
+  
+  printf("******************************************** \n");
+  printf("****         Real Time PID              **** \n");
+  printf("******************************************** \n");
+  
+  printf("   board ID : %d \n", boardID );
+  printf("   save to  : %s \n", rootFileName.c_str() );
 
   ReadGeneralSetting("generalSetting.txt");
 
@@ -509,7 +516,7 @@ int main(int argc, char *argv[]){
   vector<int> rawChannel;
   
   // ===== Sorted Tree
-  TFile * fileout = new TFile("tree.root", "RECREATE");
+  TFile * fileout = new TFile(rootFileName.c_str(), "RECREATE");
   TTree * tree = new TTree("tree", "tree");
   
   ULong64_t timeStamp[MaxNChannels];
@@ -631,7 +638,8 @@ int main(int argc, char *argv[]){
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         
         fCut->Close();
-        string expression = "./CutsCreator " + to_string(chDE) + " " ;
+        string expression = "./CutsCreator " + rootFileName + " " ;
+        expression = expression + to_string(chDE) + " ";
         expression = expression + to_string(chE) + " ";
         expression = expression + to_string(rangeDE[0]) + " ";
         expression = expression + to_string(rangeDE[1]) + " ";
@@ -663,6 +671,7 @@ int main(int argc, char *argv[]){
       printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
       printf("Total number of Raw Event = %d \n", rawEvCount);
       printf("Total number of Event Built = %d \n", evCount);
+      printf("Built-event save to  : %s \n", rootFileName.c_str() );
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
         if (TrgCnt[i]>0){
@@ -683,7 +692,7 @@ int main(int argc, char *argv[]){
       
       //sort event from tree and append to exist root
       //printf("---- append file \n");
-      TFile * fileAppend = new TFile("tree.root", "UPDATE");
+      TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
       tree = (TTree*) fileAppend->Get("tree");
       
       tree->SetBranchAddress("e", energy);
@@ -772,7 +781,6 @@ int main(int argc, char *argv[]){
         fileRaw->cd();
         rawTree->Write("rawtree", TObject::kOverwrite); 
       }
-      
       
       cCanvas->cd(1)->cd(1); hEdE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -873,6 +881,7 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_CloseDigitizer(handle);
   CAEN_DGTZ_FreeReadoutBuffer(&buffer);
   CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+  
   printf("=========== bye bye ==============\n\n");
   return ret;
 }

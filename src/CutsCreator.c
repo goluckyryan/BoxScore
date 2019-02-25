@@ -32,17 +32,19 @@ TObjArray * cutList = NULL;
 
 int main(int argc, char* argv[] ){
   
-  if( argc != 7 ) {
-    printf("Please input channel for dE and E. \n");
-    printf("./CutCreator dE E rangeDE_min rangeDE_max rangeE_min rangeE_max\n");
+  if( argc != 8 ) {
+    //printf("Please input channel for dE and E. \n");
+    printf("./CutCreator rootFile dE E rangeDE_min rangeDE_max rangeE_min rangeE_max\n");
     return 0;
   }
   
-  int chDE = atoi(argv[1]);
-  int chEE = atoi(argv[2]);
+  string rootFile = argv[1];
   
-  int rangeDE_min = atoi(argv[3]);
-  int rangeDE_max = atoi(argv[4]);
+  int chDE = atoi(argv[2]);
+  int chEE = atoi(argv[3]);
+  
+  int rangeDE_min = atoi(argv[4]);
+  int rangeDE_max = atoi(argv[5]);
   
   int rangeE_min = atoi(argv[5]);
   int rangeE_max = atoi(argv[6]);
@@ -50,7 +52,7 @@ int main(int argc, char* argv[] ){
   TApplication app ("app", &argc, argv);
 
   // load tree and plot 
-  TFile * fileIn = new TFile("tree.root");
+  TFile * fileIn = new TFile(rootFile.c_str());
   TTree * tree = (TTree*) fileIn->FindObjectAny("tree");
   gStyle->SetOptStat("");
   
