@@ -149,7 +149,8 @@ void ReadGeneralSetting(string fileName){
     printf(" %-20s  %s\n", "Positive Pulse", PositivePulse ? "true" : "false" );
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
-    printf(" %-20s  0x%02x\n", "Channel Mask", ChannelMask);
+    bitset<8> b(ChannelMask);
+    printf(" %-20s  %s\n", "Channel Mask", b.to_string().c_str());
     printf(" %-20s  %d msec\n", "Update period", updatePeriod);
     printf(" %-20s  %d ch = %.3f us\n", "Coincident windows", CoincidentWindow, CoincidentWindow * ch2ns * 1e-3);
     printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
@@ -222,7 +223,7 @@ void GetChannelSetting(int handle, int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
   printf("                        32  28  24  20  16  12   8   4   0\n");
   printf("                         |   |   |   |   |   |   |   |   |\n");
-  cout <<" DPP algorith Control : 0x" << bitset<32>(value[0]) << endl;
+  cout <<" DPP algorith Control :   " << bitset<32>(value[0]) << endl;
   
   int trapRescaling = int(value[0]) & 31 ;
   int polarity = int(value[0] >> 16); //in bit[16]
@@ -566,7 +567,7 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
   printf("                        32  28  24  20  16  12   8   4   0\n");
   printf("                         |   |   |   |   |   |   |   |   |\n");
-  cout <<" Board Configuration  : 0x" << bitset<32>(value[0]) << endl;
+  cout <<" Board Configuration  :   " << bitset<32>(value[0]) << endl;
   printf("                Bit[ 0] = Auto Data Flush   \n");
   printf("                Bit[16] = WaveForm Recording   \n");
   printf("                Bit[17] = Extended Time Tag   \n");
@@ -975,8 +976,9 @@ int main(int argc, char *argv[]){
           rawEvCount ++;
           
           ch_r = ch;
-          e_r = Events[ch][ev].Energy + int(gRandom->Gaus(0, 100));
-          if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
+          e_r = Events[ch][ev].Energy ;
+          //if( ch == 0 ) e_r += int(gRandom->Gaus(0, 100));
+          //if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
           t_r = timetag;
           if( isSaveRaw ) rawTree->Fill();
           
