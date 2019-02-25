@@ -48,23 +48,24 @@ using namespace std;
 //TODO 3) Input Dynamic is only 0.5 or 2 Vpp, how to set?
 
 //========== General setting;
-const float DCOFFSET = 0.2;
-const bool PositivePulse = true;
-const int RECORDLENGTH = 20000;   // Num of samples of the waveforms (only for waveform mode)
-const int PreTriggerSize = 2000;
-const int CHANNELMASK = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+double ch2ns = 2;
+float DCOffset = 0.2;
+bool PositivePulse = true;
+uint RecordLength = 20000;   // Num of samples of the waveforms (only for waveform mode)
+uint PreTriggerSize = 2000;
+uint ChannelMask = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
-const int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
+int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
+int CoincidentWindow = 30000; // real time = CoincidentWindow * 2 ns 
 
-const int chE = 0;   //channel ID for E
-const int chDE = 1;  //channel ID for dE
-const int COINCIDENTWINDOW = 30000; // real time = COINCIDENTWINDOW * 2 ns 
+int chE = 0;   //channel ID for E
+int chDE = 1;  //channel ID for dE
 
-const int rangeDE[2] = {0, 5000}; // range for dE
-const int rangeE[2] = {0, 5000};  // range for E
-const ULong64_t rangeTime = 5e7;  // range for Tdiff
+int rangeDE[2] = {0, 5000}; // range for dE
+int rangeE[2] = {0, 5000};  // range for E
+uint rangeTime = 5e7;  // range for Tdiff
 
-const bool isSaveRaw = false; // saving Raw data
+bool isSaveRaw = false; // saving Raw data
 
 //========= Histogram
 TCanvas * cCanvas = NULL;
@@ -92,15 +93,87 @@ bool  QuitFlag = false;
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
+void ReadGeneralSetting(string fileName){
+
+  const int numPara = 15;
+  
+  ifstream file_in;
+  file_in.open(fileName.c_str(), ios::in);
+  
+  printf("====================================== \n");
+
+  if( !file_in){
+    printf("====== Using Built-in General Setting.\n");
+  }else{
+    printf("====== Reading General Setting from  %s.\n", fileName.c_str());
+    string line;
+    int count = 0;
+    while( file_in.good()){
+      getline(file_in, line);
+      size_t pos = line.find("//");
+      if( pos > 1 ){
+        if( count > numPara - 1) break;
+        
+        if( count == 0 )  DCOffset = atof(line.substr(0, pos).c_str());
+        if( count == 1 )  {
+          if( line.substr(0, 4) == "true" ) {
+            PositivePulse = true;
+          }else{
+            PositivePulse = false;
+          }
+        }
+        if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
+        if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
+        if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
+        if( count == 5  )   updatePeriod = atoi(line.substr(0, pos).c_str());
+        if( count == 6  ) CoincidentWindow = atoi(line.substr(0, pos).c_str());
+        if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
+        if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
+        if( count == 9  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 10 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 11 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 12 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 13 )  rangeTime = uint(atof(line.substr(0, pos).c_str()));
+        if( count == 14 )  {
+          if( line.substr(0, 4) == "true" ) {
+            isSaveRaw = true;
+          }else{
+            isSaveRaw = false;
+          }
+        }
+        count ++;
+      }
+    }
+    
+    //print setting
+    printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
+    printf(" %-20s  %s\n", "Positive Pulse", PositivePulse ? "true" : "false" );
+    printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
+    printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
+    printf(" %-20s  0x%02x\n", "Channel Mask", ChannelMask);
+    printf(" %-20s  %d msec\n", "Update period", updatePeriod);
+    printf(" %-20s  %d ch = %.3f us\n", "Coincident windows", CoincidentWindow, CoincidentWindow * ch2ns * 1e-3);
+    printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
+    printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
+    printf(" %-20s  %e ch = %3.f msec\n", "tDiff range", double(rangeTime), rangeTime * ch2ns * 1e-6);
+    printf(" %-20s  %s\n", "Is saving Raw", isSaveRaw ? "true" : "false");
+    printf("====================================== \n");
+    
+  }
+
+  return;
+}
+
 int* ReadChannelSetting(int ch, string fileName){
 
-  int * para = new int[17];
+  const int numPara = 17;
+  int * para = new int[numPara];
   
   ifstream file_in;
   file_in.open(fileName.c_str(), ios::in);
 
   if( !file_in){
-    printf("channel: %d ------ default setting.\n", ch);
+    printf("channel: %d | default.\n", ch);
     para[0] = 100;      // Trigger Threshold (in LSB)
     para[1] = 3000;     // Trapezoid Rise Time (ns) 
     para[2] = 900;      // Trapezoid Flat Top  (ns) 
@@ -119,14 +192,14 @@ int* ReadChannelSetting(int ch, string fileName){
     para[15] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
     para[16] = 100;     // Rise Time Validation Window (ns)
   }else{
-    printf("channel: %d ------ load from %s.\n", ch, fileName.c_str());
+    printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
     int count = 0;
     while( file_in.good()){
       getline(file_in, line);
       size_t pos = line.find("//");
       if( pos > 1 ){
-        if( count > 16) break;
+        if( count > numPara - 1) break;
         para[count] = atoi(line.substr(0, pos).c_str());
         //printf("%d | %d \n", count, para[count]);
         count ++;
@@ -148,6 +221,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
         printf("ERROR: can't reset the digitizer.\n");
         return -1;
     }
+    
     ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000, 0x01000114);  // Channel Control Reg (indiv trg, seq readout) ??
 
     /* Set the DPP acquisition mode
@@ -194,7 +268,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
         if (Params.ChannelMask & (1<<i)) {
             // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
             //ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
-            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, int( 0xffff * DCOFFSET ));
+            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, uint( 0xffff * DCOffset ));
             
             // Set the Pre-Trigger size (in samples)
             ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, PreTriggerSize);
@@ -247,7 +321,7 @@ void ReadCut(TString fileName){
     cutG = new TCutG();
     graphRateCut = new TGraph * [numCut];
     for(int i = 0; i < numCut ; i++){
-      printf(" cut name : %s \n", cutList->At(i)->GetName());
+      //printf(" cut name : %s \n", cutList->At(i)->GetName());
       countFromCut.push_back(0);
         
       graphRateCut[i] = new TGraph();
@@ -261,6 +335,7 @@ void ReadCut(TString fileName){
     printf(" =========== Cannot find %s \n", fileName.Data());
   }
   
+  //printf("====================================== \n");
 }
 
 /* ########################################################################### */
@@ -274,6 +349,8 @@ int main(int argc, char *argv[]){
   }
   
   const int boardID = atoi(argv[1]);
+
+  ReadGeneralSetting("generalSetting.txt");
 
   TApplication app ("app", &argc, argv);
   
@@ -334,8 +411,8 @@ int main(int argc, char *argv[]){
   \****************************/
   //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  Params.RecordLength = RECORDLENGTH;                       // Num of samples of the waveforms (only for Oscilloscope mode)
-  Params.ChannelMask = CHANNELMASK;                         // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  Params.RecordLength = RecordLength;                       // Num of samples of the waveforms (only for Oscilloscope mode)
+  Params.ChannelMask = ChannelMask;                         // Channel enable mask, 0x01, only frist channel, 0xff, all channel
   Params.EventAggr = 1;                                     // number of events in one aggregate (0=automatic), number of event acculated for read-off
   if( PositivePulse ) {
     Params.PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; // Pulse Polarity (this parameter can be individual)
@@ -365,7 +442,8 @@ int main(int argc, char *argv[]){
     DPPParams.trgwin[ch] = para[15]; 
     DPPParams.twwdt[ch] = para[16]; 
   }
-    
+  printf("====================================== \n");
+  
   /* *************************************************************************************** */
   /* Open the digitizer and read board information                                           */
   /* *************************************************************************************** */
@@ -402,6 +480,8 @@ int main(int argc, char *argv[]){
     printf("Failed to program the digitizer\n");
     return 0;
   }
+
+  printf("====================================== \n");
 
   /* WARNING: The mallocs MUST be done after the digitizer programming,
   because the following functions needs to know the digitizer configuration
@@ -471,7 +551,7 @@ int main(int argc, char *argv[]){
   hE    = new TH1F(   "hE", "raw E ; E [ch] ;count ",         500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
-  hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeE[0], rangeE[1]);  
+  hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, 0, rangeTime);
   
   rateGraph = new TMultiGraph();
@@ -510,6 +590,7 @@ int main(int argc, char *argv[]){
   PrevRateTime = get_time();
   AcqRun = 0;
   PrintInterface();
+  int rawEvCount = 0;
   int evCount = 0;
   int graphIndex = 0;
   uint32_t initClock[MaxNChannels];
@@ -529,6 +610,7 @@ int main(int argc, char *argv[]){
         // so in general the acquisition does NOT starts syncronously for different boards
         if( graphIndex == 0 ) {
           StartTime = get_time();
+          rawEvCount = 0;
           evCount = 0;
         }
         CAEN_DGTZ_SWStartAcquisition(handle);
@@ -579,7 +661,8 @@ int main(int argc, char *argv[]){
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
       printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
-      printf("Total number of Event = %d \n", evCount);
+      printf("Total number of Raw Event = %d \n", rawEvCount);
+      printf("Total number of Event Built = %d \n", evCount);
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
         if (TrgCnt[i]>0){
@@ -631,7 +714,7 @@ int main(int argc, char *argv[]){
         for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
           int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
-          if( TMath::Abs( timeDiff ) < COINCIDENTWINDOW ) { 
+          if( TMath::Abs( timeDiff ) < CoincidentWindow ) { 
             //printf("---- %d, %llu, %d \n", rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
             for( int k = 0 ; k < MaxNChannels ; k++){
               channel[k] = -1;
@@ -648,6 +731,7 @@ int main(int argc, char *argv[]){
             timeStamp[rawChannel[j]] = rawTimeStamp[j];
             
             countEventBuilt ++;
+            evCount++;
             tree->Fill();
             
             float deltaE = energy[chDE] ;
@@ -756,7 +840,7 @@ int main(int argc, char *argv[]){
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
           timetag += baseClock ; 
           
-          evCount ++;
+          rawEvCount ++;
           
           ch_r = ch;
           e_r = Events[ch][ev].Energy + int(gRandom->Gaus(0, 100));
