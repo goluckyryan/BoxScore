@@ -173,23 +173,26 @@ int* ReadChannelSetting(int ch, string fileName){
   if( !file_in){
     printf("channel: %d | default.\n", ch);
     para[0] = 100;      // Trigger Threshold (in LSB)
-    para[1] = 3000;     // Trapezoid Rise Time (ns) 
-    para[2] = 900;      // Trapezoid Flat Top  (ns) 
-    para[3] = 50000;    // Decay Time Constant (ns) 
-    para[4] = 500;      // Flat top delay (peaking time) (ns) 
-    para[5] = 4;        // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
-    para[6] = 200;      // Input Signal Rise time (ns) 
-    para[7] = 1200;     // Trigger Hold Off
-    para[8] = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
-    para[9] = 0;        // Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-    para[10] = 2000;    // peak holdoff (ns)
-    para[11] = 500;     // Baseline holdoff (ns)
-    para[12] = 1.0;     // Energy Normalization Factor
-    para[13] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
-    para[14] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
-    para[15] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
-    para[16] = 100;     // Rise Time Validation Window (ns)
-    para[17] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
+    para[1] = 1200;     // Trigger Hold Off
+    para[2] = 4;        // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
+    para[3] = 200;      // Input Signal Rise time (ns) 
+    
+    para[4] = 3000;     // Trapezoid Rise Time (ns) 
+    para[5] = 900;      // Trapezoid Flat Top  (ns) 
+    para[6] = 50000;    // Decay Time Constant (ns) 
+    para[7] = 500;      // Flat top delay (peaking time) (ns) 
+    para[8] = 0;        // Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
+    para[9] = 2000;    // peak holdoff (ns)
+    
+    para[10] = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
+    para[11] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
+
+    para[12] = 500;     // Baseline holdoff (ns)        
+    para[13] = 1.0;     // Energy Normalization Factor
+    para[14] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
+    para[15] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
+    para[16] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
+    para[17] = 100;     // Rise Time Validation Window (ns)
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -200,7 +203,7 @@ int* ReadChannelSetting(int ch, string fileName){
       if( pos > 1 ){
         if( count > numPara - 1) break;
         para[count] = atoi(line.substr(0, pos).c_str());
-        printf("%d | %d \n", count, para[count]);
+        //printf("%d | %d \n", count, para[count]);
         count ++;
       }
     }
@@ -433,8 +436,8 @@ int main(int argc, char *argv[]){
   /****************************\
   *  Acquisition parameters    *
   \****************************/
-  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  //Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   Params.RecordLength = RecordLength;                       // Num of samples of the waveforms (only for Oscilloscope mode)
   Params.ChannelMask = ChannelMask;                         // Channel enable mask, 0x01, only frist channel, 0xff, all channel
   Params.EventAggr = 1;                                     // number of events in one aggregate (0=automatic), number of event acculated for read-off
@@ -458,12 +461,12 @@ int main(int argc, char *argv[]){
     DPPParams.M[ch] = para[6];                // Decay Time Constant (ns) 
     DPPParams.ftd[ch] = para[7];              // Flat top delay (peaking time) (ns) 
     DPPParams.nspk[ch] = para[8];             // Ns peak, Peak mean (number of samples to average for trapezoid he
-    DPPParams.pkho[ch] = para[9];            // peak holdoff (ns)
+    DPPParams.pkho[ch] = para[9];             // peak holdoff (ns)
     
-    DPPParams.nsbl[ch] = para[10];             // Ns baseline, number of samples for baseline average calculation. Opti
-    DPPParams.blho[ch] = para[11];            // Baseline holdoff (ns)
-    InputDynamicRange[ch] = para[12];
+    DPPParams.nsbl[ch] = para[10];            // Ns baseline, number of samples for baseline average calculation. Opti
+    InputDynamicRange[ch] = para[11];
     
+    DPPParams.blho[ch] = para[12];            // Baseline holdoff (ns)
     DPPParams.enf[ch] = para[13];             // Energy Normalization Factor, it is float, but please us
     DPPParams.decimation[ch] = para[14];      // decimation (the input signal samples are averaged within
     DPPParams.dgain[ch] = para[15];           // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGa
@@ -581,7 +584,7 @@ int main(int argc, char *argv[]){
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
   hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
-  hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, 0, rangeTime);
+  hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, -10, rangeTime);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
@@ -622,6 +625,15 @@ int main(int argc, char *argv[]){
   int rawEvCount = 0;
   int evCount = 0;
   int graphIndex = 0;
+  ULong64_t rollOver = 0;
+  
+  
+  ULong64_t rollOverCh[MaxNChannels]; 
+  ULong64_t lastTimeStamp[MaxNChannels];
+  for(int i = 0; i < MaxNChannels; i++){
+      rollOverCh[i] = 0;
+      lastTimeStamp[i] = 0;
+  }
     
   while(!QuitFlag) {
     // Check keyboard
@@ -720,7 +732,7 @@ int main(int argc, char *argv[]){
       tree->SetBranchAddress("ch", channel);
       
       int n = rawChannel.size();
-      printf(" number of data to sort %d \n", n);
+      printf(" number of raw data to sort %d \n", n);
       
       countEventBuilt = 0;
       if(isCutFileOpen){
@@ -731,6 +743,7 @@ int main(int argc, char *argv[]){
       
       //Fill TDiff
       for( int i = 0; i < n-1; i++){
+        //printf("%d,  raw event : ch %d , e: %d, t: %f ms \n",i,  rawChannel[i], rawEnergy[i], rawTimeStamp[i] * ch2ns * 1e-6);
         for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
           ULong64_t timeDiff = rawTimeStamp[j]- rawTimeStamp[i] ;
@@ -861,7 +874,7 @@ int main(int argc, char *argv[]){
       }// end of event build
       /**/
         
-      printf(" number of data sorted %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
+      printf(" number of event built %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
@@ -940,12 +953,26 @@ int main(int argc, char *argv[]){
               PurCnt[ch]++;
           }
           
-          // Extras2 : bits[31:16] = roll over, bits[15:0] depends see DPP algorithm Control 2
-          ULong64_t rollOver = Events[ch][ev].Extras2 >> 16;
+          
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-          timetag  += rollOver << 31;
+          
+          if( Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed) {
+            // Extras2 : bits[31:16] = roll over, bits[15:0] depends see DPP algorithm Control 2
+            rollOver = Events[ch][ev].Extras2 >> 16;
+            timetag  += rollOver << 31;
+          }
           
           //printf(" %llu, %15lu, %15llu, %f sec \n", rollOver, Events[ch][ev].TimeTag, timetag, timetag * ch2ns * 1e-9);
+          
+          if(  Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ){
+            if( lastTimeStamp[ch] > timetag ){
+              rollOverCh[ch] ++;
+            }
+            lastTimeStamp[ch] = timetag;
+            timetag  += rollOverCh[ch] << 31;
+          }
+          
+          //printf(" %llu,  %lu, %llu sec \n", rollOverCh[ch], Events[ch][ev].TimeTag, timetag);
           
           rawEvCount ++;
           
@@ -959,7 +986,6 @@ int main(int argc, char *argv[]){
           rawEnergy.push_back(e_r);
           rawTimeStamp.push_back(timetag);
           
-          //printf("ch : %d , energy: %d \n", ch, e_r);
           if( chDE == ch )  hdE->Fill(e_r); 
           if( chE == ch )  hE->Fill(e_r); 
           
