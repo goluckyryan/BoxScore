@@ -221,14 +221,17 @@ void GetChannelSetting(int handle, int ch){
   printf("================ Getting setting for channel %d \n", ch);
   //DPP algorithm Control
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
-  printf("                        32  28  24  20  16  12   8   4   0\n");
-  printf("                         |   |   |   |   |   |   |   |   |\n");
-  cout <<" DPP algorith Control :   " << bitset<32>(value[0]) << endl;
+  printf("                         32  28  24  20  16  12   8   4   0\n");
+  printf("                          |   |   |   |   |   |   |   |   |\n");
+  cout <<" DPP algorith Control  :   " << bitset<32>(value[0]) << endl;
   
   int trapRescaling = int(value[0]) & 31 ;
   int polarity = int(value[0] >> 16); //in bit[16]
   int baseline = int(value[0] >> 20) ; // in bit[22:20]
   int NsPeak = int(value[0] >> 12); // in bit[13:12]
+  //DPP algorithm Control 2
+  CAEN_DGTZ_ReadRegister(handle, 0x10A0 + (ch << 8), value);
+  cout <<" DPP algorith Control 2:   " << bitset<32>(value[0]) << endl;
   
   printf("--------------- input \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
