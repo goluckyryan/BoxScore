@@ -312,10 +312,9 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     // Set the DPP specific parameters for the channels in the given channelMask
     ret |= CAEN_DGTZ_SetDPPParameters(handle, Params.ChannelMask, &DPPParams);
     
-    // Set Extras 2 to enable
-    uint32_t * value = new uint32_t[1];
-    ret |= CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
-    ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value[0] | (uint32_t(111) << 17) );
+    // Set Extras 2 to enable, this override Accusition mode, focring list mode
+    uint32_t value = 0x10E0114;
+    ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
     
     for(i=0; i<MaxNChannels; i++) {
         if (Params.ChannelMask & (1<<i)) {
@@ -381,7 +380,7 @@ void ReadCut(TString fileName){
   if( isCutFileOpen ){
     cutList = (TObjArray *) fCut->FindObjectAny("cutList");
     numCut = cutList->GetEntries();
-    printf(" =========== found %d TCutG in %s \n", numCut, fileName.Data());
+    printf("=========== found %d TCutG in %s \n", numCut, fileName.Data());
     cutG = new TCutG();
     graphRateCut = new TGraph * [numCut];
     for(int i = 0; i < numCut ; i++){
@@ -396,7 +395,7 @@ void ReadCut(TString fileName){
       legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
     }
   }else{
-    printf(" =========== Cannot find %s \n", fileName.Data());
+    printf("=========== Cannot find TCutG in %s, file may be no exist. \n", fileName.Data());
   }
   
   //printf("====================================== \n");
@@ -567,9 +566,12 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
   printf("                        32  28  24  20  16  12   8   4   0\n");
   printf("                         |   |   |   |   |   |   |   |   |\n");
-  cout <<" Board Configuratio   : 0x" << bitset<32>(value[0]) << endl;
-  
-
+  cout <<" Board Configuration  : 0x" << bitset<32>(value[0]) << endl;
+  printf("                Bit[ 0] = Auto Data Flush   \n");
+  printf("                Bit[16] = WaveForm Recording   \n");
+  printf("                Bit[17] = Extended Time Tag   \n");
+  printf("                Bit[18] = Record Time Stamp   \n");
+  printf("                Bit[19] = Record Energy   \n");
   printf("====================================== \n");
 
   /* WARNING: The mallocs MUST be done after the digitizer programming,
@@ -652,6 +654,7 @@ int main(int argc, char *argv[]){
   graphRate->SetMarkerStyle(20);
   graphRate->SetMarkerSize(1);
   
+  gROOT->ProcessLine("gErrorIgnoreLevel = kFatal;"); // supress error messsage
   ReadCut("cutsFile.root");
   
   cCanvas->cd(1)->cd(1); hEdE->Draw("colz");
@@ -659,7 +662,7 @@ int main(int argc, char *argv[]){
   cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
   cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
-  //cCanvas->cd(2); rateGraph->Draw("AP"); //legend->Draw();
+  cCanvas->cd(2); rateGraph->Draw("AP"); //legend->Draw();
   cCanvas->Update();
 
 
@@ -683,14 +686,6 @@ int main(int argc, char *argv[]){
   int totEventBuilt = 0;
   int graphIndex = 0;
   ULong64_t rollOver = 0;
-  
-  
-  ULong64_t rollOverCh[MaxNChannels]; 
-  ULong64_t lastTimeStamp[MaxNChannels];
-  for(int i = 0; i < MaxNChannels; i++){
-      rollOverCh[i] = 0;
-      lastTimeStamp[i] = 0;
-  }
     
   while(!QuitFlag) {
     // Check keyboard
@@ -712,6 +707,7 @@ int main(int argc, char *argv[]){
         AcqRun = 0;
       }
       if (c == 's')  {
+        gROOT->ProcessLine("gErrorIgnoreLevel = -1;");
         // Start Acquisition
         // NB: the acquisition for each board starts when the following line is executed
         // so in general the acquisition does NOT starts syncronously for different boards
@@ -892,54 +888,6 @@ int main(int argc, char *argv[]){
         i += numRawEventGrouped-1; 
         
       }/**/// end of event building
-      
-      /*// Event  building simple
-      for( int i = 0; i < n-1; i++){
-        //printf("%d --- %d, %llu, %d \n",i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
-        for( int j = i+1; j < n ; j++){
-          if( rawChannel[i] == rawChannel[j] ) continue;
-          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
-          if( TMath::Abs( timeDiff ) < CoincidentWindow ) { 
-            //printf("           %d,    %d, %llu, %d \n", j, rawChannel[j], rawTimeStamp[j], rawEnergy[j]);
-            for( int k = 0 ; k < MaxNChannels ; k++){
-              channel[k] = -1;
-              energy[k] = 0;
-              timeStamp[k] = 0;
-            }
-            
-            channel[rawChannel[i]] = rawChannel[i];
-            energy[rawChannel[i]] = rawEnergy[i];
-            timeStamp[rawChannel[i]] = rawTimeStamp[i];
-
-            channel[rawChannel[j]] = rawChannel[j];
-            energy[rawChannel[j]] = rawEnergy[j];
-            timeStamp[rawChannel[j]] = rawTimeStamp[j];
-            
-            countEventBuilt ++;
-            totEventBuilt++;
-            tree->Fill();
-            
-            float deltaE = energy[chDE] ;
-            float totalE = energy[chDE] + energy[chE];
-            
-            htotE->Fill(totalE); // x, y
-            hEdE->Fill(totalE, deltaE); // x, y
-            
-            if(isCutFileOpen){
-              //cutList = (TObjArray *) fCut->FindObjectAny("cutList");
-              for( int k = 0 ; k < numCut; k++ ){
-                cutG = (TCutG *)cutList->At(k) ;
-                if( cutG->IsInside(totalE, deltaE)){
-                  countFromCut[k] += 1;
-                }
-              }
-            }
-            
-            break;
-          }
-        }
-      }// end of event build
-      /**/
         
       printf(" number of event built %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
@@ -1020,26 +968,9 @@ int main(int argc, char *argv[]){
               PurCnt[ch]++;
           }
           
-          
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-          
-          //if( Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed) {
-            // Extras2 : bits[31:16] = roll over, bits[15:0] depends see DPP algorithm Control 2
-            rollOver = Events[ch][ev].Extras2 >> 16;
-            timetag  += rollOver << 31;
-          //}
-          
-          printf(" %llu, %15lu, %15llu, %f sec \n", rollOver, Events[ch][ev].TimeTag, timetag, timetag * ch2ns * 1e-9);
-          
-          //if(  Params.AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ){
-          //  if( lastTimeStamp[ch] > timetag ){
-          //    rollOverCh[ch] ++;
-          //  }
-          //  lastTimeStamp[ch] = timetag;
-          //  timetag  += rollOverCh[ch] << 31;
-          //}
-          
-          //printf(" %llu,  %lu, %llu sec \n", rollOverCh[ch], Events[ch][ev].TimeTag, timetag);
+          rollOver = Events[ch][ev].Extras2 >> 16;
+          timetag  += rollOver << 31;
           
           rawEvCount ++;
           
