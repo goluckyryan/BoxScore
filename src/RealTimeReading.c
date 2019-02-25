@@ -664,7 +664,7 @@ int main(int argc, char *argv[]){
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
     if (ElapsedTime > updatePeriod) {
-      system(CLEARSCR);
+      //system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
@@ -717,8 +717,83 @@ int main(int argc, char *argv[]){
           hTDiff->Fill(timeDiff);
         }
       }
+      /*
+      //=== Event Building
+      // bubble sort
+      int sortIndex[n];
+      double bubbleSortTime[n];
+      for( int i = 0; i < n; i++){
+        bubbleSortTime[i] = double(rawTimeStamp[i]/1e12);
+      }
+      TMath::BubbleLow(n,bubbleSortTime,sortIndex);
+      //printf("sortted \n");
+      // Re-map
+      int channelT[n];
+      UInt_t energyT[n];
+      ULong64_t timeStampT[n]; //TODO, when fill directly from Digitizer, using energyT 
+      for( int i = 0; i < n ; i++){
+        channelT[i] = channel[i];
+        energyT[i] = energy[i];
+        timeStampT[i] = timeStamp[i]; 
+      }
+      for( int i = 0; i < n ; i++){
+        channel[i] = channelT[sortIndex[i]];
+        timeStamp[i] = timeStampT[sortIndex[i]];
+        energy[i] = energyT[sortIndex[i]];
+        //printf(" %llu \n", timeStamp[i]);
+      }
+      // build event base on coincident window
+      for( int i = 0; i < n-1; i++){
+        int numRawEventGrouped = 1;
+        for( int j = i+1; j < n; j++){
+          if( rawChannel[i] == rawChannel[j] ) continue;
+          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
+          if( TMath::Abs( timeDiff ) < CoincidentWindow ) {
+            numRawEventGrouped ++;
+          }else{
+            break;
+          }
+        }
+        //printf("---- %d/ %d,  num in Group : %d \n", i, n,  numRawEventGrouped);
+        
+        for( int j = i ; j < i + numRawEventGrouped ; j++){
+          for( int k = 0 ; k < MaxNChannels ; k++){
+            channel[k] = -1;
+            energy[k] = 0;
+            timeStamp[k] = 0;
+          }
+          
+          channel[rawChannel[j]] = rawChannel[j];
+          energy[rawChannel[j]] = rawEnergy[j];
+          timeStamp[rawChannel[j]] = rawTimeStamp[j];
+          
+          countEventBuilt ++;
+          evCount++;
+          tree->Fill();
+          
+          float deltaE = energy[chDE] ;
+          float totalE = energy[chDE] + energy[chE];
+          
+          htotE->Fill(totalE); // x, y
+          hEdE->Fill(totalE, deltaE); // x, y
+          
+          if(isCutFileOpen){
+            for( int k = 0 ; k < numCut; k++ ){
+              cutG = (TCutG *)cutList->At(k) ;
+              if( cutG->IsInside(totalE, deltaE)){
+                countFromCut[k] += 1;
+              }
+            }
+          }
+          
+        }
+        
+        i += numRawEventGrouped-1; 
+        
+      }*/
+      // end of event building
       
-      //=== Event Build
+      
       for( int i = 0; i < n-1; i++){
         for( int j = i+1; j < n ; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
@@ -751,10 +826,10 @@ int main(int argc, char *argv[]){
             
             if(isCutFileOpen){
               //cutList = (TObjArray *) fCut->FindObjectAny("cutList");
-              for( int i = 0 ; i < numCut; i++ ){
-                cutG = (TCutG *)cutList->At(i) ;
+              for( int k = 0 ; k < numCut; k++ ){
+                cutG = (TCutG *)cutList->At(k) ;
                 if( cutG->IsInside(totalE, deltaE)){
-                  countFromCut[i] += 1;
+                  countFromCut[k] += 1;
                 }
               }
             }
@@ -763,6 +838,7 @@ int main(int argc, char *argv[]){
           }
         }
       }// end of event build
+      
         
       printf(" number of data sorted %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
@@ -847,6 +923,11 @@ int main(int argc, char *argv[]){
           ULong64_t baseClock = (((ULong64_t) Events[ch][ev].Extras2) ^ initClock[ch] ) << 15;
           ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
           timetag += baseClock ; 
+          
+          printf(" %d, %d, %lu \n", Events[ch][ev].Extras, Events[ch][ev].Extras2, Events[ch][ev].TimeTag);
+          
+          //printf("ch: %d %llu, %llu, %lu \n", ch, timetag, baseClock, initClock[ch]);
+        
           
           rawEvCount ++;
           

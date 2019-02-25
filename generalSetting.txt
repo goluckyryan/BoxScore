@@ -2,7 +2,7 @@
 true   //Pulse parity
 20000  // Num of samples of the waveforms (only for waveform mode)
 2000   // Pre trigger size;
-0x03   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+0xff   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 2000   //Table, tree, Plots update period in mili-sec.
 30000  // coincident time for event building, real time = coincident * 2 ns 
 0      //channel ID for Energy
