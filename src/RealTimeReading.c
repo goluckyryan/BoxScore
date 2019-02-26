@@ -45,6 +45,7 @@ using namespace std;
 #define MaxNChannels 8
 
 //TODO 1) change DCoffset, pulseParity to channel
+//TODO 2) change the tree structure to be like HELIOS
 
 //========== General setting;
 double ch2ns = 2;
@@ -218,12 +219,14 @@ int* ReadChannelSetting(int ch, string fileName){
 void GetChannelSetting(int handle, int ch){
   
   uint32_t * value = new uint32_t[8];
+  printf("================================================\n");
   printf("================ Getting setting for channel %d \n", ch);
+  printf("================================================\n");
   //DPP algorithm Control
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
   printf("                          32  28  24  20  16  12   8   4   0\n");
   printf("                           |   |   |   |   |   |   |   |   |\n");
-  cout <<" DPP algorithm Control  :   " << bitset<32>(value[0]) << endl;
+  cout <<" DPP algorithm Control  : 0b" << bitset<32>(value[0]) << endl;
   
   int trapRescaling = int(value[0]) & 31 ;
   int polarity = int(value[0] >> 16); //in bit[16]
@@ -232,6 +235,8 @@ void GetChannelSetting(int handle, int ch){
   //DPP algorithm Control 2
   CAEN_DGTZ_ReadRegister(handle, 0x10A0 + (ch << 8), value);
   cout <<" DPP algorithm Control 2:   " << bitset<32>(value[0]) << endl;
+  
+  printf("* = multiple of 8 \n");
   
   printf("--------------- input \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
@@ -243,19 +248,21 @@ void GetChannelSetting(int handle, int ch){
   
   printf("--------------- discriminator \n");
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
-  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off",  value[0] * 8); //Trigger Hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off *",  value[0] * 8); //Trigger Hold off
   CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] *2 ); //Fast Discriminator smoothing
-  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time",  value[0] * 2); //Input rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time *",  value[0] * 8); //Input rise time
   
   printf("--------------- Trapezoid \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise * decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
-  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time",  value[0] * 8 ); //Trap. rise time
-  CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. flat time",  value[0] * 8); //Trap. flat time
-  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero",  value[0] * 8); //Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time",  value[0] * 8); //Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns \n", "peaking time",  value[0] * 8); //Peaking time
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time *",  value[0] * 8 ); //Trap. rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); 
+  int flatTopTime = value[0] * 8;
+  printf("%20s  %d ns \n", "Trap. flat time *",  flatTopTime); //Trap. flat time
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero *",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time *",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time *",  value[0] * 8, value[0] * 800. / flatTopTime ); //Peaking time
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
-  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off",  value[0] * 8 ); //Peak hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off*",  value[0] * 8 ); //Peak hold off
   
   printf("--------------- Other \n");
   CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); //Energy fine gain
@@ -568,15 +575,15 @@ int main(int argc, char *argv[]){
   // Board Configuration
   uint32_t * value = new uint32_t[1];
   CAEN_DGTZ_ReadRegister(handle, 0x8000 , value);
-  printf("                        32  28  24  20  16  12   8   4   0\n");
-  printf("                         |   |   |   |   |   |   |   |   |\n");
-  cout <<" Board Configuration  :   " << bitset<32>(value[0]) << endl;
-  printf("                Bit[ 0] = Auto Data Flush   \n");
-  printf("                Bit[16] = WaveForm Recording   \n");
-  printf("                Bit[17] = Extended Time Tag   \n");
-  printf("                Bit[18] = Record Time Stamp   \n");
-  printf("                Bit[19] = Record Energy   \n");
-  printf("====================================== \n");
+  //printf("                        32  28  24  20  16  12   8   4   0\n");
+  //printf("                         |   |   |   |   |   |   |   |   |\n");
+  //cout <<" Board Configuration  : 0b" << bitset<32>(value[0]) << endl;
+  //printf("                Bit[ 0] = Auto Data Flush   \n");
+  //printf("                Bit[16] = WaveForm Recording   \n");
+  //printf("                Bit[17] = Extended Time Tag   \n");
+  //printf("                Bit[18] = Record Time Stamp   \n");
+  //printf("                Bit[19] = Record Energy   \n");
+  //printf("====================================== \n");
 
   /* WARNING: The mallocs MUST be done after the digitizer programming,
   because the following functions needs to know the digitizer configuration
@@ -815,11 +822,9 @@ int main(int argc, char *argv[]){
       double bubbleSortTime[n];
       for( int i = 0; i < n; i++){
         bubbleSortTime[i] = double(rawTimeStamp[i]/1e12);
-        //printf("%d,  %llu \n", i,rawTimeStamp[i]);
+        //printf("%d, %d,  %llu \n", i,rawEnergy[i], rawTimeStamp[i]);
       }
-      //printf("----------------------\n");
       TMath::BubbleLow(n,bubbleSortTime,sortIndex);
-      //printf("sortted \n");
       // Re-map
       int channelT[n];
       UInt_t energyT[n];
@@ -835,21 +840,16 @@ int main(int argc, char *argv[]){
         rawEnergy[i] = energyT[sortIndex[i]];
         //printf("%d,  %llu \n", i, rawTimeStamp[i]);
       }
-      
       //Fill TDiff
       for( int i = 0; i < n-1; i++){
-        //printf("%d,  raw event : ch %d , e: %d, t: %f ms \n",i,  rawChannel[i], rawEnergy[i], rawTimeStamp[i] * ch2ns * 1e-6);
-        //for( int j = i+1; j < n ; j++){
-          //if( rawChannel[i] == rawChannel[j] ) continue;
-          ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
-          hTDiff->Fill(timeDiff);
-        //}
+        ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
+        hTDiff->Fill(timeDiff);
       }
-      
       // build event base on coincident window
       int endID = 0;
       for( int i = 0; i < n-1; i++){
-        int timeToEnd = (int) (rawTimeStamp[n-1] - rawTimeStamp[i]) ;
+        int timeToEnd = abs((int) (rawTimeStamp[n-1] - rawTimeStamp[i])) ;
+        //printf(" time to end %d / %d \n", timeToEnd, CoincidentWindow);
         if( timeToEnd < CoincidentWindow) {
           endID = i;
           break;
@@ -987,8 +987,10 @@ int main(int argc, char *argv[]){
           
           ch_r = ch;
           e_r = Events[ch][ev].Energy ;
-          //if( ch == 0 ) e_r += int(gRandom->Gaus(0, 100));
-          //if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
+          if( ch == 0 || ch == 1 ) {
+            e_r += int(gRandom->Gaus(0, 200));
+            if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
+          }
           t_r = timetag;
           if( isSaveRaw ) rawTree->Fill();
           
