@@ -4,12 +4,12 @@ true   // Pulse parity
 2000   // Pre trigger size;
 0xff   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 1000   // Table, tree, Plots update period in mili-sec.
-1e5    // coincident time for event building, real time = coincident * 2 ns 
+1e4    // coincident time for event building, real time = coincident * 2 ns 
 0      // channel ID for Energy
 1      // channel ID for delta-Energy
 0      // range for Energy
 10000 
 0      // range for delta-Energy
 10000  
-5e6    // max range for time diff plot
+5e5    // max range for time diff plot
 false  // is saving raw data into raw.root

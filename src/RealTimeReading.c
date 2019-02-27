@@ -387,19 +387,19 @@ void ReadCut(TString fileName){
   
   printf("\n");
   if( rateGraph->GetListOfGraphs() != NULL) rateGraph->GetListOfGraphs()->RemoveAll();
-  rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
+  rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");
   rateGraph->Add(graphRate);
   
-  rangeGraph->SetPoint(0, -1, 0);
-  rangeGraph->SetPoint(1, RateWindow + 5, 0);
+  rangeGraph->SetPoint(0, RateWindow + 5, 0);
   rateGraph->Add(rangeGraph);
   
   legend->Clear();
   legend->AddEntry(graphRate, "Total");
   
-  if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
-  fullRateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
+  //if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
+  fullRateGraph->SetTitle("Beam rate [pps] (all time); Time [sec]; Rate [pps]");
   fullRateGraph->Add(fullGraphRate);
+  fullRateGraph->Add(rangeGraph);
   
   fullLegend->Clear();
   fullLegend->AddEntry(fullGraphRate, "Total");
@@ -719,6 +719,8 @@ int main(int argc, char *argv[]){
   cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP");
   cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
 
+  gStyle->SetTitleFontSize(0.1);
+  
   cCanvas->cd(2); 
   fullRateGraph->Draw("AP"); //legend->Draw();
   
@@ -1011,10 +1013,10 @@ int main(int argc, char *argv[]){
       
       graphIndex ++;
       
-      rangeGraph->SetPoint(0, TMath::Max((CurrentTime - StartTime)/1e3 - RateWindow, -1.) , 0 );
-      rangeGraph->SetPoint(1, TMath::Min((CurrentTime - StartTime)/1e3 + 5,  65.),  0. );
+      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3 + 5 , 0 );
       cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
       cCanvas->cd(2); fullRateGraph->Draw("AP"); fullLegend->Draw();
+      fullRateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3 + 5 );
       
       cCanvas->Modified();
       cCanvas->Update();
