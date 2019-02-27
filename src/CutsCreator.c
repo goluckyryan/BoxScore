@@ -91,7 +91,7 @@ int main(int argc, char* argv[] ){
     cut->SetLineColor(count);
     cutList->Add(cut);
     
-    printf(" cut-%d \n", count);			
+    printf(" cut-%d \n", count);
     count++;
   
   }while( cut != NULL );

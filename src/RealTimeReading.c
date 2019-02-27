@@ -409,6 +409,7 @@ void ReadCut(TString fileName){
   numCut = 0 ;
   if( isCutFileOpen ){
     cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+    if( cutList == NULL ) return;
     numCut = cutList->GetEntries();
     printf("=========== found %d TCutG in %s \n", numCut, fileName.Data());
     cutG = new TCutG();
