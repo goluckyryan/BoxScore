@@ -386,7 +386,7 @@ void paintCanvas(){
 void ReadCut(TString fileName){
   
   printf("\n");
-  rateGraph->Clear();
+  if( rateGraph->GetListOfGraphs() != NULL) rateGraph->GetListOfGraphs()->RemoveAll();
   rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
   rateGraph->Add(graphRate);
   
@@ -397,7 +397,7 @@ void ReadCut(TString fileName){
   legend->Clear();
   legend->AddEntry(graphRate, "Total");
   
-  fullRateGraph->Clear();
+  if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
   fullRateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
   fullRateGraph->Add(fullGraphRate);
   
@@ -412,6 +412,7 @@ void ReadCut(TString fileName){
     numCut = cutList->GetEntries();
     printf("=========== found %d TCutG in %s \n", numCut, fileName.Data());
     cutG = new TCutG();
+    
     graphRateCut = new TGraph * [numCut];
     fullGraphRateCut = new TGraph * [numCut];
     for(int i = 0; i < numCut ; i++){
@@ -962,7 +963,8 @@ int main(int argc, char *argv[]){
       hdE->Write("", TObject::kOverwrite); 
       htotE->Write("", TObject::kOverwrite);
       hTDiff->Write("", TObject::kOverwrite);
-      rateGraph->Write("rateGraph", TObject::kOverwrite); 
+      //rateGraph->Write("rateGraph", TObject::kOverwrite); 
+      fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
 
       fileAppend->Close();
       
@@ -1001,9 +1003,9 @@ int main(int argc, char *argv[]){
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
           printf("                           Rate(%s) : %.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
           
+          //graphRateCut[i]->Print();
+          
         }
-        
-        //graphRateCut[i]->Print();
       }
       
       graphIndex ++;
