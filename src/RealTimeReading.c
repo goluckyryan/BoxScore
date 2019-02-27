@@ -43,6 +43,7 @@
 using namespace std;
 
 #define MaxNChannels 8
+#define RateWindow 10 // sec
 
 //TODO 1) change DCoffset, pulseParity to channel
 //TODO 2) change the tree structure to be like HELIOS
@@ -79,6 +80,13 @@ TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
 TGraph ** graphRateCut = NULL; 
 TLegend * legend = NULL ; 
+TGraph * rangeGraph = NULL;
+
+TMultiGraph * fullRateGraph = NULL;
+TGraph * fullGraphRate = NULL;
+TGraph ** fullGraphRateCut = NULL; 
+TLegend * fullLegend = NULL ; 
+
 //======== TCutG
 TFile * fCut = NULL;
 TString cutName;
@@ -382,8 +390,19 @@ void ReadCut(TString fileName){
   rateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
   rateGraph->Add(graphRate);
   
+  rangeGraph->SetPoint(0, -1, 0);
+  rangeGraph->SetPoint(1, RateWindow + 5, 0);
+  rateGraph->Add(rangeGraph);
+  
   legend->Clear();
   legend->AddEntry(graphRate, "Total");
+  
+  fullRateGraph->Clear();
+  fullRateGraph->SetTitle("Instantaneous Beam rate [pps]; Time [sec]; Rate [pps]");
+  fullRateGraph->Add(fullGraphRate);
+  
+  fullLegend->Clear();
+  fullLegend->AddEntry(fullGraphRate, "Total");
   
   fCut = new TFile(fileName);
   isCutFileOpen = fCut->IsOpen(); 
@@ -394,6 +413,7 @@ void ReadCut(TString fileName){
     printf("=========== found %d TCutG in %s \n", numCut, fileName.Data());
     cutG = new TCutG();
     graphRateCut = new TGraph * [numCut];
+    fullGraphRateCut = new TGraph * [numCut];
     for(int i = 0; i < numCut ; i++){
       //printf(" cut name : %s \n", cutList->At(i)->GetName());
       countFromCut.push_back(0);
@@ -404,6 +424,14 @@ void ReadCut(TString fileName){
       graphRateCut[i]->SetMarkerSize(1);
       rateGraph->Add(graphRateCut[i]);
       legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
+
+      fullGraphRateCut[i] = new TGraph();
+      fullGraphRateCut[i]->SetMarkerColor(i+1);
+      fullGraphRateCut[i]->SetMarkerStyle(20+i);
+      fullGraphRateCut[i]->SetMarkerSize(1);
+      fullRateGraph->Add(fullGraphRateCut[i]);
+      fullLegend->AddEntry(fullGraphRateCut[i], cutList->At(i)->GetName());
+      
     }
   }else{
     printf("=========== Cannot find TCutG in %s, file may be no exist. \n", fileName.Data());
@@ -665,17 +693,35 @@ int main(int argc, char *argv[]){
   graphRate->SetMarkerStyle(20);
   graphRate->SetMarkerSize(1);
   
+  rangeGraph = new TGraph();
+  rangeGraph->SetMarkerColor(0);
+  rangeGraph->SetMarkerStyle(1);
+  rangeGraph->SetMarkerSize(0.000001);
+  
+  fullRateGraph = new TMultiGraph();
+  fullLegend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
+  
+  fullGraphRate = new TGraph();
+  fullGraphRate->SetTitle("Total Rate [pps]");
+  fullGraphRate->SetMarkerColor(4);
+  fullGraphRate->SetMarkerStyle(20);
+  fullGraphRate->SetMarkerSize(1);
+  
   gROOT->ProcessLine("gErrorIgnoreLevel = kFatal;"); // supress error messsage
   ReadCut("cutsFile.root");
   
   cCanvas->cd(1)->cd(1); hEdE->Draw("colz");
   cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
-  cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
+  //cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
+  cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP");
   cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
-  cCanvas->cd(2); rateGraph->Draw("AP"); //legend->Draw();
-  cCanvas->Update();
 
+  cCanvas->cd(2); 
+  fullRateGraph->Draw("AP"); //legend->Draw();
+  
+  cCanvas->Update();
+  gSystem->ProcessEvents();
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
@@ -849,11 +895,12 @@ int main(int argc, char *argv[]){
       int endID = 0;
       for( int i = 0; i < n-1; i++){
         int timeToEnd = abs((int) (rawTimeStamp[n-1] - rawTimeStamp[i])) ;
-        //printf(" time to end %d / %d \n", timeToEnd, CoincidentWindow);
+        endID = i;
+        //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
         if( timeToEnd < CoincidentWindow) {
-          endID = i;
           break;
         }
+          
         int numRawEventGrouped = 1;
         for( int j = i+1; j < n; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
@@ -906,7 +953,7 @@ int main(int argc, char *argv[]){
       rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
       printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
         
-      printf(" number of event built %d, Rate(all) : %f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
+      printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
@@ -930,18 +977,42 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
       //filling rate graph
-      graphIndex ++;
-      graphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
+      int lowerTime = (CurrentTime - StartTime)/1e3 - RateWindow;
+      for( int j = 1 ; j <= graphRate->GetN(); j++){
+        double x, y;
+        graphRate->GetPoint(j-1, x, y);
+        if( x < lowerTime ) graphRate->RemovePoint(j-1);
+      }
+      graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
+      fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
+      
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
-          graphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
+          for( int j = 1 ; j <= graphRateCut[i]->GetN(); j++){
+            double x, y;
+            graphRateCut[i]->GetPoint(j-1, x, y);
+            if( x < lowerTime ) {
+              graphRateCut[i]->RemovePoint(j-1);
+            }
+          }
+          graphRateCut[i]->SetPoint(graphRateCut[i]->GetN(), (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
+          fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
-          printf("                           Rate(%s) : %f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
+          printf("                           Rate(%s) : %.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
+          
         }
+        
+        //graphRateCut[i]->Print();
       }
-      rateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3);
-      cCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+      
+      graphIndex ++;
+      
+      rangeGraph->SetPoint(0, TMath::Max((CurrentTime - StartTime)/1e3 - RateWindow, -1.) , 0 );
+      rangeGraph->SetPoint(1, TMath::Min((CurrentTime - StartTime)/1e3 + 5,  65.),  0. );
+      cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
+      cCanvas->cd(2); fullRateGraph->Draw("AP"); fullLegend->Draw();
+      
       cCanvas->Modified();
       cCanvas->Update();
         
