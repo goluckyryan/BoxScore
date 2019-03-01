@@ -1,15 +1,15 @@
-0.5    // DCOFFSET
+0.6    // DCOFFSET
 true   // Pulse parity
-20000  // Num of samples of the waveforms (only for waveform mode)
-2000   // Pre trigger size;
-0xff   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+4096  // Num of samples of the waveforms (only for waveform mode)
+1000   // Pre trigger size;
+0x05   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 1000   // Table, tree, Plots update period in mili-sec.
-1e4    // coincident time for event building, real time = coincident * 2 ns 
-0      // channel ID for Energy
-1      // channel ID for delta-Energy
+20    // nano-sec, coincident time for event building, real time = coincident * 2 ns 
+2      // channel ID for Energy
+0      // channel ID for delta-Energy
 0      // range for Energy
-10000 
-0      // range for delta-Energy
-10000  
-5e5    // max range for time diff plot
+25000 
+14000      // range for delta-Energy
+25000  
+1000    // nano-sec max range for time diff plot
 false  // is saving raw data into raw.root

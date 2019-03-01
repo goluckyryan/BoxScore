@@ -49,7 +49,7 @@ using namespace std;
 //TODO 2) change the tree structure to be like HELIOS
 
 //========== General setting;
-double ch2ns = 2;
+double ch2ns = 2e-9;
 float DCOffset = 0.2;
 bool PositivePulse = true;
 uint RecordLength = 20000;   // Num of samples of the waveforms (only for waveform mode)
@@ -57,14 +57,14 @@ uint PreTriggerSize = 2000;
 uint ChannelMask = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
 int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
-int CoincidentWindow = 30000; // real time = CoincidentWindow * 2 ns 
+int CoincidentWindow = 300; // real time [nano-sec]
 
 int chE = 0;   //channel ID for E
 int chDE = 1;  //channel ID for dE
 
 int rangeDE[2] = {0, 5000}; // range for dE
 int rangeE[2] = {0, 5000};  // range for E
-uint rangeTime = 5e7;  // range for Tdiff
+double rangeTime = 5e7;  // range for Tdiff
 
 bool isSaveRaw = false; // saving Raw data
 
@@ -134,14 +134,14 @@ void ReadGeneralSetting(string fileName){
         if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
         if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
         if( count == 5  )   updatePeriod = atoi(line.substr(0, pos).c_str());
-        if( count == 6  ) CoincidentWindow = int(atof(line.substr(0, pos).c_str()));
+        if( count == 6  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
         if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
         if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
         if( count == 9  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
         if( count == 10 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
         if( count == 11 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
         if( count == 12 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
-        if( count == 13 )  rangeTime = uint(atof(line.substr(0, pos).c_str()));
+        if( count == 13 )  rangeTime = atof(line.substr(0, pos).c_str());
         if( count == 14 )  {
           if( line.substr(0, 4) == "true" ) {
             isSaveRaw = true;
@@ -161,10 +161,10 @@ void ReadGeneralSetting(string fileName){
     bitset<8> b(ChannelMask);
     printf(" %-20s  %s\n", "Channel Mask", b.to_string().c_str());
     printf(" %-20s  %d msec\n", "Update period", updatePeriod);
-    printf(" %-20s  %d ch = %.3f us\n", "Coincident windows", CoincidentWindow, CoincidentWindow * ch2ns * 1e-3);
+    printf(" %-20s  %.3f ns\n", "Coincident windows", CoincidentWindow * 1.0 );
     printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
     printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
-    printf(" %-20s  %e ch = %3.f msec\n", "tDiff range", double(rangeTime), rangeTime * ch2ns * 1e-6);
+    printf(" %-20s  %.3f ns\n", "tDiff range", rangeTime);
     printf(" %-20s  %s\n", "Is saving Raw", isSaveRaw ? "true" : "false");
     printf("====================================== \n");
     
@@ -242,7 +242,7 @@ void GetChannelSetting(int handle, int ch){
   int NsPeak = int(value[0] >> 12); // in bit[13:12]
   //DPP algorithm Control 2
   CAEN_DGTZ_ReadRegister(handle, 0x10A0 + (ch << 8), value);
-  cout <<" DPP algorithm Control 2:   " << bitset<32>(value[0]) << endl;
+  cout <<" DPP algorithm Control 2: 0b" << bitset<32>(value[0]) << endl;
   
   printf("* = multiple of 8 \n");
   
@@ -659,7 +659,7 @@ int main(int argc, char *argv[]){
   
   //=== Raw tree
   ULong64_t t_r;
-  UInt_t e_r;
+  ULong_t e_r;
   int ch_r;
   
   TFile * fileRaw = NULL;
@@ -684,7 +684,7 @@ int main(int argc, char *argv[]){
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
   hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
-  hTDiff = new TH1F("hTDiff", "timeDiff; time [unit = 2 ns] ; count", 500, -10, rangeTime);
+  hTDiff = new TH1F("hTDiff", "timeDiff; time [nsec] ; count", 500, 0, rangeTime);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
@@ -788,6 +788,10 @@ int main(int argc, char *argv[]){
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         printf("---------- Duration : %lu msec\n", StopTime - StartTime);
         AcqRun = 0;
+        
+        rawChannel.clear();
+        rawEnergy.clear();
+        rawTimeStamp.clear();
       }
       if( c == 'c' ){
         // pause and make cuts
@@ -877,7 +881,7 @@ int main(int argc, char *argv[]){
       TMath::BubbleLow(n,bubbleSortTime,sortIndex);
       // Re-map
       int channelT[n];
-      UInt_t energyT[n];
+      ULong_t energyT[n];
       ULong64_t timeStampT[n]; //TODO, when fill directly from Digitizer, using energyT 
       for( int i = 0; i < n ; i++){
         channelT[i] = rawChannel[i];
@@ -888,20 +892,21 @@ int main(int argc, char *argv[]){
         rawChannel[i] = channelT[sortIndex[i]];
         rawTimeStamp[i] = timeStampT[sortIndex[i]];
         rawEnergy[i] = energyT[sortIndex[i]];
-        //printf("%d,  %llu \n", i, rawTimeStamp[i]);
+        //printf("%d| %d,  %d,  %llu  \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
       }
+      
       //Fill TDiff
       for( int i = 0; i < n-1; i++){
         ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
-        hTDiff->Fill(timeDiff);
+        hTDiff->Fill(timeDiff * ch2ns * 1e9);
       }
       // build event base on coincident window
       int endID = 0;
       for( int i = 0; i < n-1; i++){
-        int timeToEnd = abs((int) (rawTimeStamp[n-1] - rawTimeStamp[i])) ;
+        int timeToEnd = abs(int(rawTimeStamp[n-1] - rawTimeStamp[i])) * ch2ns * 1e9 ; // in nano-sec
         endID = i;
         //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
-        if( timeToEnd < CoincidentWindow) {
+        if( timeToEnd < CoincidentWindow ) {
           break;
         }
           
@@ -947,7 +952,7 @@ int main(int argc, char *argv[]){
           }
         }
         
-        i += numRawEventGrouped-1; 
+        i += numRawEventGrouped - 1; 
         
       }/**/// end of event building
       
@@ -1050,32 +1055,38 @@ int main(int argc, char *argv[]){
           PrevTime[ch] = Events[ch][ev].TimeTag;
           /* Energy */
           if (Events[ch][ev].Energy > 0) {
-              ECnt[ch]++;
+            ECnt[ch]++;
+              
+            ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
+            rollOver = Events[ch][ev].Extras2 >> 16;
+            timetag  += rollOver << 31;
+            
+            rawEvCount ++;
+            
+            ch_r = ch;
+            e_r = Events[ch][ev].Energy ;
+            //if( ch == 0 || ch == 1 ) {
+              //e_r += int(gRandom->Gaus(0, 200));
+              //if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
+            //}
+            t_r = timetag;
+            if( isSaveRaw ) rawTree->Fill();
+            
+            rawChannel.push_back(ch);
+            rawEnergy.push_back(e_r);
+            rawTimeStamp.push_back(timetag);
+            
+            //printf(" ch: %2d | %lu %llu\n", ch_r, e_r, t_r);
+            
+            if( chDE == ch )  hdE->Fill(e_r); 
+            if( chE == ch )  hE->Fill(e_r); 
+              
+              
           } else { /* PileUp */
               PurCnt[ch]++;
           }
           
-          ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-          rollOver = Events[ch][ev].Extras2 >> 16;
-          timetag  += rollOver << 31;
           
-          rawEvCount ++;
-          
-          ch_r = ch;
-          e_r = Events[ch][ev].Energy ;
-          if( ch == 0 || ch == 1 ) {
-            e_r += int(gRandom->Gaus(0, 200));
-            if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
-          }
-          t_r = timetag;
-          if( isSaveRaw ) rawTree->Fill();
-          
-          rawChannel.push_back(ch);
-          rawEnergy.push_back(e_r);
-          rawTimeStamp.push_back(timetag);
-          
-          if( chDE == ch )  hdE->Fill(e_r); 
-          if( chE == ch )  hE->Fill(e_r); 
           
       } // loop on events
     } // loop on channels
