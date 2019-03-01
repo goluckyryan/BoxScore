@@ -681,7 +681,7 @@ int main(int argc, char *argv[]){
   gStyle->SetOptStat("neiou");
   cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 800);
   cCanvas->Divide(1,2);
-  cCanvas->cd(1)->Divide(2,1); 
+  cCanvas->cd(1)->Divide(2,1); cCanvas->cd(1)->cd(1)->SetLogz();
   cCanvas->cd(1)->cd(2)->Divide(2,2); 
   cCanvas->cd(1)->cd(2)->cd(4)->SetLogy();
   
@@ -690,6 +690,8 @@ int main(int argc, char *argv[]){
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
   hEdE  = new TH2F( "hEdE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff; time [nsec] ; count", 500, 0, rangeTime);
+  
+  hEdE->SetMinimum(1);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
@@ -833,8 +835,8 @@ int main(int argc, char *argv[]){
       system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
-      printf("Time Elapsed = %lu msec\n", CurrentTime - StartTime);
-      printf("Readout Rate = %.5f MB\n", (float)Nb/((float)ElapsedTime*1048.576f));
+      printf("Time Elapsed = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
+      printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
       printf("Total number of Raw Event = %d \n", rawEvCount);
       printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Built-event save to  : %s \n", rootFileName.c_str() );
@@ -1014,7 +1016,7 @@ int main(int argc, char *argv[]){
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf("                           Rate(%s) : %.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3);
+          printf("                           Rate(%s) : %8.2f pps | mean : %8.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
         }
         
@@ -1034,7 +1036,7 @@ int main(int argc, char *argv[]){
               printf("%10s", "/");
             }else{
               if( countFromCut[j] > countFromCut[i] ){
-                printf("%7.3f%%", countFromCut[i]* 100./countFromCut[j] );
+                printf("%9.3f%%", countFromCut[i]* 100./countFromCut[j] );
               }else{
                 printf("%10s", "-");
               }
@@ -1109,12 +1111,9 @@ int main(int argc, char *argv[]){
             if( chDE == ch )  hdE->Fill(e_r); 
             if( chE == ch )  hE->Fill(e_r); 
               
-              
           } else { /* PileUp */
               PurCnt[ch]++;
           }
-          
-          
           
       } // loop on events
     } // loop on channels
