@@ -9,7 +9,7 @@ true   // Pulse parity
 0      // channel ID for delta-Energy
 0      // range for Energy
 25000 
-14000      // range for delta-Energy
-25000  
+9000      // range for delta-Energy
+22000  
 1000    // nano-sec max range for time diff plot
 false  // is saving raw data into raw.root

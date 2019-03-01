@@ -56,7 +56,7 @@ int main(int argc, char* argv[] ){
   TTree * tree = (TTree*) fileIn->FindObjectAny("tree");
   gStyle->SetOptStat("");
   
-  TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 400, 400);
+  TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 800, 800);
   if( !cCutCreator->GetShowToolBar() ) cCutCreator->ToggleToolBar();
 
   TH2F * hEdE = new TH2F("hEdE", "dE - E ; E [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeE_min , rangeE_max );

@@ -388,21 +388,21 @@ void ReadCut(TString fileName){
   printf("\n");
   if( rateGraph->GetListOfGraphs() != NULL) rateGraph->GetListOfGraphs()->RemoveAll();
   rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");
-  rateGraph->Add(graphRate);
+  
   
   rangeGraph->SetPoint(0, RateWindow + 5, 0);
   rateGraph->Add(rangeGraph);
   
   legend->Clear();
-  legend->AddEntry(graphRate, "Total");
+  
   
   //if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
   fullRateGraph->SetTitle("Beam rate [pps] (all time); Time [sec]; Rate [pps]");
-  fullRateGraph->Add(fullGraphRate);
+  
   fullRateGraph->Add(rangeGraph);
   
   fullLegend->Clear();
-  fullLegend->AddEntry(fullGraphRate, "Total");
+  
   
   fCut = new TFile(fileName);
   isCutFileOpen = fCut->IsOpen(); 
@@ -436,6 +436,11 @@ void ReadCut(TString fileName){
       
     }
   }else{
+    rateGraph->Add(graphRate);
+    legend->AddEntry(graphRate, "Total");
+    
+    fullRateGraph->Add(fullGraphRate);
+    fullLegend->AddEntry(fullGraphRate, "Total");
     printf("=========== Cannot find TCutG in %s, file may be no exist. \n", fileName.Data());
   }
   
@@ -1009,10 +1014,33 @@ int main(int argc, char *argv[]){
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf("                           Rate(%s) : %.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3 );
+          printf("                           Rate(%s) : %.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3);
           
-          //graphRateCut[i]->Print();
-          
+        }
+        
+        // ration matrix
+        printf("=========== ration matrix : \n");
+        printf("%10s", "");
+        for( int j = 0 ; j < numCut ; j++){
+          cutG = (TCutG *)cutList->At(j) ;
+          printf("%10s", cutG->GetName()) ;
+        }
+        printf("\n");
+        for( int i = 0; i < numCut; i++){
+          cutG = (TCutG *)cutList->At(i) ;
+          printf("%10s", cutG->GetName()) ;
+          for( int j = 0; j < numCut ; j++){
+            if( i == j) {
+              printf("%10s", "/");
+            }else{
+              if( countFromCut[j] > countFromCut[i] ){
+                printf("%7.3f%%", countFromCut[i]* 100./countFromCut[j] );
+              }else{
+                printf("%10s", "-");
+              }
+            }
+            if( j == numCut -1 ) printf("\n");
+          }
         }
       }
       
