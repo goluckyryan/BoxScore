@@ -689,9 +689,9 @@ int main(int argc, char *argv[]){
   cCanvas->cd(2)->SetTicky();
   cCanvas->cd(2)->SetTickx();
   cCanvas->cd(1)->cd(2)->Divide(2,2);
-  cCanvas->cd(1)->cd(3)->SetGridy();
-  cCanvas->cd(1)->cd(3)->SetTicky();
-  cCanvas->cd(1)->cd(3)->SetTickx(); 
+  cCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
+  cCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
+  cCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
   cCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
   
   hE    = new TH1F(   "hE", "raw E ; E [ch] ;count ",         500, rangeE[0], rangeE[1]);
