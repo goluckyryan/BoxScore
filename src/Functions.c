@@ -178,6 +178,7 @@ void PrintInterface() {
 	printf("\ns ) Start acquisition\n");
 	printf("a ) Stop acquisition\n");
   printf("c ) Cuts Creator\n");
+  printf("y ) Clear histograms\n");
   printf("p ) Read Channel setting\n");
 	printf("q ) Quit\n");
 }

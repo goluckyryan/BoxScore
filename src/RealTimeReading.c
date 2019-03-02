@@ -766,6 +766,13 @@ int main(int argc, char *argv[]){
       if (c == 'q') {
         QuitFlag = true;
       }
+      if ( c == 'y'){
+        hEdE->Reset();
+        hE->Reset();
+        hdE->Reset();
+        htotE->Reset();
+        hTDiff->Reset();
+      }
       if (c == 'p') {
         //read channel setting form digitizer
         CAEN_DGTZ_SWStopAcquisition(handle); 
