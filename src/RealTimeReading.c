@@ -43,13 +43,13 @@
 using namespace std;
 
 #define MaxNChannels 8
-#define RateWindow 10 // sec
+
 
 //TODO 1) change DCoffset, pulseParity to channel
 //TODO 2) change the tree structure to be like HELIOS
 
 //========== General setting;
-double ch2ns = 2e-9;
+double ch2ns = 2.;
 float DCOffset = 0.2;
 bool PositivePulse = true;
 uint RecordLength = 20000;   // Num of samples of the waveforms (only for waveform mode)
@@ -65,6 +65,8 @@ int chDE = 1;  //channel ID for dE
 int rangeDE[2] = {0, 5000}; // range for dE
 int rangeE[2] = {0, 5000};  // range for E
 double rangeTime = 5e7;  // range for Tdiff
+
+float RateWindow = 10.; // sec
 
 bool isSaveRaw = false; // saving Raw data
 
@@ -142,7 +144,8 @@ void ReadGeneralSetting(string fileName){
         if( count == 11 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
         if( count == 12 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
         if( count == 13 )  rangeTime = atof(line.substr(0, pos).c_str());
-        if( count == 14 )  {
+        if( count == 14 )  RateWindow = atof(line.substr(0, pos).c_str());
+        if( count == 15 )  {
           if( line.substr(0, 4) == "true" ) {
             isSaveRaw = true;
           }else{
@@ -905,12 +908,12 @@ int main(int argc, char *argv[]){
       //Fill TDiff
       for( int i = 0; i < n-1; i++){
         ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
-        hTDiff->Fill(timeDiff * ch2ns * 1e9);
+        hTDiff->Fill(timeDiff * ch2ns);
       }
       // build event base on coincident window
       int endID = 0;
       for( int i = 0; i < n-1; i++){
-        int timeToEnd = abs(int(rawTimeStamp[n-1] - rawTimeStamp[i])) * ch2ns * 1e9 ; // in nano-sec
+        int timeToEnd = abs(int(rawTimeStamp[n-1] - rawTimeStamp[i])) * ch2ns ; // in nano-sec
         endID = i;
         //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
         if( timeToEnd < CoincidentWindow ) {

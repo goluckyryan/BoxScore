@@ -12,4 +12,5 @@ true   // Pulse parity
 9000      // range for delta-Energy
 22000  
 1000    // nano-sec max range for time diff plot
+20      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
