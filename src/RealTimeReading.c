@@ -848,31 +848,6 @@ int main(int argc, char *argv[]){
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
     if (ElapsedTime > updatePeriod) {
-      system(CLEARSCR);
-      PrintInterface();
-      printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
-      printf("Time Elapsed = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
-      printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
-      printf("Total number of Raw Event = %d \n", rawEvCount);
-      printf("Total number of Event Built = %d \n", totEventBuilt);
-      printf("Built-event save to  : %s \n", rootFileName.c_str() );
-      printf("\nBoard %d:\n",boardID);
-      for(i=0; i<MaxNChannels; i++) {
-        if (TrgCnt[i]>0){
-          printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
-        }else{
-          if (!(Params.ChannelMask & (1<<i))){
-            printf("\tCh %d:\tMasked\n", i);
-          }else{
-            printf("\tCh %d:\tNo Data\n", i);
-          }
-        }
-        TrgCnt[i]=0;
-        PurCnt[i]=0;
-      }
-      Nb = 0;
-      PrevRateTime = CurrentTime;
-      printf("\n");
       
       //sort event from tree and append to exist root
       //printf("---- append file \n");
@@ -989,15 +964,34 @@ int main(int argc, char *argv[]){
       
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
-      hdEtotE->Write("", TObject::kOverwrite); 
-      hE->Write("", TObject::kOverwrite); 
-      hdE->Write("", TObject::kOverwrite); 
-      htotE->Write("", TObject::kOverwrite);
-      hTDiff->Write("", TObject::kOverwrite);
-      //rateGraph->Write("rateGraph", TObject::kOverwrite); 
-      fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
-
-      fileAppend->Close();
+      
+      
+      //============ Display
+      system(CLEARSCR);
+      PrintInterface();
+      printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
+      printf("Time Elapsed = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
+      printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
+      printf("Total number of Raw Event = %d \n", rawEvCount);
+      printf("Total number of Event Built = %d \n", totEventBuilt);
+      printf("Built-event save to  : %s \n", rootFileName.c_str() );
+      printf("\nBoard %d:\n",boardID);
+      for(i=0; i<MaxNChannels; i++) {
+        if (TrgCnt[i]>0){
+          printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
+        }else{
+          if (!(Params.ChannelMask & (1<<i))){
+            printf("\tCh %d:\tMasked\n", i);
+          }else{
+            printf("\tCh %d:\tNo Data\n", i);
+          }
+        }
+        TrgCnt[i]=0;
+        PurCnt[i]=0;
+      }
+      Nb = 0;
+      PrevRateTime = CurrentTime;
+      printf("\n");
       
       if( isSaveRaw ) {
         fileRaw->cd();
@@ -1071,6 +1065,17 @@ int main(int argc, char *argv[]){
       
       cCanvas->Modified();
       cCanvas->Update();
+      
+      
+      // wirte histogram into tree
+      hdEtotE->Write("", TObject::kOverwrite); 
+      hE->Write("", TObject::kOverwrite); 
+      hdE->Write("", TObject::kOverwrite); 
+      htotE->Write("", TObject::kOverwrite);
+      hTDiff->Write("", TObject::kOverwrite);
+      fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
+
+      fileAppend->Close();
         
     }
     
