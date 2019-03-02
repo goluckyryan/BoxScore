@@ -853,6 +853,7 @@ int main(int argc, char *argv[]){
       //printf("---- append file \n");
       TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
       tree = (TTree*) fileAppend->Get("tree");
+      double fileSize = fileAppend->GetSize() / 1024. / 1024. ;
       
       tree->SetBranchAddress("e", energy);
       tree->SetBranchAddress("t", timeStamp);
@@ -975,6 +976,7 @@ int main(int argc, char *argv[]){
       printf("Total number of Raw Event = %d \n", rawEvCount);
       printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Built-event save to  : %s \n", rootFileName.c_str() );
+      printf("File size  : %.4f MB \n", fileSize );
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
         if (TrgCnt[i]>0){
@@ -992,11 +994,6 @@ int main(int argc, char *argv[]){
       Nb = 0;
       PrevRateTime = CurrentTime;
       printf("\n");
-      
-      if( isSaveRaw ) {
-        fileRaw->cd();
-        rawTree->Write("rawtree", TObject::kOverwrite); 
-      }
       
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -1068,6 +1065,7 @@ int main(int argc, char *argv[]){
       
       
       // wirte histogram into tree
+      fileAppend->cd();
       hdEtotE->Write("", TObject::kOverwrite); 
       hE->Write("", TObject::kOverwrite); 
       hdE->Write("", TObject::kOverwrite); 
@@ -1076,6 +1074,11 @@ int main(int argc, char *argv[]){
       fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
 
       fileAppend->Close();
+      
+      if( isSaveRaw ) {
+        fileRaw->cd();
+        rawTree->Write("rawtree", TObject::kOverwrite); 
+      }
         
     }
     
