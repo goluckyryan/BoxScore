@@ -872,8 +872,6 @@ int main(int argc, char *argv[]){
       tree->SetBranchAddress("ch", channel);
       
       int n = rawChannel.size();
-      printf(" number of raw data to sort %d \n", n);
-      
       countEventBuilt = 0;
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
@@ -1004,8 +1002,8 @@ int main(int argc, char *argv[]){
       PrevRateTime = CurrentTime;
       printf("\n");
       
+      printf(" number of raw data to sort %d \n", n);
       printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
-        
       printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
@@ -1044,27 +1042,29 @@ int main(int argc, char *argv[]){
         }
         
         // ration matrix
-        printf("=========== ration matrix : \n");
-        printf("%10s", "");
-        for( int j = 0 ; j < numCut ; j++){
-          cutG = (TCutG *)cutList->At(j) ;
-          printf("%10s", cutG->GetName()) ;
-        }
-        printf("\n");
-        for( int i = 0; i < numCut; i++){
-          cutG = (TCutG *)cutList->At(i) ;
-          printf("%10s", cutG->GetName()) ;
-          for( int j = 0; j < numCut ; j++){
-            if( i == j) {
-              printf("%10s", "/");
-            }else{
-              if( countFromCut[j] > countFromCut[i] ){
-                printf("%9.3f%%", countFromCut[i]* 100./countFromCut[j] );
+        if( numCut >= 2) {
+          printf("=========== ration matrix : \n");
+          printf("%10s", "");
+          for( int j = 0 ; j < numCut ; j++){
+            cutG = (TCutG *)cutList->At(j) ;
+            printf("%10s", cutG->GetName()) ;
+          }
+          printf("\n");
+          for( int i = 0; i < numCut; i++){
+            cutG = (TCutG *)cutList->At(i) ;
+            printf("%10s", cutG->GetName()) ;
+            for( int j = 0; j < numCut ; j++){
+              if( i == j) {
+                printf("%10s", "/");
               }else{
-                printf("%10s", "-");
+                if( countFromCut[j] > countFromCut[i] ){
+                  printf("%9.3f%%", countFromCut[i]* 100./countFromCut[j] );
+                }else{
+                  printf("%10s", "-");
+                }
               }
+              if( j == numCut -1 ) printf("\n");
             }
-            if( j == numCut -1 ) printf("\n");
           }
         }
       }
