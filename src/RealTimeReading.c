@@ -70,6 +70,9 @@ float RateWindow = 10.; // sec
 
 bool isSaveRaw = false; // saving Raw data
 
+//database
+TString databaseName="RAISOR_exit";
+
 //========= Histogram
 TCanvas * cCanvas = NULL;
 TH1F * hE = NULL;
@@ -103,9 +106,16 @@ bool  QuitFlag = false;
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+    TString databaseStr;
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=\"%s\"", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    //printf("%s \n", databaseStr.Data());
+    system(databaseStr.Data());
+}
+
 void ReadGeneralSetting(string fileName){
 
-  const int numPara = 15;
+  const int numPara = 17;
   
   ifstream file_in;
   file_in.open(fileName.c_str(), ios::in);
@@ -152,6 +162,7 @@ void ReadGeneralSetting(string fileName){
             isSaveRaw = false;
           }
         }
+        if( count == 16 )  databaseName = line.substr(0, pos).c_str();
         count ++;
       }
     }
@@ -169,6 +180,7 @@ void ReadGeneralSetting(string fileName){
     printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
     printf(" %-20s  %.3f ns\n", "tDiff range", rangeTime);
     printf(" %-20s  %s\n", "Is saving Raw", isSaveRaw ? "true" : "false");
+    printf(" %-20s  %s\n", "DataBase use", databaseName.Data());
     printf("====================================== \n");
     
   }
@@ -959,13 +971,9 @@ int main(int argc, char *argv[]){
       rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
       rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
       rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
-      printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
-        
-      printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
-      
       
       //============ Display
       system(CLEARSCR);
@@ -977,6 +985,7 @@ int main(int argc, char *argv[]){
       printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Built-event save to  : %s \n", rootFileName.c_str() );
       printf("File size  : %.4f MB \n", fileSize );
+      printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
         if (TrgCnt[i]>0){
@@ -995,21 +1004,26 @@ int main(int argc, char *argv[]){
       PrevRateTime = CurrentTime;
       printf("\n");
       
+      printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
+        
+      printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
+      
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
       cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
       cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
-      //filling rate graph
+      //filling rate graph and data base
       int lowerTime = (CurrentTime - StartTime)/1e3 - RateWindow;
       for( int j = 1 ; j <= graphRate->GetN(); j++){
         double x, y;
         graphRate->GetPoint(j-1, x, y);
         if( x < lowerTime ) graphRate->RemovePoint(j-1);
       }
-      graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
-      fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countEventBuilt*1.0/ElapsedTime*1e3);
-      
+      double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
+      graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
+      fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
+      WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
           for( int j = 1 ; j <= graphRateCut[i]->GetN(); j++){
@@ -1025,6 +1039,8 @@ int main(int argc, char *argv[]){
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
           printf("                           Rate(%s) : %8.2f pps | mean : %8.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
+          // write to database 
+          WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
         }
         
         // ration matrix
@@ -1062,7 +1078,6 @@ int main(int argc, char *argv[]){
       
       cCanvas->Modified();
       cCanvas->Update();
-      
       
       // wirte histogram into tree
       fileAppend->cd();
