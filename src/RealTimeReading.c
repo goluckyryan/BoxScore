@@ -848,6 +848,10 @@ int main(int argc, char *argv[]){
         
         PrintInterface();
         AcqRun = 0;
+        
+        rawChannel.clear();
+        rawEnergy.clear();
+        rawTimeStamp.clear();
       }
     }
     if (!AcqRun) {
@@ -973,6 +977,13 @@ int main(int argc, char *argv[]){
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
       
+      //filling filling histogram 
+      cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
+      cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
+      cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
+      
       //============ Display
       system(CLEARSCR);
       PrintInterface();
@@ -1006,11 +1017,6 @@ int main(int argc, char *argv[]){
       printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
       printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
-      cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
-      cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
-      cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
-      cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
-      cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
       //filling rate graph and data base
       int lowerTime = (CurrentTime - StartTime)/1e3 - RateWindow;
       for( int j = 1 ; j <= graphRate->GetN(); j++){
