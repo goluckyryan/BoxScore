@@ -1077,7 +1077,7 @@ int main(int argc, char *argv[]){
       
       graphIndex ++;
       
-      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3 + 5 , 0 );
+      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3 * 1.2 , 0 );
       cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
       cCanvas->cd(2); fullRateGraph->Draw("AP"); fullLegend->Draw();
       fullRateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3 + 5 );
