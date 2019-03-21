@@ -108,7 +108,7 @@ bool  QuitFlag = false;
 *  ########################################################################### */
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=\"%s\"", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
 }
@@ -261,7 +261,7 @@ void GetChannelSetting(int handle, int ch){
   
   printf("* = multiple of 8 \n");
   
-  printf("--------------- input \n");
+  printf("==========----- input \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
   CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
   printf("%20s  %s \n", "polarity",  (polarity & 1) ==  0 ? "Positive" : "negative"); //Polarity
@@ -269,13 +269,13 @@ void GetChannelSetting(int handle, int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x1098 + (ch << 8), value); printf("%20s  %.2f %% \n", "DC offset",  value[0] * 100./ int(0xffff) ); //DC offset
   CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value); printf("%20s  %.1f Vpp \n", "input Dynamic",  value[0] == 0 ? 2 : 0.5); //InputDynamic
   
-  printf("--------------- discriminator \n");
+  printf("==========----- discriminator \n");
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
   CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off *",  value[0] * 8); //Trigger Hold off
   CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] *2 ); //Fast Discriminator smoothing
   CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time *",  value[0] * 8); //Input rise time
   
-  printf("--------------- Trapezoid \n");
+  printf("==========----- Trapezoid \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise * decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
   CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time *",  value[0] * 8 ); //Trap. rise time
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); 
@@ -287,7 +287,7 @@ void GetChannelSetting(int handle, int ch){
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
   CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off*",  value[0] * 8 ); //Peak hold off
   
-  printf("--------------- Other \n");
+  printf("==========----- Other \n");
   CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); //Energy fine gain
     
 }
@@ -469,6 +469,8 @@ int main(int argc, char *argv[]){
     
   if( argc != 2 && argc != 3 ) {
     printf("Please input boardID! (optional root file name)\n");
+    printf("usage:\n");
+    printf("$./RealTimeReading boardID (tree.root)\n");
     return -1;
   }
   
@@ -508,8 +510,8 @@ int main(int argc, char *argv[]){
   int EnergyFinegain[MaxNChannels];
 
   /* Arrays for data analysis */
-  uint64_t PrevTime[MaxNChannels];
-  uint64_t ExtendedTT[MaxNChannels];
+  //uint64_t PrevTime[MaxNChannels];
+  //uint64_t ExtendedTT[MaxNChannels];
   int ECnt[MaxNChannels];
   int TrgCnt[MaxNChannels];
   int PurCnt[MaxNChannels];
@@ -656,14 +658,19 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                           */
   /* *************************************************************************************** */
   
-  vector<ULong64_t> rawTimeStamp;
+  // ===== unsorted data
+  vector<ULong64_t> rawTimeStamp;   
   vector<UInt_t> rawEnergy;
   vector<int> rawChannel;
+  
+  // ===== some variable for monitoring sorting time comsuption
+  int maxSortSize = 10000;
   
   // ===== Sorted Tree
   TFile * fileout = new TFile(rootFileName.c_str(), "RECREATE");
   TTree * tree = new TTree("tree", "tree");
   
+  // ==== data for one event
   ULong64_t timeStamp[MaxNChannels];
   UInt_t energy[MaxNChannels];
   int channel[MaxNChannels];
@@ -764,8 +771,8 @@ int main(int argc, char *argv[]){
   for (ch = 0; ch < MaxNChannels; ch++) {
     TrgCnt[ch] = 0;
     ECnt[ch] = 0;
-    PrevTime[ch] = 0;
-    ExtendedTT[ch] = 0;
+    //PrevTime[ch] = 0;
+    //ExtendedTT[ch] = 0;
     PurCnt[ch] = 0;
   }
   PrevRateTime = get_time();
@@ -777,13 +784,16 @@ int main(int argc, char *argv[]){
   ULong64_t rollOver = 0;
     
   while(!QuitFlag) {
-    // Check keyboard
+    //##################################################################
+    /* Check keyboard */
     if(kbhit()) {
       char c;
       c = getch();
+      //========== quit
       if (c == 'q') {
         QuitFlag = true;
       }
+      //========== reset histograms
       if ( c == 'y'){
         hdEtotE->Reset();
         hE->Reset();
@@ -791,8 +801,8 @@ int main(int argc, char *argv[]){
         htotE->Reset();
         hTDiff->Reset();
       }
+      //==========read channel setting form digitizer
       if (c == 'p') {
-        //read channel setting form digitizer
         CAEN_DGTZ_SWStopAcquisition(handle); 
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         for( int id = 0 ; id < MaxNChannels ; id++ ) {
@@ -802,9 +812,9 @@ int main(int argc, char *argv[]){
         PrintInterface();
         AcqRun = 0;
       }
+      //========== start acquisition
       if (c == 's')  {
         gROOT->ProcessLine("gErrorIgnoreLevel = -1;");
-        // Start Acquisition
         // NB: the acquisition for each board starts when the following line is executed
         // so in general the acquisition does NOT starts syncronously for different boards
         if( graphIndex == 0 ) {
@@ -816,20 +826,20 @@ int main(int argc, char *argv[]){
         printf("Acquisition Started for Board %d\n", boardID);
         AcqRun = 1;
       }
+      //========== stop acquisition
       if (c == 'a')  {
-        // Stop Acquisition
         CAEN_DGTZ_SWStopAcquisition(handle); 
         StopTime = get_time();  
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
-        printf("---------- Duration : %lu msec\n", StopTime - StartTime);
+        printf("========== Duration : %lu msec\n", StopTime - StartTime);
         AcqRun = 0;
         
         rawChannel.clear();
         rawEnergy.clear();
         rawTimeStamp.clear();
       }
+      //========== pause and make cuts
       if( c == 'c' ){
-        // pause and make cuts
         CAEN_DGTZ_SWStopAcquisition(handle); 
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         
@@ -854,16 +864,17 @@ int main(int argc, char *argv[]){
         rawTimeStamp.clear();
       }
     }
+    
     if (!AcqRun) {
       Sleep(10); // 10 mili-sec
       continue;
     }
-
+    //##################################################################
     /* Calculate throughput and trigger rate (every second) */
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
-    if (ElapsedTime > updatePeriod) {
+    if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
       
       //sort event from tree and append to exist root
       //printf("---- append file \n");
@@ -875,7 +886,8 @@ int main(int argc, char *argv[]){
       tree->SetBranchAddress("t", timeStamp);
       tree->SetBranchAddress("ch", channel);
       
-      int n = rawChannel.size();
+      int nRawData = rawChannel.size();
+      //clean up countFromCut
       countEventBuilt = 0;
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
@@ -884,39 +896,40 @@ int main(int argc, char *argv[]){
       }
       
       //=== Event Building by sorrting 
+      uint64_t buildStartTime = get_time();
       // bubble sort
-      int sortIndex[n];
-      double bubbleSortTime[n];
-      for( int i = 0; i < n; i++){
+      int sortIndex[nRawData];
+      double bubbleSortTime[nRawData];
+      for( int i = 0; i < nRawData; i++){
         bubbleSortTime[i] = double(rawTimeStamp[i]/1e12);
         //printf("%d, %d,  %llu \n", i,rawEnergy[i], rawTimeStamp[i]);
       }
-      TMath::BubbleLow(n,bubbleSortTime,sortIndex);
+      TMath::BubbleLow(nRawData,bubbleSortTime,sortIndex);
       // Re-map
-      int channelT[n];
-      ULong_t energyT[n];
-      ULong64_t timeStampT[n]; //TODO, when fill directly from Digitizer, using energyT 
-      for( int i = 0; i < n ; i++){
+      int channelT[nRawData];
+      ULong_t energyT[nRawData];
+      ULong64_t timeStampT[nRawData]; //TODO, when fill directly from Digitizer, using energyT 
+      for( int i = 0; i < nRawData ; i++){
         channelT[i] = rawChannel[i];
         energyT[i] = rawEnergy[i];
         timeStampT[i] = rawTimeStamp[i]; 
       }
-      for( int i = 0; i < n ; i++){
+      for( int i = 0; i < nRawData ; i++){
         rawChannel[i] = channelT[sortIndex[i]];
         rawTimeStamp[i] = timeStampT[sortIndex[i]];
         rawEnergy[i] = energyT[sortIndex[i]];
         //printf("%d| %d,  %d,  %llu  \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
       }
       
-      //Fill TDiff
-      for( int i = 0; i < n-1; i++){
+      // Fill TDiff
+      for( int i = 0; i < nRawData-1; i++){
         ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
         hTDiff->Fill(timeDiff * ch2ns);
       }
       // build event base on coincident window
       int endID = 0;
-      for( int i = 0; i < n-1; i++){
-        int timeToEnd = abs(int(rawTimeStamp[n-1] - rawTimeStamp[i])) * ch2ns ; // in nano-sec
+      for( int i = 0; i < nRawData-1; i++){
+        int timeToEnd = abs(int(rawTimeStamp[nRawData-1] - rawTimeStamp[i])) * ch2ns ; // in nano-sec
         endID = i;
         //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
         if( timeToEnd < CoincidentWindow ) {
@@ -924,7 +937,7 @@ int main(int argc, char *argv[]){
         }
           
         int numRawEventGrouped = 1;
-        for( int j = i+1; j < n; j++){
+        for( int j = i+1; j < nRawData; j++){
           if( rawChannel[i] == rawChannel[j] ) continue;
           int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
           if( TMath::Abs( timeDiff ) < CoincidentWindow ) {
@@ -933,7 +946,7 @@ int main(int argc, char *argv[]){
             break;
           }
         }
-        //printf("---- %d/ %d,  num in Group : %d \n", i, n,  numRawEventGrouped);
+        //printf("---- %d/ %d,  num in Group : %d \n", i, nRawData,  numRawEventGrouped);
         countEventBuilt ++;
         for( int k = 0 ; k < MaxNChannels ; k++){
           channel[k] = -1;
@@ -969,6 +982,11 @@ int main(int argc, char *argv[]){
         
       }/**/// end of event building
       
+      uint64_t buildStopTime = get_time();
+      uint64_t buildTime = buildStopTime - buildStartTime;
+      
+      if( buildTime > updatePeriod ) maxSortSize = nRawData * 0.9 ;
+      
       //clear vectors but keep from endID
       rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
       rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
@@ -984,7 +1002,7 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
       
-      //============ Display
+      //=========================== Display
       system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
@@ -992,6 +1010,8 @@ int main(int argc, char *argv[]){
       printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
       printf("Total number of Raw Event = %d \n", rawEvCount);
       printf("Total number of Event Built = %d \n", totEventBuilt);
+      printf("Event-building time = %lu msec\n", buildTime);
+      printf("max sort event size = %d \n", maxSortSize);
       printf("Built-event save to  : %s \n", rootFileName.c_str() );
       printf("File size  : %.4f MB \n", fileSize );
       printf("Database :  %s\n", databaseName.Data());
@@ -1013,7 +1033,7 @@ int main(int argc, char *argv[]){
       PrevRateTime = CurrentTime;
       printf("\n");
       
-      printf(" number of raw data to sort %d \n", n);
+      printf(" number of raw data to sort %d \n", nRawData);
       printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
       printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
@@ -1027,6 +1047,7 @@ int main(int argc, char *argv[]){
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
+      //============= write to database
       WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
@@ -1043,7 +1064,7 @@ int main(int argc, char *argv[]){
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
           printf("                           Rate(%s) : %8.2f pps | mean : %8.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
-          // write to database 
+          //============= write to database 
           WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
         }
         
@@ -1102,7 +1123,7 @@ int main(int argc, char *argv[]){
       }
         
     }
-    
+    //##################################################################
     /* Read data from the board */
     ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
     if (BufferSize == 0) continue;
@@ -1117,18 +1138,17 @@ int main(int argc, char *argv[]){
       CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
       return 0;
     }
-    
+    //##################################################################
     /* Analyze data */
     for (ch = 0; ch < MaxNChannels; ch++) {
       if (!(Params.ChannelMask & (1<<ch))) continue;
       
-      /* Update display */
       for (ev = 0; ev < NumEvents[ch]; ev++) {
           TrgCnt[ch]++;
-          /* Time Tag */
-          if (Events[ch][ev].TimeTag < PrevTime[ch]) ExtendedTT[ch]++;
-          PrevTime[ch] = Events[ch][ev].TimeTag;
-          /* Energy */
+          
+          //if (Events[ch][ev].TimeTag < PrevTime[ch]) ExtendedTT[ch]++;
+          //PrevTime[ch] = Events[ch][ev].TimeTag;
+          
           if (Events[ch][ev].Energy > 0) {
             ECnt[ch]++;
               
@@ -1141,8 +1161,8 @@ int main(int argc, char *argv[]){
             ch_r = ch;
             e_r = Events[ch][ev].Energy ;
             //if( ch == 0 || ch == 1 ) {
-              //e_r += int(gRandom->Gaus(0, 200));
-              //if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
+            //  e_r += int(gRandom->Gaus(0, 200));
+            //  if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
             //}
             t_r = timetag;
             if( isSaveRaw ) rawTree->Fill();
@@ -1162,6 +1182,7 @@ int main(int argc, char *argv[]){
           
       } // loop on events
     } // loop on channels
+
   } // End of readout loop
   
   if( isSaveRaw ) {
