@@ -39,11 +39,11 @@
 #include "TObjArray.h"
 #include "TLegend.h"
 #include "TRandom.h"
+#include "TLine.h"
 
 using namespace std;
 
 #define MaxNChannels 8
-
 
 //TODO 1) change DCoffset, pulseParity to channel
 //TODO 2) change the tree structure to be like HELIOS
@@ -670,6 +670,13 @@ int main(int argc, char *argv[]){
   TFile * fileout = new TFile(rootFileName.c_str(), "RECREATE");
   TTree * tree = new TTree("tree", "tree");
   
+  TLine coincidentline;
+  coincidentline.SetLineColor(2);
+  coincidentline.SetX1(CoincidentWindow);
+  coincidentline.SetY1(0);
+  coincidentline.SetX2(CoincidentWindow);
+  coincidentline.SetY2(100000000);
+  
   // ==== data for one event
   ULong64_t timeStamp[MaxNChannels];
   UInt_t energy[MaxNChannels];
@@ -701,8 +708,10 @@ int main(int argc, char *argv[]){
   }
   //==== Drawing 
   gStyle->SetOptStat("neiou");
-  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 1200, 800);
+  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 0, 0, 1200, 800);
   cCanvas->Divide(1,2);
+  if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
+  
   cCanvas->cd(1)->Divide(2,1); cCanvas->cd(1)->cd(1)->SetLogz();
   cCanvas->cd(2)->SetGridy();
   cCanvas->cd(2)->SetTicky();
@@ -782,6 +791,7 @@ int main(int argc, char *argv[]){
   int totEventBuilt = 0;
   int graphIndex = 0;
   ULong64_t rollOver = 0;
+  int numDataRetriving = 0;
     
   while(!QuitFlag) {
     //##################################################################
@@ -875,7 +885,6 @@ int main(int argc, char *argv[]){
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
     if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
-      
       //sort event from tree and append to exist root
       //printf("---- append file \n");
       TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
@@ -1000,12 +1009,13 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
       cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
       cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
-      cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
+      cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); coincidentline.Draw("same");
       
       //=========================== Display
       system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
+      printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
       printf("Time Elapsed = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
       printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
       printf("Total number of Raw Event = %d \n", rawEvCount);
@@ -1121,7 +1131,8 @@ int main(int argc, char *argv[]){
         fileRaw->cd();
         rawTree->Write("rawtree", TObject::kOverwrite); 
       }
-        
+      
+      numDataRetriving = 0;
     }
     //##################################################################
     /* Read data from the board */
@@ -1138,6 +1149,7 @@ int main(int argc, char *argv[]){
       CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
       return 0;
     }
+    numDataRetriving++;
     //##################################################################
     /* Analyze data */
     for (ch = 0; ch < MaxNChannels; ch++) {
