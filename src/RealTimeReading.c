@@ -40,6 +40,7 @@
 #include "TLegend.h"
 #include "TRandom.h"
 #include "TLine.h"
+#include "TMacro.h"
 
 using namespace std;
 
@@ -486,6 +487,7 @@ int main(int argc, char *argv[]){
   printf("   save to  : %s \n", rootFileName.c_str() );
 
   ReadGeneralSetting("generalSetting.txt");
+  TMacro gs("generalSetting.txt");
 
   TApplication app ("app", &argc, argv);
   
@@ -559,8 +561,15 @@ int main(int argc, char *argv[]){
   /****************************\
   *      DPP parameters        * 
   \****************************/
+  TMacro chSetting[MaxNChannels];
   for(ch=0; ch<MaxNChannels; ch++) {
-    int* para = ReadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
+    string chSettingFileName = "setting_" + to_string(ch) + ".txt";
+    int* para = ReadChannelSetting(ch, chSettingFileName);
+    
+    if (Params.ChannelMask & (1<<ch)) {
+      chSetting[ch].ReadFile(chSettingFileName.c_str());
+    }
+    
     DPPParams.thr[ch] = para[0];              // Trigger Threshold (in LSB)
     DPPParams.trgho[ch] = para[1];            // Trigger Hold Off (ns)
     DPPParams.a[ch] = para[2];                // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to a
@@ -583,7 +592,7 @@ int main(int argc, char *argv[]){
     DPPParams.dgain[ch] = para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
     DPPParams.trgwin[ch] = para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
     DPPParams.twwdt[ch] = para[18];           // Rise Time Validation Window (ns)
-    
+
   }
   printf("====================================== \n");
   
@@ -669,6 +678,12 @@ int main(int argc, char *argv[]){
   // ===== Sorted Tree
   TFile * fileout = new TFile(rootFileName.c_str(), "RECREATE");
   TTree * tree = new TTree("tree", "tree");
+  gs.Write();
+  for( int i = 0 ; i < MaxNChannels; i++){
+    if (Params.ChannelMask & (1<<i)) {
+      chSetting[i].Write(Form("setting_%i", i));
+    }
+  }
   
   TLine coincidentline;
   coincidentline.SetLineColor(2);
@@ -701,6 +716,13 @@ int main(int argc, char *argv[]){
   if( isSaveRaw ) {
     fileRaw = new TFile("raw.root", "RECREATE");
     rawTree = new TTree("rawtree", "rawtree");
+      
+    gs.Write();
+    for( int i = 0 ; i < MaxNChannels; i++){
+      if (Params.ChannelMask & (1<<i)) {
+        chSetting[i].Write(Form("setting_%d", i));
+      }
+    }
     
     rawTree->Branch("ch", &ch_r, "channel/I");
     rawTree->Branch("e", &e_r, "energy/i");
