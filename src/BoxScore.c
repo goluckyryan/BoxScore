@@ -730,7 +730,7 @@ int main(int argc, char *argv[]){
   }
   //==== Drawing 
   gStyle->SetOptStat("neiou");
-  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 0, 0, 1200, 800);
+  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 0, 0, 1500, 1000);
   cCanvas->Divide(1,2);
   if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
   

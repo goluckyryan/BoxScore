@@ -13,7 +13,7 @@ ARCH	=	`uname -m`
 
 OUTDIR  =    	.
 
-OUTNAME1 =    	RealTimeReading
+OUTNAME1 =    	BoxScore
 OUT1     =    	$(OUTDIR)/$(OUTNAME1)
 
 OUTNAME2 =    	DetectDigitizer
@@ -34,7 +34,7 @@ LIBS	=	-L..
 
 INCLUDEDIR =	-I./include
 
-OBJS	=	src/RealTimeReading.o 
+OBJS	=	src/BoxScore.o 
 
 OBJS1	=	src/keyb.o src/Functions.o 
 
@@ -54,12 +54,12 @@ $(OUT1)	:	$(OBJS) $(OBJS1)
 
 $(OUT2)	:	$(OBJS2)
 		$(CC) $(FLAGS) -o $(OUT2) $(OBJS2) $(DEPLIBS)
-		
+
 CutsCreator:	$(OBJS3) src/CutsCreator.c
 		g++ -std=c++11 -pthread src/CutsCreator.c -o CutsCreator `root-config --cflags --glibs`
 
-$(OBJS)	:	src/RealTimeReading.c
-		$(CC) $(FLAGS) $(INCLUDEDIR) -c -o $(OBJS) src/RealTimeReading.c `root-config --cflags --glibs`
+$(OBJS)	:	src/BoxScore.c
+		$(CC) $(FLAGS) $(INCLUDEDIR) -c -o $(OBJS) src/BoxScore.c `root-config --cflags --glibs`
 
 $(OBJS1)	:	$(INCLUDES) Makefile
 
