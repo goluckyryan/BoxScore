@@ -76,10 +76,12 @@ TString databaseName="RAISOR_exit";
 
 //========= Histogram
 TCanvas * cCanvas = NULL;
+TCanvas * cCanvasAux = NULL;
 TH1F * hE = NULL;
 TH1F * htotE = NULL;
 TH1F * hdE = NULL;
 TH2F * hdEtotE = NULL; 
+TH2F * hdEE = NULL; 
 TH1F * hTDiff = NULL;
 //======== Rate Graph
 TMultiGraph * rateGraph = NULL;
@@ -730,6 +732,12 @@ int main(int argc, char *argv[]){
   }
   //==== Drawing 
   gStyle->SetOptStat("neiou");
+  cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
+  cCanvasAux->cd()->SetGridy();
+  cCanvasAux->cd()->SetGridx();
+  cCanvasAux->cd()->SetTicky();
+  cCanvasAux->cd()->SetTickx();
+  
   cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 0, 0, 1500, 1000);
   cCanvas->Divide(1,2);
   if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
@@ -748,9 +756,11 @@ int main(int argc, char *argv[]){
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
   hdEtotE  = new TH2F( "hdEtotE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff; time [nsec] ; count", 500, 0, rangeTime);
   
   hdEtotE->SetMinimum(1);
+  hdEE->SetMinimum(1);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
@@ -778,13 +788,15 @@ int main(int argc, char *argv[]){
   gROOT->ProcessLine("gErrorIgnoreLevel = kFatal;"); // supress error messsage
   ReadCut("cutsFile.root");
   
+  cCanvasAux->cd(); hdEE->Draw("colz");
+  
   cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   //cCanvas->cd(1)->cd(2)->cd(3); htotE->Draw();
   cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP");
   cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw();
-
+  
   gStyle->SetTitleFontSize(0.1);
   
   cCanvas->cd(2); 
@@ -830,6 +842,7 @@ int main(int argc, char *argv[]){
         hdEtotE->Reset();
         hE->Reset();
         hdE->Reset();
+        hdEE->Reset();
         htotE->Reset();
         hTDiff->Reset();
       }
@@ -995,9 +1008,11 @@ int main(int argc, char *argv[]){
         tree->Fill();
           
         float deltaE = energy[chDE] ;
+        float ERes = energy[chE] ;
         float totalE = energy[chDE] + energy[chE];
         
         htotE->Fill(totalE); // x, y
+        hdEE->Fill(ERes, deltaE); // x, y
         hdEtotE->Fill(totalE, deltaE); // x, y
         
         if(isCutFileOpen){
@@ -1027,6 +1042,8 @@ int main(int argc, char *argv[]){
       tree->Write("", TObject::kOverwrite); 
       
       //filling filling histogram 
+      cCanvasAux->cd(); hdEE->Draw("colz");
+      
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
       cCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
@@ -1144,6 +1161,7 @@ int main(int argc, char *argv[]){
       hE->Write("", TObject::kOverwrite); 
       hdE->Write("", TObject::kOverwrite); 
       htotE->Write("", TObject::kOverwrite);
+      hdEE->Write("", TObject::kOverwrite);
       hTDiff->Write("", TObject::kOverwrite);
       fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
 
