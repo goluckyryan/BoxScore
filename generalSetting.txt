@@ -1,4 +1,4 @@
-0.6    // DCOFFSET
+0.5    // DCOFFSET
 true   // Pulse parity
 4096  // Num of samples of the waveforms (only for waveform mode)
 1000   // Pre trigger size;
@@ -8,9 +8,9 @@ true   // Pulse parity
 3      // channel ID for Energy
 2      // channel ID for delta-Energy
 0      // range for Energy
-50000 
+30000 
 0      // range for delta-Energy
-50000  
+10000  
 100     // nano-sec max range for time diff plot
 20      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
