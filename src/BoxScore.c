@@ -511,6 +511,7 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
   DigitizerParams_t Params;
   int InputDynamicRange[MaxNChannels];
+  for ( int i = 0; i < MaxNChannels ; i++ ) InputDynamicRange[i] = 0;
   int EnergyFinegain[MaxNChannels];
 
   /* Arrays for data analysis */
@@ -755,7 +756,15 @@ int main(int argc, char *argv[]){
   hE    = new TH1F(   "hE", "raw E ; E [ch] ;count ",         500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
-  hdEtotE  = new TH2F( "hdEtotE", "dE - totE ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + 4E ; totalE [ch]; dE [ch ", 500, rangeDE[0] + 4 * rangeE[0], rangeDE[1] + 4 * rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = 4dE + E; totalE [ch]; dE [ch ", 500, 4* rangeDE[0] + rangeE[0], 4* rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  }
+  
+  
   hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff; time [nsec] ; count", 500, 0, rangeTime);
   
@@ -1009,7 +1018,15 @@ int main(int argc, char *argv[]){
           
         float deltaE = energy[chDE] ;
         float ERes = energy[chE] ;
-        float totalE = energy[chDE] + energy[chE];
+        
+        float totalE = 0;
+        if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
+          totalE = energy[chDE] + energy[chE];
+        }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
+          totalE = energy[chDE] + 4. * energy[chE];
+        }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
+          totalE = 4.0 * energy[chDE] + energy[chE];
+        }
         
         htotE->Fill(totalE); // x, y
         hdEE->Fill(ERes, deltaE); // x, y
