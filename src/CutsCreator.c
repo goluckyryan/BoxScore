@@ -59,7 +59,7 @@ int main(int argc, char* argv[] ){
   TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 800, 800);
   if( !cCutCreator->GetShowToolBar() ) cCutCreator->ToggleToolBar();
 
-  TH2F * hEdE = new TH2F("hEdE", "dE - E ; E [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeE_min , rangeE_max );
+  TH2F * hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
   
   TString expression;
   expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);

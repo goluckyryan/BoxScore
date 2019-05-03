@@ -1019,7 +1019,7 @@ int main(int argc, char *argv[]){
         float deltaE = energy[chDE] ;
         float ERes = energy[chE] ;
         
-        float totalE = 0;
+        float totalE = TMath::QuietNaN();
         if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
           totalE = energy[chDE] + energy[chE];
         }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
