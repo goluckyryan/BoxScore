@@ -734,6 +734,7 @@ int main(int argc, char *argv[]){
   //==== Drawing 
   gStyle->SetOptStat("neiou");
   cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
+  if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor();
   cCanvasAux->cd()->SetGridy();
   cCanvasAux->cd()->SetGridx();
   cCanvasAux->cd()->SetTicky();
@@ -812,6 +813,7 @@ int main(int argc, char *argv[]){
   fullRateGraph->Draw("AP"); //legend->Draw();
   
   cCanvas->Update();
+  cCanvasAux->Update();
   gSystem->ProcessEvents();
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
@@ -1019,7 +1021,7 @@ int main(int argc, char *argv[]){
         float deltaE = energy[chDE] ;
         float ERes = energy[chE] ;
         
-        float totalE = 0;
+        float totalE = TMath::QuietNaN();
         if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
           totalE = energy[chDE] + energy[chE];
         }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
@@ -1101,7 +1103,6 @@ int main(int argc, char *argv[]){
       
       printf(" number of raw data to sort %d \n", nRawData);
       printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
-      printf(" number of event built %d, Rate(all) : %.2f pps \n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3 );
       
       //filling rate graph and data base
       int lowerTime = (CurrentTime - StartTime)/1e3 - RateWindow;
@@ -1112,6 +1113,7 @@ int main(int argc, char *argv[]){
       }
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
+      printf(" number of event built %d, Rate(all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
       //============= write to database
       WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
@@ -1128,7 +1130,7 @@ int main(int argc, char *argv[]){
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf("                           Rate(%s) : %8.2f pps | mean : %8.2f pps \n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
+          printf("                          Rate(%s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
           WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
@@ -1164,13 +1166,15 @@ int main(int argc, char *argv[]){
       
       graphIndex ++;
       
-      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3 * 1.2 , 0 );
+      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3  + 5 , 0 ); // 5 sec gap
       cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
       cCanvas->cd(2); fullRateGraph->Draw("AP"); fullLegend->Draw();
       fullRateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3 + 5 );
       
       cCanvas->Modified();
       cCanvas->Update();
+      cCanvasAux->Modified();
+      cCanvasAux->Update();
       
       // wirte histogram into tree
       fileAppend->cd();

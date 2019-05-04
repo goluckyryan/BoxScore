@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string>
+#include <sstream>
 #include "CAENDigitizer.h"
 
 #include "keyb.h"
@@ -9,6 +11,8 @@
 
 #define MAXNB 8 /* Number of connected boards */
 
+using namespace std;
+
 int checkCommand() {
   int c = 0;
   if(!kbhit()) return 0;
@@ -18,6 +22,7 @@ int checkCommand() {
     case 'k':  return 1; break;
     case 'r':  return 3; break;
     case 'p':  return 4; break;
+    case 'z':  return 5; break;
     case 'q':  return 2; break;
   }
   return 0;
@@ -149,31 +154,33 @@ int main(int argc, char* argv[])
           //goto QuitProgram;
         }
 
-        ret = CAEN_DGTZ_Reset(handle[b]);                                               /* Reset Digitizer */
-        ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);                                 /* Get Board Info */
-        ret = CAEN_DGTZ_SetRecordLength(handle[b],4096);                                /* Set the lenght of each waveform (in samples) */
-        ret = CAEN_DGTZ_SetChannelEnableMask(handle[b],1);                              /* Enable channel 0 */
-        ret = CAEN_DGTZ_SetChannelTriggerThreshold(handle[b],0,32768);                  /* Set selfTrigger threshold */
-        ret = CAEN_DGTZ_SetChannelSelfTrigger(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY,1);  /* Set trigger on channel 0 to be ACQ_ONLY */
-        ret = CAEN_DGTZ_SetSWTriggerMode(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY);         /* Set the behaviour when a SW tirgger arrives */
-        ret = CAEN_DGTZ_SetMaxNumEventsBLT(handle[b],3);                                /* Set the max number of events to transfer in a sigle readout */
-        ret = CAEN_DGTZ_SetAcquisitionMode(handle[b],CAEN_DGTZ_SW_CONTROLLED);          /* Set the acquisition mode */
-        if(ret != CAEN_DGTZ_Success) {
-            printf("Errors during Digitizer Configuration.\n");
-            goto QuitProgram;
-        }
-        printf("\n");
+        //ret = CAEN_DGTZ_Reset(handle[b]);                                               /* Reset Digitizer */
+        //ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);                                 /* Get Board Info */
+        //ret = CAEN_DGTZ_SetRecordLength(handle[b],4096);                                /* Set the lenght of each waveform (in samples) */
+        //ret = CAEN_DGTZ_SetChannelEnableMask(handle[b],1);                              /* Enable channel 0 */
+        //ret = CAEN_DGTZ_SetChannelTriggerThreshold(handle[b],0,32768);                  /* Set selfTrigger threshold */
+        //ret = CAEN_DGTZ_SetChannelSelfTrigger(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY,1);  /* Set trigger on channel 0 to be ACQ_ONLY */
+        //ret = CAEN_DGTZ_SetSWTriggerMode(handle[b],CAEN_DGTZ_TRGMODE_ACQ_ONLY);         /* Set the behaviour when a SW tirgger arrives */
+        //ret = CAEN_DGTZ_SetMaxNumEventsBLT(handle[b],3);                                /* Set the max number of events to transfer in a sigle readout */
+        //ret = CAEN_DGTZ_SetAcquisitionMode(handle[b],CAEN_DGTZ_SW_CONTROLLED);          /* Set the acquisition mode */
+        //if(ret != CAEN_DGTZ_Success) {
+        //    printf("Errors during Digitizer Configuration.\n");
+        //    goto QuitProgram;
+        //}
+        //printf("\n");
     }
     printf("\n\nPress 's' to start the acquisition\n"); // c = 9
     printf("Press 'k' to stop  the acquisition\n");   // c  = 1
     printf("Press 'r' to read  a register\n");         // c = 3
     printf("Press 'p' to read Channel Setting\n");         // c = 3
+    printf("Press 'z' to reset digitizer\n");         // c = 3
     printf("Press 'q' to quit  the application\n\n");  // c = 2
     while (1) {
       c = checkCommand();
       if (c == 9) break;
       if (c == 3) break;
       if (c == 4) break;
+      if (c == 5) break;
       if (c == 2) return 0;
       Sleep(100);
     }
@@ -189,25 +196,52 @@ int main(int argc, char* argv[])
       //ret = CAEN_DGTZ_WriteRegister(handle[1], 0x1028, 1); // ch0 to be 1
       // read 
       
+      string regStr = "";
+      printf("Register Address  0x");
+      int temp = scanf("%s", regStr.c_str());
+      printf("%s \n", regStr.c_str());
+      unsigned int regAddress;   
+      std::stringstream ss;
+      ss << std::hex << regStr.c_str();
+      ss >> regAddress;
+      
+      printf(" Address : 0x%04x \n", regAddress);
+      
       for( int ch = 0 ; ch < 8 ; ch++){
         uint32_t * value = new uint32_t[8];
-        ret = CAEN_DGTZ_ReadRegister(handle[1], 0x10A0 + (ch << 8), value);
-        printf(" DPP Algorithm Control 2  (ch:%d): 0x%08x \n", ch, value[0]);
+        //ret = CAEN_DGTZ_ReadRegister(handle[1], 0x10A0 + (ch << 8), value);
+        //printf(" DPP Algorithm Control 2  (ch:%d): 0x%08x \n", ch, value[0]);
+        //uint32_t regAddressInput = 0x106c + (ch << 8);
+        uint32_t regAddressInput = regAddress + (ch << 8);
+        ret = CAEN_DGTZ_ReadRegister(handle[0], regAddressInput, value);
+        if( ret  != CAEN_DGTZ_Success) {
+          printf(" Address 0x%04x (ch:%d): fail \n", regAddressInput, ch);
+        }else{
+          printf(" Address 0x%04x (ch:%d): 0x%08x  = %d \n", regAddressInput, ch, value[0], value[0]);
+        }
+      }
+      
+      for(b=0; b<MAXNB; b++) ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
+      return 0;
+    }
+    
+    if( c == 4 ){
+      printf(" Get from Board 0 \n");
+      for( int ch = 0; ch < 8; ch++){
+        GetChannelSetting(handle[0], ch);
       }
       
       for(b=0; b<MAXNB; b++)
         ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
       return 0;
+      
     }
     
-    if( c == 4 ){
-      printf(" Get from Board 1 \n");
-      for( int ch = 0; ch < 8; ch++){
-        GetChannelSetting(handle[1], ch);
-      }
+    if( c == 5 ){
+      printf(" Reset  Board \n");
+      for(b=0; b<MAXNB; b++) ret = CAEN_DGTZ_Reset(handle[0]);
       
-      for(b=0; b<MAXNB; b++)
-        ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
+      for(b=0; b<MAXNB; b++) ret = CAEN_DGTZ_CloseDigitizer(handle[b]);
       return 0;
       
     }
