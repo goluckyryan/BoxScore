@@ -74,7 +74,7 @@ int main(int argc, char* argv[] ){
 
   int count = 1;
   do{
-    printf("======== make a graphic cut on the plot (double click on plot to stop) : " );
+    printf("== make a graphic cut on the plot (double click on plot, or press 'x' to stop) : " );
     gSystem->ProcessEvents();
     gPad->WaitPrimitive();
 
