@@ -111,9 +111,9 @@ bool  QuitFlag = false;
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+void WriteToDataBase(TString databaseName, TString seriesName,  float value){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    databaseStr.Form("influx -execute \'insert %s value=%f\' -database=%s", seriesName.Data(), value, databaseName.Data());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
 }
@@ -1136,10 +1136,11 @@ int main(int argc, char *argv[]){
       }
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
-      printf(" number of event built %d, Rate(all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
+      printf(" number of event built %3d, Rate(all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
+      
       //============= write to database
-      WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
+      WriteToDataBase(databaseName, "totalRate",  totalRate);
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
           for( int j = 1 ; j <= graphRateCut[i]->GetN(); j++){
@@ -1156,7 +1157,7 @@ int main(int argc, char *argv[]){
           printf("                          Rate(%s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
-          WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
+          WriteToDataBase(databaseName, cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3);
         }
         
         // ration matrix
