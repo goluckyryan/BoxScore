@@ -21,6 +21,8 @@
 #include <stdlib.h> 
 #include <vector>
 #include <bitset>
+#include <unistd.h>
+#include <limits.h>
 
 #include "Functions.h"
 
@@ -732,6 +734,10 @@ int main(int argc, char *argv[]){
     rawTree->Branch("t", &t_r, "timeStamp/l");
   }
   //==== Drawing 
+  
+  char hostname[100];
+  gethostname(hostname, 100);
+  
   gStyle->SetOptStat("neiou");
   cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
   if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor();
@@ -740,7 +746,7 @@ int main(int argc, char *argv[]){
   cCanvasAux->cd()->SetTicky();
   cCanvasAux->cd()->SetTickx();
   
-  cCanvas = new TCanvas("cCanvas", "RAISOR isotopes production", 0, 0, 1500, 1000);
+  cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production (%s)", hostname), 0, 0, 1400, 1000);
   cCanvas->Divide(1,2);
   if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
   
@@ -767,7 +773,16 @@ int main(int argc, char *argv[]){
   
   
   hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
-  hTDiff = new TH1F("hTDiff", "timeDiff; time [nsec] ; count", 500, 0, rangeTime);
+  hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", 500, 0, rangeTime);
+  
+  hE->GetXaxis()->SetLabelSize(0.06);
+  hE->GetYaxis()->SetLabelSize(0.06);
+  
+  hdE->GetXaxis()->SetLabelSize(0.06);
+  hdE->GetYaxis()->SetLabelSize(0.06);
+  
+  hTDiff->GetXaxis()->SetLabelSize(0.06);
+  hTDiff->GetYaxis()->SetLabelSize(0.06);
   
   hdEtotE->SetMinimum(1);
   hdEE->SetMinimum(1);
@@ -847,6 +862,14 @@ int main(int argc, char *argv[]){
       //========== quit
       if (c == 'q') {
         QuitFlag = true;
+        
+        if( isCutFileOpen ) {
+          TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
+          cutList = (TObjArray *) fCut->FindObjectAny("cutList");
+          cutList->Write();
+          fileAppend->Close();
+        }
+        
       }
       //========== reset histograms
       if ( c == 'y'){
