@@ -1,5 +1,5 @@
 //============= Discriminator
-1000     // Trigger Threshold (in LSB)
+800     // Trigger Threshold (in LSB)
 496     // Trigger Hold Off
 32       // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
 100     // Input Signal Rise time (ns) 
@@ -16,7 +16,7 @@
 //============= Others
 1       // Energy fine gain , may be address is incorrect? seem no effect
 500     // Baseline holdoff (ns)
-100     // Energy Normalization Factor in integer %, i.e. 1 = 100
+100     // Energy Normalization Factor in %, i.e. 100 means 100% = 1 
 0       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
 0       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
