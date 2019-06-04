@@ -23,6 +23,7 @@
 #include <bitset>
 #include <unistd.h>
 #include <limits.h>
+#include <ctime>
 
 #include "Functions.h"
 
@@ -480,15 +481,33 @@ int main(int argc, char *argv[]){
   }
   
   const int boardID = atoi(argv[1]);
-  string rootFileName = "tree.root";
+    
+  char hostname[100];
+  gethostname(hostname, 100);
+  
+  time_t now = time(0);
+  //cout << "Number of sec since January 1,1970:" << now << endl;
+  tm *ltm = localtime(&now);
+  
+  int year = 1900 + ltm->tm_year;
+  int month = 1 + ltm->tm_mon;
+  int day = ltm->tm_mday;
+  int hour = ltm->tm_hour;
+  int minute = ltm->tm_min;
+  int secound = ltm->tm_sec;
+
+  char * rootFileName;
+  sprintf(rootFileName, "%4d%2d%2d%2d%2d%2d%s.root", year, month, day, hour, minute, secound, hostname);
   if( argc == 3 ) rootFileName = argv[2];
   
   printf("******************************************** \n");
   printf("****         Real Time PID              **** \n");
   printf("******************************************** \n");
-  
+  printf(" Current DateTime : %d-%d-%d, %d:%d:%d\n", year, month, day, hour, minute, secound);
+  printf("         hostname : %s \n", hostname);
+  printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   save to  : %s \n", rootFileName.c_str() );
+  printf("   save to  : %s \n", rootFileName );
 
   ReadGeneralSetting("generalSetting.txt");
   TMacro gs("generalSetting.txt");
@@ -681,7 +700,7 @@ int main(int argc, char *argv[]){
   int maxSortSize = 10000;
   
   // ===== Sorted Tree
-  TFile * fileout = new TFile(rootFileName.c_str(), "RECREATE");
+  TFile * fileout = new TFile(rootFileName, "RECREATE");
   TTree * tree = new TTree("tree", "tree");
   gs.Write();
   for( int i = 0 ; i < MaxNChannels; i++){
@@ -734,9 +753,6 @@ int main(int argc, char *argv[]){
     rawTree->Branch("t", &t_r, "timeStamp/l");
   }
   //==== Drawing 
-  
-  char hostname[100];
-  gethostname(hostname, 100);
   
   gStyle->SetOptStat("neiou");
   cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
@@ -864,7 +880,7 @@ int main(int argc, char *argv[]){
         QuitFlag = true;
         
         if( isCutFileOpen ) {
-          TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
+          TFile * fileAppend = new TFile(rootFileName, "UPDATE");
           cutList = (TObjArray *) fCut->FindObjectAny("cutList");
           cutList->Write();
           fileAppend->Close();
@@ -923,7 +939,7 @@ int main(int argc, char *argv[]){
         printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
         
         fCut->Close();
-        string expression = "./CutsCreator " + rootFileName + " " ;
+        string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + to_string(chDE) + " ";
         expression = expression + to_string(chE) + " ";
         expression = expression + to_string(rangeDE[0]) + " ";
@@ -956,7 +972,7 @@ int main(int argc, char *argv[]){
     if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
       //sort event from tree and append to exist root
       //printf("---- append file \n");
-      TFile * fileAppend = new TFile(rootFileName.c_str(), "UPDATE");
+      TFile * fileAppend = new TFile(rootFileName, "UPDATE");
       tree = (TTree*) fileAppend->Get("tree");
       double fileSize = fileAppend->GetSize() / 1024. / 1024. ;
       
@@ -1103,7 +1119,7 @@ int main(int argc, char *argv[]){
       printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Event-building time = %lu msec\n", buildTime);
       printf("max sort event size = %d \n", maxSortSize);
-      printf("Built-event save to  : %s \n", rootFileName.c_str() );
+      printf("Built-event save to  : %s \n", rootFileName);
       printf("File size  : %.4f MB \n", fileSize );
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
@@ -1249,13 +1265,18 @@ int main(int argc, char *argv[]){
             ECnt[ch]++;
               
             ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-            rollOver = Events[ch][ev].Extras2 >> 16;
-            timetag  += rollOver << 31;
-            
+            rollOver = ((Events[ch][ev].Extras2 >> 16) << 31);
+            timetag  += rollOver ;
+                        
             rawEvCount ++;
             
             ch_r = ch;
             e_r = Events[ch][ev].Energy ;
+            
+            if( timetag > (rollOver << 1) ) {
+              printf(" time: %llu, E: %lu \n", timetag, e_r);
+            }
+            
             //if( ch == 0 || ch == 1 ) {
             //  e_r += int(gRandom->Gaus(0, 200));
             //  if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
