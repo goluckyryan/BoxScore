@@ -30,6 +30,7 @@
 #include "TROOT.h"
 #include "TSystem.h"
 #include "TStyle.h"
+#include "TString.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
@@ -496,18 +497,18 @@ int main(int argc, char *argv[]){
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
 
-  char * rootFileName;
-  sprintf(rootFileName, "%4d%2d%2d%2d%2d%2d%s.root", year, month, day, hour, minute, secound, hostname);
+  TString rootFileName;
+  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, hostname);
   if( argc == 3 ) rootFileName = argv[2];
   
   printf("******************************************** \n");
   printf("****         Real Time PID              **** \n");
   printf("******************************************** \n");
-  printf(" Current DateTime : %d-%d-%d, %d:%d:%d\n", year, month, day, hour, minute, secound);
+  printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   save to  : %s \n", rootFileName );
+  printf("   save to  : %s \n", rootFileName.Data() );
 
   ReadGeneralSetting("generalSetting.txt");
   TMacro gs("generalSetting.txt");
@@ -1119,7 +1120,7 @@ int main(int argc, char *argv[]){
       printf("Total number of Event Built = %d \n", totEventBuilt);
       printf("Event-building time = %lu msec\n", buildTime);
       printf("max sort event size = %d \n", maxSortSize);
-      printf("Built-event save to  : %s \n", rootFileName);
+      printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size  : %.4f MB \n", fileSize );
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
@@ -1152,7 +1153,8 @@ int main(int argc, char *argv[]){
       }
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
-      printf(" number of event built %d, Rate(all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
+      printf(" number of event built %d.\n", countEventBuilt);
+      printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
       //============= write to database
       WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
@@ -1169,7 +1171,7 @@ int main(int argc, char *argv[]){
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf("                          Rate(%s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
+          printf(" Rate(%4s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
           WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
