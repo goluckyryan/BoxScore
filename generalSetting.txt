@@ -1,0 +1,17 @@
+0.6    // DCOFFSET
+true   // Pulse parity
+4096  // Num of samples of the waveforms (only for waveform mode)
+1000   // Pre trigger size;
+0x50   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+1000   // Table, tree, Plots update period in mili-sec.
+80     // nano-sec, coincident time for event building 
+4      // channel ID for Energy
+6      // channel ID for delta-Energy
+1000      // range for Energy
+3000 
+5000      // range for delta-Energy
+7000  
+100     // nano-sec max range for time diff plot
+30      // rateGraph windows [sec]
+false  // is saving raw data into raw.root
+RAISOR_exit  // database name

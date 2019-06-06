@@ -30,6 +30,7 @@
 #include "TROOT.h"
 #include "TSystem.h"
 #include "TStyle.h"
+#include "TString.h"
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
@@ -496,18 +497,18 @@ int main(int argc, char *argv[]){
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
 
-  char * rootFileName;
-  sprintf(rootFileName, "%4d%2d%2d%2d%2d%2d%s.root", year, month, day, hour, minute, secound, hostname);
+  TString rootFileName;
+  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, hostname);
   if( argc == 3 ) rootFileName = argv[2];
   
   printf("******************************************** \n");
   printf("****         Real Time PID              **** \n");
   printf("******************************************** \n");
-  printf(" Current DateTime : %d-%d-%d, %d:%d:%d\n", year, month, day, hour, minute, secound);
+  printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   save to  : %s \n", rootFileName );
+  printf("   save to  : %s \n", rootFileName.Data() );
 
   ReadGeneralSetting("generalSetting.txt");
   TMacro gs("generalSetting.txt");
@@ -753,10 +754,11 @@ int main(int argc, char *argv[]){
     rawTree->Branch("t", &t_r, "timeStamp/l");
   }
   //==== Drawing 
-  
+
   gStyle->SetOptStat("neiou");
   cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
   if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor();
+  if( cCanvasAux->GetShowToolBar() ) cCanvasAux->ToggleToolBar();
   cCanvasAux->cd()->SetGridy();
   cCanvasAux->cd()->SetGridx();
   cCanvasAux->cd()->SetTicky();
@@ -765,6 +767,7 @@ int main(int argc, char *argv[]){
   cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production (%s)", hostname), 0, 0, 1400, 1000);
   cCanvas->Divide(1,2);
   if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
+  if( cCanvas->GetShowToolBar() ) cCanvas->ToggleToolBar();
   
   cCanvas->cd(1)->Divide(2,1); cCanvas->cd(1)->cd(1)->SetLogz();
   cCanvas->cd(2)->SetGridy();
@@ -847,7 +850,7 @@ int main(int argc, char *argv[]){
   cCanvasAux->Update();
   gSystem->ProcessEvents();
 
-  thread paintCanvasThread(paintCanvas); // using loop keep root responding
+  //thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -865,6 +868,7 @@ int main(int argc, char *argv[]){
   PrintInterface();
   int rawEvCount = 0;
   int totEventBuilt = 0;
+  int totSingleEventBuilt = 0;
   int graphIndex = 0;
   ULong64_t rollOver = 0;
   int numDataRetriving = 0;
@@ -916,6 +920,7 @@ int main(int argc, char *argv[]){
           StartTime = get_time();
           rawEvCount = 0;
           totEventBuilt = 0;
+          totSingleEventBuilt = 0;
         }
         CAEN_DGTZ_SWStartAcquisition(handle);
         printf("Acquisition Started for Board %d\n", boardID);
@@ -969,7 +974,9 @@ int main(int argc, char *argv[]){
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
-    if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
+    int countSingleEventBuilt = 0;
+    //if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
+    if (ElapsedTime > updatePeriod) {
       //sort event from tree and append to exist root
       //printf("---- append file \n");
       TFile * fileAppend = new TFile(rootFileName, "UPDATE");
@@ -989,7 +996,9 @@ int main(int argc, char *argv[]){
         }
       }
       
-      //=== Event Building by sorrting 
+      //################################################################
+      //  Sorrting raw event timeStamp
+      //################################################################
       uint64_t buildStartTime = get_time();
       // bubble sort
       int sortIndex[nRawData];
@@ -1002,7 +1011,7 @@ int main(int argc, char *argv[]){
       // Re-map
       int channelT[nRawData];
       ULong_t energyT[nRawData];
-      ULong64_t timeStampT[nRawData]; //TODO, when fill directly from Digitizer, using energyT 
+      ULong64_t timeStampT[nRawData]; 
       for( int i = 0; i < nRawData ; i++){
         channelT[i] = rawChannel[i];
         energyT[i] = rawEnergy[i];
@@ -1020,7 +1029,9 @@ int main(int argc, char *argv[]){
         ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
         hTDiff->Fill(timeDiff * ch2ns);
       }
+      //################################################################
       // build event base on coincident window
+      //################################################################
       int endID = 0;
       for( int i = 0; i < nRawData-1; i++){
         int timeToEnd = abs(int(rawTimeStamp[nRawData-1] - rawTimeStamp[i])) * ch2ns ; // in nano-sec
@@ -1029,26 +1040,33 @@ int main(int argc, char *argv[]){
         if( timeToEnd < CoincidentWindow ) {
           break;
         }
-          
-        int numRawEventGrouped = 1;
+        
+        int numRawEventGrouped = 0;
         for( int j = i+1; j < nRawData; j++){
-          if( rawChannel[i] == rawChannel[j] ) continue;
-          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) ;
+          if( rawChannel[i] == rawChannel[j] ) {
+            countSingleEventBuilt ++;
+            totSingleEventBuilt ++;
+            break; // this is a single event, only with dE or E fired.
+          }
+          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
           if( TMath::Abs( timeDiff ) < CoincidentWindow ) {
             numRawEventGrouped ++;
-          }else{
             break;
+          }else{
+            countSingleEventBuilt ++;
+            totSingleEventBuilt ++;
+            break; // this is also a single event
           }
         }
         //printf("---- %d/ %d,  num in Group : %d \n", i, nRawData,  numRawEventGrouped);
         countEventBuilt ++;
+        //clear data
         for( int k = 0 ; k < MaxNChannels ; k++){
           channel[k] = -1;
           energy[k] = 0;
           timeStamp[k] = 0;
         }
-        
-        for( int j = i ; j < i + numRawEventGrouped ; j++){          
+        for( int j = i ; j <= i + numRawEventGrouped ; j++){          
           channel[rawChannel[j]] = rawChannel[j];
           energy[rawChannel[j]] = rawEnergy[j];
           timeStamp[rawChannel[j]] = rawTimeStamp[j];
@@ -1056,7 +1074,8 @@ int main(int argc, char *argv[]){
         }
         
         tree->Fill();
-          
+        
+        //===== fill histogram
         float deltaE = energy[chDE] ;
         float ERes = energy[chE] ;
         
@@ -1082,19 +1101,34 @@ int main(int argc, char *argv[]){
           }
         }
         
-        i += numRawEventGrouped - 1; 
+        i += numRawEventGrouped ; 
         
       }/**/// end of event building
+      //################################################################
+      //################################################################
       
       uint64_t buildStopTime = get_time();
       uint64_t buildTime = buildStopTime - buildStartTime;
       
-      if( buildTime > updatePeriod ) maxSortSize = nRawData * 0.9 ;
+      //if( buildTime > updatePeriod ) maxSortSize = nRawData * 0.9 ;
       
       //clear vectors but keep from endID
       rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
       rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
       rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
+      
+      if( rawTimeStamp.size() > 10 ) {
+        FILE * paraOut;
+        paraOut = fopen ("BoxScoreLeftOver_debug", "w+");
+        
+        fprintf(paraOut, "==================================================================\n");
+        fprintf(paraOut, " %2s , %64s | %32s \n", "ch", "time [1ch=2ns]", "energy" );
+        for( int p = 0 ; p < rawTimeStamp.size() ; p ++){
+          fprintf(paraOut, " %2d , %64llu | %32d \n", rawChannel[p], rawTimeStamp[p], rawEnergy[p] );
+        }
+        fflush(paraOut);
+        fclose(paraOut);
+      }
       
       // write histograms and tree
       tree->Write("", TObject::kOverwrite); 
@@ -1113,13 +1147,13 @@ int main(int argc, char *argv[]){
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
-      printf("Time Elapsed = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
-      printf("Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
-      printf("Total number of Raw Event = %d \n", rawEvCount);
+      printf("Time Elapsed                = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
+      printf("Readout Rate                = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
+      printf("Total number of Raw Event   = %d \n", rawEvCount);
       printf("Total number of Event Built = %d \n", totEventBuilt);
-      printf("Event-building time = %lu msec\n", buildTime);
-      printf("max sort event size = %d \n", maxSortSize);
-      printf("Built-event save to  : %s \n", rootFileName);
+      printf("Event-building time         = %lu msec\n", buildTime);
+      //printf("max sort event size = %d \n", maxSortSize);
+      printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size  : %.4f MB \n", fileSize );
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
@@ -1140,9 +1174,6 @@ int main(int argc, char *argv[]){
       PrevRateTime = CurrentTime;
       printf("\n");
       
-      printf(" number of raw data to sort %d \n", nRawData);
-      printf(" number of raw Event put into next sort : %d \n", (int) rawChannel.size());
-      
       //filling rate graph and data base
       int lowerTime = (CurrentTime - StartTime)/1e3 - RateWindow;
       for( int j = 1 ; j <= graphRate->GetN(); j++){
@@ -1152,10 +1183,17 @@ int main(int argc, char *argv[]){
       }
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
-      printf(" number of event built %d, Rate(all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt, countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
+      
+      printf(" number of raw data to sort         : %d \n", nRawData);
+      printf(" number of raw Event left Over      : %d \n", (int) rawChannel.size());
+      printf(" number of single event built       : %d \n", countSingleEventBuilt);
+      printf(" number of event built in this sort : %d \n", countEventBuilt);
+      printf("===============================================\n");
+      printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
+      
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
-      //============= write to database
       WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
+      
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
           for( int j = 1 ; j <= graphRateCut[i]->GetN(); j++){
@@ -1169,15 +1207,15 @@ int main(int argc, char *argv[]){
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf("                          Rate(%s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
+          printf(" Rate(%4s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
           WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
         }
         
-        // ration matrix
+        // ratio matrix
         if( numCut >= 2) {
-          printf("=========== ration matrix : \n");
+          printf("=========== ratio matrix : \n");
           printf("%10s", "");
           for( int j = 0 ; j < numCut ; j++){
             cutG = (TCutG *)cutList->At(j) ;
@@ -1272,11 +1310,6 @@ int main(int argc, char *argv[]){
             
             ch_r = ch;
             e_r = Events[ch][ev].Energy ;
-            
-            if( timetag > (rollOver << 1) ) {
-              printf(" time: %llu, E: %lu \n", timetag, e_r);
-            }
-            
             //if( ch == 0 || ch == 1 ) {
             //  e_r += int(gRandom->Gaus(0, 200));
             //  if( ch == chDE ) e_r  += gRandom->Integer(2)*1000;
@@ -1308,7 +1341,7 @@ int main(int argc, char *argv[]){
   }
   fCut->Close();
   
-  paintCanvasThread.detach();
+  //paintCanvasThread.detach();
   
   /* stop the acquisition, close the device and free the buffers */
   CAEN_DGTZ_SWStopAcquisition(handle);
