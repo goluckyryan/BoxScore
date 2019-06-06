@@ -2,16 +2,16 @@
 true   // Pulse parity
 4096  // Num of samples of the waveforms (only for waveform mode)
 1000   // Pre trigger size;
-0x05   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+0x50   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 1000   // Table, tree, Plots update period in mili-sec.
-40     // nano-sec, coincident time for event building 
-2      // channel ID for Energy
-0      // channel ID for delta-Energy
-2000      // range for Energy
-5000 
-3000      // range for delta-Energy
-8000  
+80     // nano-sec, coincident time for event building 
+4      // channel ID for Energy
+6      // channel ID for delta-Energy
+1000      // range for Energy
+3000 
+5000      // range for delta-Energy
+7000  
 100     // nano-sec max range for time diff plot
-20      // rateGraph windows [sec]
+30      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
 RAISOR_exit  // database name
