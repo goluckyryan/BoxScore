@@ -413,18 +413,13 @@ void ReadCut(TString fileName){
   if( rateGraph->GetListOfGraphs() != NULL) rateGraph->GetListOfGraphs()->RemoveAll();
   rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");
   
-  
   rangeGraph->SetPoint(0, RateWindow + 5, 0);
   rateGraph->Add(rangeGraph);
   
   legend->Clear();
   
-  
-  //if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
   fullRateGraph->SetTitle(Form("%s | Beam rate [pps] (all time); Time [sec]; Rate [pps]", location.c_str()));
-  
   fullRateGraph->Add(rangeGraph);
-  
   fullLegend->Clear();
   
   
@@ -876,7 +871,7 @@ int main(int argc, char *argv[]){
   cCanvasAux->Update();
   gSystem->ProcessEvents();
 
-  //thread paintCanvasThread(paintCanvas); // using loop keep root responding
+  thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -1271,10 +1266,12 @@ int main(int argc, char *argv[]){
       
       graphIndex ++;
       
-      rangeGraph->SetPoint(0, (CurrentTime - StartTime)/1e3  + 5 , 0 ); // 5 sec gap
+      //Draw rate Graph
+      rangeGraph->SetPoint(0, TMath::Max((double)RateWindow, (CurrentTime - StartTime)/1e3  + 5) , 0 ); // 5 sec gap
       cCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
+      
       cCanvas->cd(2); fullRateGraph->Draw("AP"); fullLegend->Draw();
-      fullRateGraph->GetXaxis()->SetRangeUser(0, (CurrentTime - StartTime)/1e3 + 5 );
+      fullRateGraph->GetXaxis()->SetRangeUser(0, TMath::Max((double)RateWindow, (CurrentTime - StartTime)/1e3 *1.2) );
       
       cCanvas->Modified();
       cCanvas->Update();
@@ -1369,7 +1366,7 @@ int main(int argc, char *argv[]){
   }
   fCut->Close();
   
-  //paintCanvasThread.detach();
+  paintCanvasThread.detach();
   
   /* stop the acquisition, close the device and free the buffers */
   CAEN_DGTZ_SWStopAcquisition(handle);
