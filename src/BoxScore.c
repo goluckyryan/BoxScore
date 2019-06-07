@@ -75,6 +75,8 @@ float RateWindow = 10.; // sec
 
 bool isSaveRaw = false; // saving Raw data
 
+string location;
+
 //database
 TString databaseName="RAISOR_exit";
 
@@ -151,25 +153,25 @@ void ReadGeneralSetting(string fileName){
         }
         if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
         if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
-        if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
-        if( count == 5  )   updatePeriod = atoi(line.substr(0, pos).c_str());
-        if( count == 6  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
-        if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
-        if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
-        if( count == 9  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
-        if( count == 10 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
-        if( count == 11 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
-        if( count == 12 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
-        if( count == 13 )  rangeTime = atof(line.substr(0, pos).c_str());
-        if( count == 14 )  RateWindow = atof(line.substr(0, pos).c_str());
-        if( count == 15 )  {
+        //if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
+        if( count == 4  )   updatePeriod = atoi(line.substr(0, pos).c_str());
+        if( count == 5  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
+        //if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
+        //if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
+        if( count == 6  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 7 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 8 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 9 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 10 )  rangeTime = atof(line.substr(0, pos).c_str());
+        if( count == 11 )  RateWindow = atof(line.substr(0, pos).c_str());
+        if( count == 12 )  {
           if( line.substr(0, 4) == "true" ) {
             isSaveRaw = true;
           }else{
             isSaveRaw = false;
           }
         }
-        if( count == 16 )  databaseName = line.substr(0, pos).c_str();
+        if( count == 13 )  databaseName = line.substr(0, pos).c_str();
         count ++;
       }
     }
@@ -179,12 +181,12 @@ void ReadGeneralSetting(string fileName){
     printf(" %-20s  %s\n", "Positive Pulse", PositivePulse ? "true" : "false" );
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
-    bitset<8> b(ChannelMask);
-    printf(" %-20s  %s\n", "Channel Mask", b.to_string().c_str());
+    //bitset<8> b(ChannelMask);
+    //printf(" %-20s  %s\n", "Channel Mask", b.to_string().c_str());
     printf(" %-20s  %d msec\n", "Update period", updatePeriod);
     printf(" %-20s  %.3f ns\n", "Coincident windows", CoincidentWindow * 1.0 );
-    printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
-    printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
+    //printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
+    //printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
     printf(" %-20s  %.3f ns\n", "tDiff range", rangeTime);
     printf(" %-20s  %s\n", "Is saving Raw", isSaveRaw ? "true" : "false");
     printf(" %-20s  %s\n", "DataBase use", databaseName.Data());
@@ -419,7 +421,7 @@ void ReadCut(TString fileName){
   
   
   //if( fullRateGraph->GetListOfGraphs() != NULL) fullRateGraph->GetListOfGraphs()->RemoveAll();
-  fullRateGraph->SetTitle("Beam rate [pps] (all time); Time [sec]; Rate [pps]");
+  fullRateGraph->SetTitle(Form("%s | Beam rate [pps] (all time); Time [sec]; Rate [pps]", location.c_str()));
   
   fullRateGraph->Add(rangeGraph);
   
@@ -474,14 +476,19 @@ void ReadCut(TString fileName){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
-  if( argc != 2 && argc != 3 ) {
-    printf("Please input boardID! (optional root file name)\n");
+  if( argc != 3 && argc != 4 ) {
+    printf("Please input boardID and Location! (optional root file name)\n");
     printf("usage:\n");
-    printf("$./RealTimeReading boardID (tree.root)\n");
+    printf("$./BoxScore boardID Location (tree.root)\n");
+    printf("                     | \n");
+    printf("                     |-- exit \n");
+    printf("                     |-- cross \n");
+    printf("                     |-- ZD (zero-degree) \n");
     return -1;
   }
   
   const int boardID = atoi(argv[1]);
+  location = argv[2];
     
   char hostname[100];
   gethostname(hostname, 100);
@@ -498,8 +505,8 @@ int main(int argc, char *argv[]){
   int secound = ltm->tm_sec;
 
   TString rootFileName;
-  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, hostname);
-  if( argc == 3 ) rootFileName = argv[2];
+  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  if( argc == 4 ) rootFileName = argv[3];
   
   printf("******************************************** \n");
   printf("****         Real Time PID              **** \n");
@@ -508,11 +515,29 @@ int main(int argc, char *argv[]){
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   save to  : %s \n", rootFileName.Data() );
+  printf("   Location : %s \n", location.c_str() );
+  printf("    save to : %s \n", rootFileName.Data() );
 
   ReadGeneralSetting("generalSetting.txt");
   TMacro gs("generalSetting.txt");
-
+  
+  if( location == "exit" ) {
+    ChannelMask = 0x09;
+    chE  = 3;
+    chDE = 0;
+  }else if( location == "cross") {
+    ChannelMask = 0x12;
+    chE  = 4;
+    chDE = 1;
+  }else if (location == "ZD"){
+    ChannelMask = 0x24;
+    chE  = 5;
+    chDE = 2;
+  }else{
+    printf("============== location : %s  is UNKNOWN!! Abort!\n", location.c_str());
+    return 404;
+  }
+  
   TApplication app ("app", &argc, argv);
   
   /* The following variable is the type returned from most of CAENDigitizer
@@ -588,6 +613,7 @@ int main(int argc, char *argv[]){
   \****************************/
   TMacro chSetting[MaxNChannels];
   for(ch=0; ch<MaxNChannels; ch++) {
+    if ( ch != chE && ch != chDE ) continue;
     string chSettingFileName = "setting_" + to_string(ch) + ".txt";
     int* para = ReadChannelSetting(ch, chSettingFileName);
     
@@ -764,7 +790,7 @@ int main(int argc, char *argv[]){
   cCanvasAux->cd()->SetTicky();
   cCanvasAux->cd()->SetTickx();
   
-  cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production (%s)", hostname), 0, 0, 1400, 1000);
+  cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production | %s (%s)", location.c_str(), hostname), 0, 0, 1400, 1000);
   cCanvas->Divide(1,2);
   if( cCanvas->GetShowEditor() ) cCanvas->ToggleEditor();
   if( cCanvas->GetShowToolBar() ) cCanvas->ToggleToolBar();
@@ -779,9 +805,9 @@ int main(int argc, char *argv[]){
   cCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
   cCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
   
-  hE    = new TH1F(   "hE", "raw E ; E [ch] ;count ",         500, rangeE[0], rangeE[1]);
+  hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),         500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
-  hdE   = new TH1F(  "hdE", "raw dE ; dE [ch]; count",        500, rangeDE[0], rangeDE[1]);
+  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chDE),        500, rangeDE[0], rangeDE[1]);
   if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
     hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
@@ -1158,6 +1184,7 @@ int main(int argc, char *argv[]){
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
+        if( i != chE && i != chDE ) continue;
         if (TrgCnt[i]>0){
           printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
         }else{
@@ -1192,7 +1219,8 @@ int main(int argc, char *argv[]){
       printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(databaseName, "totalRate", "tag=dummy", totalRate);
+      string tag = "tag=" + location;
+      WriteToDataBase(databaseName, "totalRate", tag, totalRate);
       
       if(isCutFileOpen){
         for( int i = 0 ; i < numCut; i++ ){
@@ -1210,7 +1238,7 @@ int main(int argc, char *argv[]){
           printf(" Rate(%4s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
-          WriteToDataBase(databaseName, cutG->GetName(), "tag=dummy",  countFromCut[i]*1.0/ElapsedTime*1e3);
+          WriteToDataBase(databaseName, cutG->GetName(), tag,  countFromCut[i]*1.0/ElapsedTime*1e3);
         }
         
         // ratio matrix
