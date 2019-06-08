@@ -32,7 +32,7 @@ TObjArray * cutList = NULL;
 
 int main(int argc, char* argv[] ){
   
-  if( argc != 8 ) {
+  if( argc != 8 && argc != 9 ) {
     //printf("Please input channel for dE and E. \n");
     printf("./CutCreator rootFile dE E rangeDE_min rangeDE_max rangeE_min rangeE_max\n");
     return 0;
@@ -48,6 +48,9 @@ int main(int argc, char* argv[] ){
   
   int rangeE_min = atoi(argv[6]);
   int rangeE_max = atoi(argv[7]);
+  
+  int mode = 0 ;
+  if( argc == 9) mode = atoi(argv[8]);
 
   TApplication app ("app", &argc, argv);
 
@@ -59,11 +62,19 @@ int main(int argc, char* argv[] ){
   TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 800, 800);
   if( !cCutCreator->GetShowToolBar() ) cCutCreator->ToggleToolBar();
 
-  TH2F * hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+  TH2F * hEdE = NULL;
   
   TString expression;
-  expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
-
+  if( mode == 0 ) {
+    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
+  }else if ( mode == 1 ){
+    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
+  }else if ( mode == 2){
+    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
+    expression.Form("e[%d]:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
+  }
   tree->Draw(expression, "", "colz");
   gSystem->ProcessEvents();
   //thread th(painCanvas); // using loop keep root responding

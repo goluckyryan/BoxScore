@@ -54,7 +54,7 @@ using namespace std;
 //TODO 2) change the tree structure to be like HELIOS
 
 //========== General setting;
-double ch2ns = 2.;
+unsigned long long int ch2ns = 2.;
 float DCOffset = 0.2;
 bool PositivePulse = true;
 uint RecordLength = 20000;   // Num of samples of the waveforms (only for waveform mode)
@@ -518,8 +518,8 @@ int main(int argc, char *argv[]){
   
   if( location == "exit" ) {
     ChannelMask = 0x09;
-    chE  = 3;
-    chDE = 0;
+    chE  = 0;
+    chDE = 3;
   }else if( location == "cross") {
     ChannelMask = 0x12;
     chE  = 4;
@@ -800,15 +800,20 @@ int main(int argc, char *argv[]){
   cCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
   cCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
   
+  int mode = 0;
+  
   hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),         500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chDE),        500, rangeDE[0], rangeDE[1]);
   if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
     hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+    mode = 0;
   }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + 4E ; totalE [ch]; dE [ch ", 500, rangeDE[0] + 4 * rangeE[0], rangeDE[1] + 4 * rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E/4 ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]/4, rangeDE[1] + rangeE[1]/4, 500, rangeDE[0], rangeDE[1]);  
+    mode = 1;
   }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = 4dE + E; totalE [ch]; dE [ch ", 500, 4* rangeDE[0] + rangeE[0], 4* rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE/4 + E; totalE [ch]; dE [ch ", 500, rangeDE[0]/4 + rangeE[0], rangeDE[1]/4 + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+    mode = 2;
   }
   
   
@@ -971,7 +976,8 @@ int main(int argc, char *argv[]){
         expression = expression + to_string(rangeDE[0]) + " ";
         expression = expression + to_string(rangeDE[1]) + " ";
         expression = expression + to_string(rangeE[0]) + " ";
-        expression = expression + to_string(rangeE[1]);
+        expression = expression + to_string(rangeE[1]) + " ";
+        expression = expression + to_string(mode);
         printf("%s\n", expression.c_str());
         system(expression.c_str());
         
@@ -1055,7 +1061,7 @@ int main(int argc, char *argv[]){
       //################################################################
       int endID = 0;
       for( int i = 0; i < nRawData-1; i++){
-        int timeToEnd = abs(int(rawTimeStamp[nRawData-1] - rawTimeStamp[i])) * ch2ns ; // in nano-sec
+        ULong64_t timeToEnd = (rawTimeStamp[nRawData-1] - rawTimeStamp[i]) * ch2ns ; // in nano-sec
         endID = i;
         //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
         if( timeToEnd < CoincidentWindow ) {
@@ -1067,10 +1073,11 @@ int main(int argc, char *argv[]){
           if( rawChannel[i] == rawChannel[j] ) {
             countSingleEventBuilt ++;
             totSingleEventBuilt ++;
+            //continue;
             break; // this is a single event, only with dE or E fired.
           }
-          int timeDiff = (int) (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
-          if( TMath::Abs( timeDiff ) < CoincidentWindow ) {
+          unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
+          if( timeDiff < CoincidentWindow ) {
             numRawEventGrouped ++;
             break;
           }else{
@@ -1104,9 +1111,9 @@ int main(int argc, char *argv[]){
         if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
           totalE = energy[chDE] + energy[chE];
         }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
-          totalE = energy[chDE] + 4. * energy[chE];
+          totalE = energy[chDE] + energy[chE]/4;
         }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
-          totalE = 4.0 * energy[chDE] + energy[chE];
+          totalE = energy[chDE]/4 + energy[chE];
         }
         
         htotE->Fill(totalE); // x, y
@@ -1142,10 +1149,12 @@ int main(int argc, char *argv[]){
         FILE * paraOut;
         paraOut = fopen ("BoxScoreLeftOver_debug", "w+");
         
-        fprintf(paraOut, "==================================================================\n");
-        fprintf(paraOut, " %2s , %64s | %32s \n", "ch", "time [1ch=2ns]", "energy" );
-        for( int p = 0 ; p < rawTimeStamp.size() ; p ++){
-          fprintf(paraOut, " %2d , %64llu | %32d \n", rawChannel[p], rawTimeStamp[p], rawEnergy[p] );
+        int leftSize = rawTimeStamp.size();
+        fprintf(paraOut, "=========================================================== %d\n", leftSize);
+        fprintf(paraOut, " %2s , %15s | %10s \n", "ch", "time [ns]", "energy" );
+        for( int p = 0 ; p < leftSize ; p ++){
+          ULong64_t timeToEnd = (rawTimeStamp[leftSize-1] - rawTimeStamp[p]) * ch2ns ; // in nano-sec
+          fprintf(paraOut, " %2d , %15llu | %10d | %llu\n", rawChannel[p], rawTimeStamp[p] * ch2ns, rawEnergy[p], timeToEnd );
         }
         fflush(paraOut);
         fclose(paraOut);
@@ -1209,7 +1218,7 @@ int main(int argc, char *argv[]){
       printf(" number of raw data to sort         : %d \n", nRawData);
       printf(" number of raw Event left Over      : %d \n", (int) rawChannel.size());
       printf(" number of single event built       : %d \n", countSingleEventBuilt);
-      printf(" number of event built in this sort : %d \n", countEventBuilt);
+      printf(" number of event built in this sort : %d (%d)\n", countEventBuilt, 2*countEventBuilt);
       printf("===============================================\n");
       printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       
