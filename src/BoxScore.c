@@ -1173,7 +1173,7 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); coincidentline.Draw("same");
       
       //=========================== Display
-      system(CLEARSCR);
+      //system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
@@ -1327,6 +1327,8 @@ int main(int argc, char *argv[]){
     for (ch = 0; ch < MaxNChannels; ch++) {
       if (!(Params.ChannelMask & (1<<ch))) continue;
       
+      //printf("------------------------ %d \n", ch);
+      
       for (ev = 0; ev < NumEvents[ch]; ev++) {
           TrgCnt[ch]++;
           
@@ -1357,6 +1359,15 @@ int main(int argc, char *argv[]){
             
             //printf(" ch: %2d | %lu %llu\n", ch_r, e_r, t_r);
             
+            // fake E events
+            if( NumEvents[chE] == 0 ) {
+              rawChannel.push_back(chE);
+              e_r = gRandom->Gaus(2000,500);
+              rawEnergy.push_back(e_r);
+              rawTimeStamp.push_back(timetag + 10 );
+            }
+            
+            
             if( chDE == ch )  hdE->Fill(e_r); 
             if( chE == ch )  hE->Fill(e_r); 
               
@@ -1365,6 +1376,7 @@ int main(int argc, char *argv[]){
           }
           
       } // loop on events
+      
     } // loop on channels
 
   } // End of readout loop
