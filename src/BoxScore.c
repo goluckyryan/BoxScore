@@ -1362,8 +1362,8 @@ int main(int argc, char *argv[]){
             // fake E events
             if( NumEvents[chE] == 0 ) {
               rawChannel.push_back(chE);
-              e_r = gRandom->Gaus(2000,500);
-              rawEnergy.push_back(e_r);
+              ULong_t haha = gRandom->Gaus(2000,500);
+              rawEnergy.push_back(haha);
               rawTimeStamp.push_back(timetag + 10 );
             }
             
