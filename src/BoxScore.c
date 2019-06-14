@@ -1173,7 +1173,7 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); coincidentline.Draw("same");
       
       //=========================== Display
-      //system(CLEARSCR);
+      system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
