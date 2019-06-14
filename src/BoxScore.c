@@ -1068,6 +1068,7 @@ int main(int argc, char *argv[]){
           break;
         }
         
+        //TODO, more general event building algorithm for multiple channels
         int numRawEventGrouped = 0;
         for( int j = i+1; j < nRawData; j++){
           if( rawChannel[i] == rawChannel[j] ) {
@@ -1362,7 +1363,7 @@ int main(int argc, char *argv[]){
             // fake E events
             if( NumEvents[chE] == 0 ) {
               rawChannel.push_back(chE);
-              ULong_t haha = gRandom->Gaus(2000,500);
+              ULong_t haha = gRandom->Integer(500) + 2000;
               rawEnergy.push_back(haha);
               rawTimeStamp.push_back(timetag + 10 );
             }
