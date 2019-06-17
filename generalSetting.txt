@@ -5,10 +5,10 @@ true   // Pulse parity
 1000   // Table, tree, Plots update period in mili-sec.
 80     // nano-sec, coincident time for event building 
 0      // range for Energy
-14000 
-4000      // range for delta-Energy
-24000  
-100     // nano-sec max range for time diff plot
+30000 
+0      // range for delta-Energy
+30000  
+500     // nano-sec max range for time diff plot
 30      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
 RAISOR_exit  // database name

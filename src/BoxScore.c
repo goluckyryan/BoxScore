@@ -777,13 +777,13 @@ int main(int argc, char *argv[]){
   //==== Drawing 
 
   gStyle->SetOptStat("neiou");
-  cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500);
-  if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor();
-  if( cCanvasAux->GetShowToolBar() ) cCanvasAux->ToggleToolBar();
-  cCanvasAux->cd()->SetGridy();
-  cCanvasAux->cd()->SetGridx();
-  cCanvasAux->cd()->SetTicky();
-  cCanvasAux->cd()->SetTickx();
+  /* cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500); */
+  /* if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor(); */
+  /* if( cCanvasAux->GetShowToolBar() ) cCanvasAux->ToggleToolBar(); */
+  /* cCanvasAux->cd()->SetGridy(); */
+  /* cCanvasAux->cd()->SetGridx(); */
+  /* cCanvasAux->cd()->SetTicky(); */
+  /* cCanvasAux->cd()->SetTickx(); */
   
   cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production | %s (%s)", location.c_str(), hostname), 0, 0, 1400, 1000);
   cCanvas->Divide(1,2);
@@ -858,7 +858,7 @@ int main(int argc, char *argv[]){
   gROOT->ProcessLine("gErrorIgnoreLevel = kFatal;"); // supress error messsage
   ReadCut("cutsFile.root");
   
-  cCanvasAux->cd(); hdEE->Draw("colz");
+  /* cCanvasAux->cd(); hdEE->Draw("colz"); */
   
   cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -873,7 +873,7 @@ int main(int argc, char *argv[]){
   fullRateGraph->Draw("AP"); //legend->Draw();
   
   cCanvas->Update();
-  cCanvasAux->Update();
+  /* cCanvasAux->Update(); */
   gSystem->ProcessEvents();
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
@@ -1165,7 +1165,7 @@ int main(int argc, char *argv[]){
       tree->Write("", TObject::kOverwrite); 
       
       //filling filling histogram 
-      cCanvasAux->cd(); hdEE->Draw("colz");
+      /* cCanvasAux->cd(); hdEE->Draw("colz"); */
       
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -1285,8 +1285,8 @@ int main(int argc, char *argv[]){
       
       cCanvas->Modified();
       cCanvas->Update();
-      cCanvasAux->Modified();
-      cCanvasAux->Update();
+      /* cCanvasAux->Modified(); */
+      /* cCanvasAux->Update(); */
       
       // wirte histogram into tree
       fileAppend->cd();
