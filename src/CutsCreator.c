@@ -66,8 +66,8 @@ int main(int argc, char* argv[] ){
   
   TString expression;
   if( mode == 0 ) {
-    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
-    expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
+    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, (rangeE_min*6.06) + rangeDE_min, (rangeE_max*6.06) + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    expression.Form("e[%d]:e[%d]*6.06 + e[%d]>>hEdE", chDE, chEE, chDE);
   }else if ( mode == 1 ){
     hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);

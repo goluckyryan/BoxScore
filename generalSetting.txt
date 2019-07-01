@@ -1,13 +1,13 @@
-0.5    // DCOFFSET
+0.3   // DCOFFSET
 true   // Pulse parity
 4096  // Num of samples of the waveforms (only for waveform mode)
 2000   // Pre trigger size;
 1000   // Table, tree, Plots update period in mili-sec.
-80     // nano-sec, coincident time for event building 
+40     // nano-sec, coincident time for event building 
 0      // range for Energy
-30000 
+8000 
 0      // range for delta-Energy
-30000  
+14000  
 500     // nano-sec max range for time diff plot
 30      // rateGraph windows [sec]
 false  // is saving raw data into raw.root

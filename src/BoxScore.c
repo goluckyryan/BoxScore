@@ -518,8 +518,8 @@ int main(int argc, char *argv[]){
   
   if( location == "exit" ) {
     ChannelMask = 0x09;
-    chE  = 0;
-    chDE = 3;
+    chE  = 3;
+    chDE = 0;
   }else if( location == "cross") {
     ChannelMask = 0x12;
     chE  = 4;
@@ -803,10 +803,10 @@ int main(int argc, char *argv[]){
   int mode = 0;
   
   hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),         500, rangeE[0], rangeE[1]);
-  htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
+  htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0]+ rangeE[0]*6.06, rangeDE[1] + rangeE[1]*6.06);
   hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chDE),        500, rangeDE[0], rangeDE[1]);
   if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]*6.06, rangeDE[1] + rangeE[1]*6.06, 500, rangeDE[0], rangeDE[1]);  
     mode = 0;
   }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
     hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E/4 ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]/4, rangeDE[1] + rangeE[1]/4, 500, rangeDE[0], rangeDE[1]);  
@@ -1110,9 +1110,9 @@ int main(int argc, char *argv[]){
         
         float totalE = TMath::QuietNaN();
         if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
-          totalE = energy[chDE] + energy[chE];
+          totalE = energy[chDE] + energy[chE]*(2000/330);
         }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
-          totalE = energy[chDE] + energy[chE]/4;
+          totalE = energy[chDE]/4 + energy[chE];
         }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
           totalE = energy[chDE]/4 + energy[chE];
         }
@@ -1340,8 +1340,11 @@ int main(int argc, char *argv[]){
             ECnt[ch]++;
               
             ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
-            rollOver = ((Events[ch][ev].Extras2 >> 16) << 31);
+            rollOver = Events[ch][ev].Extras2 >> 16;
+            rollOver = rollOver << 31;
             timetag  += rollOver ;
+            
+            //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
                         
             rawEvCount ++;
             
