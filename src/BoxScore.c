@@ -66,6 +66,7 @@ int CoincidentWindow = 300; // real time [nano-sec]
 
 int chE = 0;   //channel ID for E
 int chDE = 1;  //channel ID for dE
+int chTAC = 7; //channel ID for TAC
 
 int rangeDE[2] = {0, 5000}; // range for dE
 int rangeE[2] = {0, 5000};  // range for E
@@ -153,11 +154,8 @@ void ReadGeneralSetting(string fileName){
         }
         if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
         if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
-        //if( count == 4  )    ChannelMask = std::stoul(line.substr(0, pos).c_str(), nullptr, 16);
         if( count == 4  )   updatePeriod = atoi(line.substr(0, pos).c_str());
         if( count == 5  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
-        //if( count == 7  )    chE = atoi(line.substr(0, pos).c_str());
-        //if( count == 8  )   chDE = atoi(line.substr(0, pos).c_str());
         if( count == 6  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
         if( count == 7 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
         if( count == 8 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
@@ -181,12 +179,8 @@ void ReadGeneralSetting(string fileName){
     printf(" %-20s  %s\n", "Positive Pulse", PositivePulse ? "true" : "false" );
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
-    //bitset<8> b(ChannelMask);
-    //printf(" %-20s  %s\n", "Channel Mask", b.to_string().c_str());
     printf(" %-20s  %d msec\n", "Update period", updatePeriod);
     printf(" %-20s  %.3f ns\n", "Coincident windows", CoincidentWindow * 1.0 );
-    //printf(" %-20s  %d (%d, %d)\n", "Channel E", chE, rangeE[0], rangeE[1]);
-    //printf(" %-20s  %d (%d, %d)\n", "Channel dE", chDE, rangeDE[0], rangeDE[1]);
     printf(" %-20s  %.3f ns\n", "tDiff range", rangeTime);
     printf(" %-20s  %s\n", "Is saving Raw", isSaveRaw ? "true" : "false");
     printf(" %-20s  %s\n", "DataBase use", databaseName.Data());
@@ -517,17 +511,20 @@ int main(int argc, char *argv[]){
   TMacro gs("generalSetting.txt");
   
   if( location == "exit" ) {
-    ChannelMask = 0x09;
+    ChannelMask = 0x89;
     chE  = 3;
     chDE = 0;
+    chTAC = 7;
   }else if( location == "cross") {
-    ChannelMask = 0x12;
+    ChannelMask = 0x82;
     chE  = 4;
     chDE = 1;
+    chTAC = 7;
   }else if (location == "ZD"){
-    ChannelMask = 0x24;
+    ChannelMask = 0xA4;
     chE  = 5;
     chDE = 2;
+    chTAC = 7;
   }else{
     printf("============== location : %s  is UNKNOWN!! Abort!\n", location.c_str());
     return 404;
@@ -608,7 +605,7 @@ int main(int argc, char *argv[]){
   \****************************/
   TMacro chSetting[MaxNChannels];
   for(ch=0; ch<MaxNChannels; ch++) {
-    if ( ch != chE && ch != chDE ) continue;
+    if ( ch != chE && ch != chDE && ch != chTAC ) continue;
     string chSettingFileName = "setting_" + to_string(ch) + ".txt";
     int* para = ReadChannelSetting(ch, chSettingFileName);
     
@@ -894,7 +891,7 @@ int main(int argc, char *argv[]){
   PrintInterface();
   int rawEvCount = 0;
   int totEventBuilt = 0;
-  int totSingleEventBuilt = 0;
+  int totMultiHitEventBuilt = 0;
   int graphIndex = 0;
   ULong64_t rollOver = 0;
   int numDataRetriving = 0;
@@ -946,7 +943,7 @@ int main(int argc, char *argv[]){
           StartTime = get_time();
           rawEvCount = 0;
           totEventBuilt = 0;
-          totSingleEventBuilt = 0;
+          totMultiHitEventBuilt = 0;
         }
         CAEN_DGTZ_SWStartAcquisition(handle);
         printf("Acquisition Started for Board %d\n", boardID);
@@ -1001,11 +998,9 @@ int main(int argc, char *argv[]){
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
     int countEventBuilt = 0;
-    int countSingleEventBuilt = 0;
-    //if (ElapsedTime > updatePeriod || rawEnergy.size() > maxSortSize) {
+    int countMultiHitEventBuilt = 0;
     if (ElapsedTime > updatePeriod) {
       //sort event from tree and append to exist root
-      //printf("---- append file \n");
       TFile * fileAppend = new TFile(rootFileName, "UPDATE");
       tree = (TTree*) fileAppend->Get("tree");
       double fileSize = fileAppend->GetSize() / 1024. / 1024. ;
@@ -1068,28 +1063,47 @@ int main(int argc, char *argv[]){
           break;
         }
         
-        //TODO, more general event building algorithm for multiple channels
         int numRawEventGrouped = 0;
+        
+        printf("%4d--------- %d, %llu \n", countEventBuilt, rawChannel[i], rawTimeStamp[i]);
+
+        int digitID = 1 << rawChannel[i]; // for checking if the Channel[i] is already taken.
         for( int j = i+1; j < nRawData; j++){
-          if( rawChannel[i] == rawChannel[j] ) {
-            countSingleEventBuilt ++;
-            totSingleEventBuilt ++;
-            //continue;
-            break; // this is a single event, only with dE or E fired.
-          }
+          
+          //check is channel[j] is taken or not
+          unsigned int x = 1 << rawChannel[j];
+          unsigned int y = digitID ^ x; // bitwise XOR
+          unsigned int z = 1 & (y >> rawChannel[j]);
+                      
           unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
-          if( timeDiff < CoincidentWindow ) {
+          
+          printf("%3d | %d | %d, %llu, %llu\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff); 
+          
+          digitID += x;
+          
+          if( timeDiff < CoincidentWindow ){
+            // if channel already taken
+            if( z == 0 ) { 
+              countMultiHitEventBuilt ++;
+              totMultiHitEventBuilt ++;
+              //break;
+            }
             numRawEventGrouped ++;
-            break;
+          
           }else{
-            countSingleEventBuilt ++;
-            totSingleEventBuilt ++;
-            break; // this is also a single event
+            // normal exit when next event outside coincident window
+            break;
           }
+          
         }
+        
+        // when chTAC is single, skip.
+        if( numRawEventGrouped == 0 && rawChannel[i] == chTAC) continue;
+     
         //printf("---- %d/ %d,  num in Group : %d \n", i, nRawData,  numRawEventGrouped);
         countEventBuilt ++;
-        //clear data
+        
+        //clear pervious event data
         for( int k = 0 ; k < MaxNChannels ; k++){
           channel[k] = -1;
           energy[k] = 0;
@@ -1174,7 +1188,7 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); coincidentline.Draw("same");
       
       //=========================== Display
-      system(CLEARSCR);
+      //system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
@@ -1189,7 +1203,7 @@ int main(int argc, char *argv[]){
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
-        if( i != chE && i != chDE ) continue;
+        if( i != chE && i != chDE && i != chTAC) continue;
         if (TrgCnt[i]>0){
           printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
         }else{
@@ -1216,10 +1230,10 @@ int main(int argc, char *argv[]){
       double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
       
-      printf(" number of raw data to sort         : %d \n", nRawData);
-      printf(" number of raw Event left Over      : %d \n", (int) rawChannel.size());
-      printf(" number of single event built       : %d \n", countSingleEventBuilt);
-      printf(" number of event built in this sort : %d (%d)\n", countEventBuilt, 2*countEventBuilt);
+      printf(" number of raw data to sort            : %d \n", nRawData);
+      printf(" number of raw Event left Over         : %d \n", (int) rawChannel.size());
+      printf(" number of multi-hit event built       : %d \n", countMultiHitEventBuilt);
+      printf(" number of event built in this sort    : %d (x3 = %d)\n", countEventBuilt, 3*countEventBuilt);
       printf("===============================================\n");
       printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
       
@@ -1343,6 +1357,8 @@ int main(int argc, char *argv[]){
             rollOver = Events[ch][ev].Extras2 >> 16;
             rollOver = rollOver << 31;
             timetag  += rollOver ;
+            
+            if( ch == chTAC ) timetag = timetag - 275; // subtract 550 ns for TAC signal.
             
             //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
                         
