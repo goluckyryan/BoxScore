@@ -193,7 +193,7 @@ void ReadGeneralSetting(string fileName){
 
 int* ReadChannelSetting(int ch, string fileName){
 
-  const int numPara = 19;
+  const int numPara = 20;
   int * para = new int[numPara];
   
   ifstream file_in;
@@ -223,6 +223,8 @@ int* ReadChannelSetting(int ch, string fileName){
     para[16] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
     para[17] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
     para[18] = 100;     // Rise Time Validation Window (ns)
+    
+    para[19] = -1;      // gain of the channel; if -1, default based on input-dynamic range;
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -550,7 +552,11 @@ int main(int argc, char *argv[]){
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
   DigitizerParams_t Params;
   int InputDynamicRange[MaxNChannels];
-  for ( int i = 0; i < MaxNChannels ; i++ ) InputDynamicRange[i] = 0;
+  float chGain[MaxNChannels];
+  for ( int i = 0; i < MaxNChannels ; i++ ) {
+    InputDynamicRange[i] = 0;
+    chGain[i] = 1.0;
+  }
   int EnergyFinegain[MaxNChannels];
 
   /* Arrays for data analysis */
@@ -635,6 +641,8 @@ int main(int argc, char *argv[]){
     DPPParams.dgain[ch] = para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
     DPPParams.trgwin[ch] = para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
     DPPParams.twwdt[ch] = para[18];           // Rise Time Validation Window (ns)
+    
+    chGain[ch] = para[19];
 
   }
   printf("====================================== \n");
@@ -802,17 +810,23 @@ int main(int argc, char *argv[]){
   hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),         500, rangeE[0], rangeE[1]);
   htotE = new TH1F("htotE", "total E ; totE [ch] ; count",    500, rangeDE[0]+ rangeE[0]*6.06, rangeDE[1] + rangeE[1]*6.06);
   hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chDE),        500, rangeDE[0], rangeDE[1]);
-  if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]*6.06, rangeDE[1] + rangeE[1]*6.06, 500, rangeDE[0], rangeDE[1]);  
-    mode = 0;
-  }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E/4 ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]/4, rangeDE[1] + rangeE[1]/4, 500, rangeDE[0], rangeDE[1]);  
-    mode = 1;
-  }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
-    hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE/4 + E; totalE [ch]; dE [ch ", 500, rangeDE[0]/4 + rangeE[0], rangeDE[1]/4 + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
-    mode = 2;
-  }
   
+  
+  if( chGain[chE] != 1.0 || chGain[chDE] != 1.0 ){
+    mode = 4;
+    hdEtotE  = new TH2F( "hdEtotE", Form("dE - totE = %4.2fdE + %4.2fE; totalE [ch]; dE [ch ", chGain[chDE], chGain[chE] ), 500, rangeDE[0] * chGain[chDE] + rangeE[0]* chGain[chE], rangeDE[1]* chGain[chDE] + rangeE[1]* chGain[chE], 500, rangeDE[0] * chGain[chDE], rangeDE[1] * chGain[chDE]);  
+  }else{
+    if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
+      hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+      mode = 0;
+    }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
+      hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE + E/4 ; totalE [ch]; dE [ch ", 500, rangeDE[0] + rangeE[0]/4, rangeDE[1] + rangeE[1]/4, 500, rangeDE[0], rangeDE[1]);  
+      mode = 1;
+    }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
+      hdEtotE  = new TH2F( "hdEtotE", "dE - totE = dE/4 + E; totalE [ch]; dE [ch ", 500, rangeDE[0]/4 + rangeE[0], rangeDE[1]/4 + rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+      mode = 2;
+    }
+  }
   
   hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", 500, 0, rangeTime);
@@ -974,7 +988,9 @@ int main(int argc, char *argv[]){
         expression = expression + to_string(rangeDE[1]) + " ";
         expression = expression + to_string(rangeE[0]) + " ";
         expression = expression + to_string(rangeE[1]) + " ";
-        expression = expression + to_string(mode);
+        expression = expression + to_string(mode) + " ";
+        expression = expression + to_string(chGain[chDE]) + " ";
+        expression = expression + to_string(chGain[chE]) + " ";
         printf("%s\n", expression.c_str());
         system(expression.c_str());
         
@@ -1065,7 +1081,7 @@ int main(int argc, char *argv[]){
         
         int numRawEventGrouped = 0;
         
-        printf("%4d--------- %d, %llu \n", countEventBuilt, rawChannel[i], rawTimeStamp[i]);
+        printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
 
         int digitID = 1 << rawChannel[i]; // for checking if the Channel[i] is already taken.
         for( int j = i+1; j < nRawData; j++){
@@ -1077,7 +1093,7 @@ int main(int argc, char *argv[]){
                       
           unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
           
-          printf("%3d | %d | %d, %llu, %llu\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff); 
+          printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
           
           digitID += x;
           
@@ -1123,12 +1139,16 @@ int main(int argc, char *argv[]){
         float ERes = energy[chE] ;
         
         float totalE = TMath::QuietNaN();
-        if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
-          totalE = energy[chDE] + energy[chE]*(2000/330);
-        }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
-          totalE = energy[chDE]/4 + energy[chE];
-        }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
-          totalE = energy[chDE]/4 + energy[chE];
+        if( mode == 4 ){
+          totalE = energy[chDE]*chGain[chDE] + energy[chE]*chGain[chE];
+        }else{  
+          if( InputDynamicRange[chE] == InputDynamicRange[chDE] ) {
+            totalE = energy[chDE] + energy[chE];
+          }else if (InputDynamicRange[chE] > InputDynamicRange[chDE]) { // E = 0.5Vpp, dE = 2 Vpp
+            totalE = energy[chDE] + energy[chE]/4;
+          }else if (InputDynamicRange[chE] < InputDynamicRange[chDE]) { // E = 2 Vpp, dE = 0.5 Vpp
+            totalE = energy[chDE] + energy[chE]*4;
+          }
         }
         
         htotE->Fill(totalE); // x, y
@@ -1380,7 +1400,7 @@ int main(int argc, char *argv[]){
             //printf(" ch: %2d | %lu %llu\n", ch_r, e_r, t_r);
             
             // fake E events
-            if( NumEvents[chE] == 0 ) {
+            if( NumEvents[chE] == 0 && NumEvents[chDE] != 0) {
               rawChannel.push_back(chE);
               ULong_t haha = gRandom->Integer(500) + 2000;
               rawEnergy.push_back(haha);

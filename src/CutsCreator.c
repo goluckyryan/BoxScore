@@ -32,9 +32,9 @@ TObjArray * cutList = NULL;
 
 int main(int argc, char* argv[] ){
   
-  if( argc != 8 && argc != 9 ) {
+  if( argc != 8 && argc != 9  && argc != 11) {
     //printf("Please input channel for dE and E. \n");
-    printf("./CutCreator rootFile dE E rangeDE_min rangeDE_max rangeE_min rangeE_max\n");
+    printf("./CutCreator [rootFile] [chDE] [chE] [rangeDE_min] [rangeDE_max] [rangeE_min rangeE_max] [mode] [gainDE] [gainE]\n");
     return 0;
   }
   
@@ -50,7 +50,16 @@ int main(int argc, char* argv[] ){
   int rangeE_max = atoi(argv[7]);
   
   int mode = 0 ;
-  if( argc == 9) mode = atoi(argv[8]);
+  if( argc >= 9) mode = atoi(argv[8]);
+  
+  float gainDE = 1, gainE = 1;
+  if( argc >= 10) gainDE = atof(argv[9]);
+  if( argc >= 11) gainE = atof(argv[10]);
+  
+  printf("========================\n");
+  printf("   mode = %d\n", mode);
+  printf("gain dE = %f\n", gainDE);
+  printf("gain  E = %f\n", gainE);
 
   TApplication app ("app", &argc, argv);
 
@@ -66,18 +75,20 @@ int main(int argc, char* argv[] ){
   
   TString expression;
   if( mode == 0 ) {
-    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, (rangeE_min*6.06) + rangeDE_min, (rangeE_max*6.06) + rangeDE_max, 500, rangeDE_min , rangeDE_max );
-    expression.Form("e[%d]:e[%d]*6.06 + e[%d]>>hEdE", chDE, chEE, chDE);
+    hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
   }else if ( mode == 1 ){
-    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
   }else if ( mode == 2){
-    hEdE = new TH2F("hEdE", "dE - totE ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
+    hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
+  }else if ( mode == 4){
+    hEdE = new TH2F("hEdE", Form("dE - totE = %4.2fdE + %4.2fE ; totE [ch] ; dE [ch]", gainDE, gainE), 500, rangeE_min * gainE + rangeDE_min * gainDE, rangeE_max * gainE + rangeDE_max* gainDE, 500, rangeDE_min * gainDE , rangeDE_max * gainDE );
+    expression.Form("e[%d]:e[%d]*%4.2f + e[%d]*%4.2f>>hEdE", chDE, chEE, gainE, chDE, gainDE);
   }
   tree->Draw(expression, "", "colz");
   gSystem->ProcessEvents();
-  //thread th(painCanvas); // using loop keep root responding
   
   // make cuts
   cutFile = new TFile("cutsFile.root", "recreate");
