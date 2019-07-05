@@ -70,6 +70,7 @@ int main(int argc, char* argv[] ){
   
   TCanvas * cCutCreator = new TCanvas("cCutCreator", "TCutG Creator", 0, 0, 800, 800);
   if( !cCutCreator->GetShowToolBar() ) cCutCreator->ToggleToolBar();
+  if( cCutCreator->GetShowEditor() ) cCutCreator->ToggleEditor(); 
 
   TH2F * hEdE = NULL;
   

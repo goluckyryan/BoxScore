@@ -90,6 +90,7 @@ TH1F * hdE = NULL;
 TH2F * hdEtotE = NULL; 
 TH2F * hdEE = NULL; 
 TH1F * hTDiff = NULL;
+TH2F * htotETAC = NULL;
 //======== Rate Graph
 TMultiGraph * rateGraph = NULL;
 TGraph * graphRate = NULL;
@@ -782,13 +783,19 @@ int main(int argc, char *argv[]){
   //==== Drawing 
 
   gStyle->SetOptStat("neiou");
-  /* cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 1200, 500, 500, 500); */
-  /* if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor(); */
-  /* if( cCanvasAux->GetShowToolBar() ) cCanvasAux->ToggleToolBar(); */
-  /* cCanvasAux->cd()->SetGridy(); */
-  /* cCanvasAux->cd()->SetGridx(); */
-  /* cCanvasAux->cd()->SetTicky(); */
-  /* cCanvasAux->cd()->SetTickx(); */
+  cCanvasAux = new TCanvas("cCanvasAux", "RAISOR isotopes production (Aux)", 600, 500, 1000, 500); 
+  if( cCanvasAux->GetShowEditor() ) cCanvasAux->ToggleEditor(); 
+  if( cCanvasAux->GetShowToolBar() ) cCanvasAux->ToggleToolBar(); 
+  cCanvasAux->Divide(2,1);
+  cCanvasAux->cd(1)->SetGridy();
+  cCanvasAux->cd(1)->SetGridx();
+  cCanvasAux->cd(1)->SetTicky();
+  cCanvasAux->cd(1)->SetTickx();
+  
+  cCanvasAux->cd(2)->SetGridy();
+  cCanvasAux->cd(2)->SetGridx();
+  cCanvasAux->cd(2)->SetTicky();
+  cCanvasAux->cd(2)->SetTickx();
   
   cCanvas = new TCanvas("cCanvas", Form("RAISOR isotopes production | %s (%s)", location.c_str(), hostname), 0, 0, 1400, 1000);
   cCanvas->Divide(1,2);
@@ -828,7 +835,7 @@ int main(int argc, char *argv[]){
     }
   }
   
-  hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
+  hdEE  = new TH2F( "hdEE", "dE - E ; E [ch]; dE [ch] ", 500, rangeE[0], rangeE[1], 500, rangeDE[0], rangeDE[1]);  
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", 500, 0, rangeTime);
   
   hE->GetXaxis()->SetLabelSize(0.06);
@@ -842,6 +849,8 @@ int main(int argc, char *argv[]){
   
   hdEtotE->SetMinimum(1);
   hdEE->SetMinimum(1);
+  
+  htotETAC = new TH2F( "htotETAC", "totE - TAC; TAC; totE [ch] ", 500, 0, 16000, 500, rangeDE[0] + rangeE[0], rangeDE[1] + rangeE[1]);
   
   rateGraph = new TMultiGraph();
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
@@ -869,7 +878,8 @@ int main(int argc, char *argv[]){
   gROOT->ProcessLine("gErrorIgnoreLevel = kFatal;"); // supress error messsage
   ReadCut("cutsFile.root");
   
-  /* cCanvasAux->cd(); hdEE->Draw("colz"); */
+  cCanvasAux->cd(1); htotETAC->Draw("colz");
+  cCanvasAux->cd(2); hdEE->Draw("colz");
   
   cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -884,7 +894,7 @@ int main(int argc, char *argv[]){
   fullRateGraph->Draw("AP"); //legend->Draw();
   
   cCanvas->Update();
-  /* cCanvasAux->Update(); */
+  cCanvasAux->Update();
   gSystem->ProcessEvents();
 
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
@@ -1137,6 +1147,7 @@ int main(int argc, char *argv[]){
         //===== fill histogram
         float deltaE = energy[chDE] ;
         float ERes = energy[chE] ;
+        float TAC = energy[chTAC];
         
         float totalE = TMath::QuietNaN();
         if( mode == 4 ){
@@ -1154,6 +1165,7 @@ int main(int argc, char *argv[]){
         htotE->Fill(totalE); // x, y
         hdEE->Fill(ERes, deltaE); // x, y
         hdEtotE->Fill(totalE, deltaE); // x, y
+        htotETAC->Fill(TAC, totalE); // x, y
         
         if(isCutFileOpen){
           for( int k = 0 ; k < numCut; k++ ){
@@ -1199,7 +1211,8 @@ int main(int argc, char *argv[]){
       tree->Write("", TObject::kOverwrite); 
       
       //filling filling histogram 
-      /* cCanvasAux->cd(); hdEE->Draw("colz"); */
+      cCanvasAux->cd(1); htotETAC->Draw("colz");
+      cCanvasAux->cd(2); hdEE->Draw("colz");
       
       cCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
       cCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
@@ -1208,7 +1221,7 @@ int main(int argc, char *argv[]){
       cCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); coincidentline.Draw("same");
       
       //=========================== Display
-      //system(CLEARSCR);
+      system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
@@ -1319,8 +1332,8 @@ int main(int argc, char *argv[]){
       
       cCanvas->Modified();
       cCanvas->Update();
-      /* cCanvasAux->Modified(); */
-      /* cCanvasAux->Update(); */
+      cCanvasAux->Modified();
+      cCanvasAux->Update();
       
       // wirte histogram into tree
       fileAppend->cd();
@@ -1330,6 +1343,7 @@ int main(int argc, char *argv[]){
       htotE->Write("", TObject::kOverwrite);
       hdEE->Write("", TObject::kOverwrite);
       hTDiff->Write("", TObject::kOverwrite);
+      htotETAC->Write("", TObject::kOverwrite);
       fullRateGraph->Write("rateGraph", TObject::kOverwrite); 
 
       fileAppend->Close();
