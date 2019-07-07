@@ -1414,12 +1414,13 @@ int main(int argc, char *argv[]){
             //printf(" ch: %2d | %lu %llu\n", ch_r, e_r, t_r);
             
             // fake E events
-            if( NumEvents[chE] == 0 && NumEvents[chDE] != 0) {
-              rawChannel.push_back(chE);
-              ULong_t haha = gRandom->Integer(500) + 2000;
-              rawEnergy.push_back(haha);
-              rawTimeStamp.push_back(timetag + 10 );
-            }
+	    //Comment out for 22Mg devel CRH
+            /* if( NumEvents[chE] == 0 && NumEvents[chDE] != 0) { */
+            /*   rawChannel.push_back(chE); */
+            /*   ULong_t haha = gRandom->Integer(500) + 2000; */
+            /*   rawEnergy.push_back(haha); */
+            /*   rawTimeStamp.push_back(timetag + 10 ); */
+            /* } */
             
             
             if( chDE == ch )  hdE->Fill(e_r); 

@@ -3,11 +3,11 @@ true   // Pulse parity
 4096  // Num of samples of the waveforms (only for waveform mode)
 2000   // Pre trigger size;
 1000   // Table, tree, Plots update period in mili-sec.
-50     // nano-sec, coincident time for event building 
+50 // nano-sec, coincident time for event building 
 0      // range for Energy
-8000 
+14000 
 0      // range for delta-Energy
-14000  
+7000  
 100     // nano-sec max range for time diff plot
 30      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
