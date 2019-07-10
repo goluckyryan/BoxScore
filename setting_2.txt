@@ -16,10 +16,10 @@
 //============= Others
 1       // Energy fine gain , may be address is incorrect? seem no effect
 500     // Baseline holdoff (ns)
-100     // Energy Normalization Factor in integer %, i.e. 1 = 100
+1.00     // Energy Normalization Factor 
 0       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
 0       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
-1      // if 1, use dynamic range, if any channel is not 1, will use gain for its own channel
+1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
