@@ -457,7 +457,7 @@ void ReadCut(TString fileName){
     
     fullRateGraph->Add(fullGraphRate);
     fullLegend->AddEntry(fullGraphRate, "Total");
-    printf("=========== Cannot find TCutG in %s, file may be no exist. \n", fileName.Data());
+    printf("=========== Cannot find TCutG in %s, file might not exist. \n", fileName.Data());
   }
   
   //printf("====================================== \n");
@@ -519,12 +519,13 @@ int main(int argc, char *argv[]){
     chDE = 0;
     chTAC = 7;
   }else if( location == "cross") {
-    ChannelMask = 0x82;
+    // ChannelMask = 0x82;
+    ChannelMask = 0x12; //1 and 4
     chE  = 4;
     chDE = 1;
     chTAC = 7;
   }else if (location == "ZD"){
-    ChannelMask = 0xA4;
+    ChannelMask = 0x24; // was 0xA4 for ch 2,5,7
     chE  = 5;
     chDE = 2;
     chTAC = 7;
@@ -672,7 +673,7 @@ int main(int argc, char *argv[]){
   /* Check firmware revision (only DPP firmwares can be used with this Demo) */
   sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
   if (MajorNumber != V1730_DPP_PHA_CODE) {
-    printf("This digitizer has not a DPP-PHA firmware\n");
+    printf("This digitizer does not have DPP-PHA firmware\n");
     return 0;
   }
 
@@ -1224,12 +1225,12 @@ int main(int argc, char *argv[]){
       system(CLEARSCR);
       PrintInterface();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
-      printf("Number of retriving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
-      printf("Time Elapsed                = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
-      printf("Readout Rate                = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
-      printf("Total number of Raw Event   = %d \n", rawEvCount);
-      printf("Total number of Event Built = %d \n", totEventBuilt);
-      printf("Event-building time         = %lu msec\n", buildTime);
+      printf("Number of retrieving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
+      printf("Time Elapsed                 = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
+      printf("Readout Rate                 = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
+      printf("Total number of Raw Event    = %d \n", rawEvCount);
+      printf("Total number of Event Built  = %d \n", totEventBuilt);
+      printf("Event-building time          = %lu msec\n", buildTime);
       //printf("max sort event size = %d \n", maxSortSize);
       printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size  : %.4f MB \n", fileSize );
