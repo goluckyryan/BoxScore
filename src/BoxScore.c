@@ -195,7 +195,7 @@ void ReadGeneralSetting(string fileName){
 int* ReadChannelSetting(int ch, string fileName){
 
   const int numPara = 20;
-  int * para = new int[numPara];
+  float * para = new float[numPara];
   
   ifstream file_in;
   file_in.open(fileName.c_str(), ios::in);
@@ -225,7 +225,7 @@ int* ReadChannelSetting(int ch, string fileName){
     para[17] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
     para[18] = 100;     // Rise Time Validation Window (ns)
     
-    para[19] = -1;      // gain of the channel; if -1, default based on input-dynamic range;
+    para[19] = -1.0;      // gain of the channel; if -1, default based on input-dynamic range;
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -620,28 +620,28 @@ int main(int argc, char *argv[]){
       chSetting[ch].ReadFile(chSettingFileName.c_str());
     }
     
-    DPPParams.thr[ch] = para[0];              // Trigger Threshold (in LSB)
-    DPPParams.trgho[ch] = para[1];            // Trigger Hold Off (ns)
-    DPPParams.a[ch] = para[2];                // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to a
-    DPPParams.b[ch] = para[3];                // Input Signal Rise time (ns) 
+    DPPParams.thr[ch]   = (int) para[0];              // Trigger Threshold (in LSB)
+    DPPParams.trgho[ch] = (int) para[1];            // Trigger Hold Off (ns)
+    DPPParams.a[ch]     = (int) para[2];                // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to a
+    DPPParams.b[ch]     = (int) para[3];                // Input Signal Rise time (ns) 
     
-    DPPParams.k[ch] = para[4];                // Trapezoid Rise Time (ns) 
-    DPPParams.m[ch] = para[5];                // Trapezoid Flat Top  (ns) 
-    DPPParams.M[ch] = para[6];                // Decay Time Constant (ns) 
-    DPPParams.ftd[ch] = para[7];              // Flat top delay (peaking time?) (ns) 
-    DPPParams.nspk[ch] = para[8];             // Ns peak, Peak mean (number of samples to average for trapezoid he
-    DPPParams.pkho[ch] = para[9];             // peak holdoff (ns)
+    DPPParams.k[ch]     = (int) para[4];                // Trapezoid Rise Time (ns) 
+    DPPParams.m[ch]     = (int) para[5];                // Trapezoid Flat Top  (ns) 
+    DPPParams.M[ch]     = (int) para[6];                // Decay Time Constant (ns) 
+    DPPParams.ftd[ch]   = (int) para[7];              // Flat top delay (peaking time?) (ns) 
+    DPPParams.nspk[ch]  = (int) para[8];             // Ns peak, Peak mean (number of samples to average for trapezoid he
+    DPPParams.pkho[ch]  = (int) para[9];             // peak holdoff (ns)
     
-    DPPParams.nsbl[ch] = para[10];            // Ns baseline, number of samples for baseline average calculation. Opti
-    InputDynamicRange[ch] = para[11];
+    DPPParams.nsbl[ch]    = (int) para[10];            // Ns baseline, number of samples for baseline average calculation. Opti
+    InputDynamicRange[ch] = (int) para[11];
     
-    EnergyFinegain[ch] = para[12];            // Energy Fine Gain
-    DPPParams.blho[ch] = para[13];            // Baseline holdoff (ns)
-    DPPParams.enf[ch] = para[14]/100.;             // Energy Normalization Factor, it is float, but please us
-    DPPParams.decimation[ch] = para[15];      // decimation (the input signal samples are averaged within
-    DPPParams.dgain[ch] = para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
-    DPPParams.trgwin[ch] = para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
-    DPPParams.twwdt[ch] = para[18];           // Rise Time Validation Window (ns)
+    EnergyFinegain[ch]       = (int) para[12];            // Energy Fine Gain
+    DPPParams.blho[ch]       = (int) para[13];            // Baseline holdoff (ns)
+    DPPParams.enf[ch]        = para[14];             // Energy Normalization Factor, it is float, but please us
+    DPPParams.decimation[ch] = (int) para[15];      // decimation (the input signal samples are averaged within
+    DPPParams.dgain[ch]      = (int) para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
+    DPPParams.trgwin[ch]     = (int) para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
+    DPPParams.twwdt[ch]      = (int) para[18];           // Rise Time Validation Window (ns)
     
     chGain[ch] = para[19];
 
