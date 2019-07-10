@@ -192,7 +192,7 @@ void ReadGeneralSetting(string fileName){
   return;
 }
 
-int* ReadChannelSetting(int ch, string fileName){
+float* ReadChannelSetting(int ch, string fileName){
 
   const int numPara = 20;
   float * para = new float[numPara];
@@ -235,7 +235,7 @@ int* ReadChannelSetting(int ch, string fileName){
       size_t pos = line.find("//");
       if( pos > 1 ){
         if( count > numPara - 1) break;
-        para[count] = atoi(line.substr(0, pos).c_str());
+        para[count] = atof(line.substr(0, pos).c_str());
         //printf("%d | %d \n", count, para[count]);
         count ++;
       }
@@ -615,7 +615,7 @@ int main(int argc, char *argv[]){
   for(ch=0; ch<MaxNChannels; ch++) {
     if ( ch != chE && ch != chDE && ch != chTAC ) continue;
     string chSettingFileName = "setting_" + to_string(ch) + ".txt";
-    int* para = ReadChannelSetting(ch, chSettingFileName);
+    float* para = ReadChannelSetting(ch, chSettingFileName);
     
     if (Params.ChannelMask & (1<<ch)) {
       chSetting[ch].ReadFile(chSettingFileName.c_str());
