@@ -1092,7 +1092,7 @@ int main(int argc, char *argv[]){
         
         int numRawEventGrouped = 0;
         
-        printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+        //printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
 
         int digitID = 1 << rawChannel[i]; // for checking if the Channel[i] is already taken.
         for( int j = i+1; j < nRawData; j++){
@@ -1104,7 +1104,7 @@ int main(int argc, char *argv[]){
                       
           unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
           
-          printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
+          //printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
           
           digitID += x;
           

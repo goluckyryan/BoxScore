@@ -7,7 +7,7 @@ true   // Pulse parity
 0      // range for Energy
 10000 
 0      // range for delta-Energy
-8000  
+14000  
 100     // nano-sec max range for time diff plot
 30      // rateGraph windows [sec]
 false  // is saving raw data into raw.root
