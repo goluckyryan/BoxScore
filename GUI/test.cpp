@@ -1,37 +1,30 @@
+#include <TApplication.h>
 #include <TGClient.h>
 #include <TCanvas.h>
 #include <TF1.h>
 #include <TRandom.h>
 #include <TGButton.h>
-#include <TGFrame.h>
 #include <TRootEmbeddedCanvas.h>
-#include <RQ_OBJECT.h>
-
-class MyMainFrame {
-  RQ_OBJECT("MyMainFrame")
-private:
-  TGMainFrame         *fMain;
-  TRootEmbeddedCanvas *fEcanvas;
-public:
-  MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h);
-  virtual ~MyMainFrame();
-  void DoDraw();
-};
+#include "test.h"
 
 MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h) {
    // Create a main frame
    fMain = new TGMainFrame(p,w,h);
 
    // Create canvas widget
-   fEcanvas = new TRootEmbeddedCanvas("Ecanvas",fMain,600,600);
+   fEcanvas = new TRootEmbeddedCanvas("Ecanvas",fMain,200,200);
    fMain->AddFrame(fEcanvas, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 10,10,10,1));
+   
    // Create a horizontal frame widget with buttons
    TGHorizontalFrame *hframe = new TGHorizontalFrame(fMain,200,40);
+   
    TGTextButton *draw = new TGTextButton(hframe,"&Draw");
    draw->Connect("Clicked()","MyMainFrame",this,"DoDraw()");
    hframe->AddFrame(draw, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+   
    TGTextButton *exit = new TGTextButton(hframe,"&Exit", "gApplication->Terminate(0)");
    hframe->AddFrame(exit, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+   
    fMain->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX, 2,2,2,2));
 
    // Set a name to the main frame
@@ -46,7 +39,11 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h) {
    // Map main frame
    fMain->MapWindow();
 }
-
+MyMainFrame::~MyMainFrame() {
+   // Clean up used widgets: frames, buttons, layout hints
+   fMain->Cleanup();
+   delete fMain;
+}
 void MyMainFrame::DoDraw() {
    // Draws function graphics in randomly chosen interval
    TF1 *f1 = new TF1("f1","sin(x)/x",0,gRandom->Rndm()*10);
@@ -57,13 +54,14 @@ void MyMainFrame::DoDraw() {
    fCanvas->Update();
 }
 
-MyMainFrame::~MyMainFrame() {
-   // Clean up used widgets: frames, buttons, layout hints
-   fMain->Cleanup();
-   delete fMain;
+void example() {
+   // Popup the GUI...
+   new MyMainFrame(gClient->GetRoot(),200,200);
 }
 
-void exampleGUI() {
-   // Popup the GUI...
-   new MyMainFrame(gClient->GetRoot(),10,10);
+int main(int argc, char **argv) {
+   TApplication theApp("App",&argc,argv);
+   example();
+   theApp.Run();
+   return 0;
 }
