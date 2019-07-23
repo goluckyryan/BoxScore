@@ -22,11 +22,11 @@
 
 #define MaxNChannels 8
 
-
 using namespace std;
 
+
 class Digitizer {
-  //RQ_OBJECT("Digitizer")
+  RQ_OBJECT("Digitizer")
 private:
 
   bool isGood; 
@@ -85,7 +85,6 @@ public:
   void StartACQ(){}
   
 };
-
 
 Digitizer::Digitizer(int ID){
   
