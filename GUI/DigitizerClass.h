@@ -1,8 +1,8 @@
 #ifndef DIGITIZER
 #define DIGITIZER
 
-//#include <TQObject.h>
-//#include <RQ_OBJECT.h>
+#include <TQObject.h>
+#include <RQ_OBJECT.h>
 #include "CAENDigitizer.h"
 #include "CAENDigitizerType.h"
 
@@ -26,7 +26,7 @@ using namespace std;
 
 
 class Digitizer {
-  //RQ_OBJECT("Digitizer")
+  RQ_OBJECT("Digitizer")  //try to make this class as QObject, but somehow fail
 private:
 
   bool isConnected;
