@@ -20,6 +20,7 @@ private:
    TRootEmbeddedCanvas *fEcanvas;
 public:
    MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
+          
 		// Create a main frame
 		fMain = new TGMainFrame(p,w,h);
 
