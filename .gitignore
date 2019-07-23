@@ -5,9 +5,12 @@
 *.pcm
 *.png
 
+*.cxx
 *~
 #*
 
 DetectDigitizer
 BoxScore
 CutsCreator
+
+GUIBoxScore
