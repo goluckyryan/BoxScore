@@ -26,9 +26,10 @@ using namespace std;
 
 
 class Digitizer {
-  RQ_OBJECT("Digitizer")
+  //RQ_OBJECT("Digitizer")
 private:
 
+  bool isConnected;
   bool isGood; 
 
   int boardID; // board identity
@@ -68,6 +69,19 @@ private:
 public:
   Digitizer(int ID);
   ~Digitizer();
+  
+  void SetChannelMask(uint32_t mask){ 
+    ChannelMask = mask; 
+    if( isConnected ){
+      ret = CAEN_DGTZ_SetChannelEnableMask(boardID, ChannelMask);
+      if( ret == 0 ){
+        printf("---- ChannelMask changed to %d \n", ChannelMask);
+      }else{
+        printf("---- Fail to change ChannelMask \n");
+      }
+    }
+  }
+  
   
   void GetChannelSetting(int ch);
   
@@ -125,6 +139,7 @@ Digitizer::Digitizer(int ID){
   
   printf("============= Opening Digitizer at Board %d \n", boardID);
   
+  isConnected = false;
   isGood = true;
   
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &boardID);
@@ -139,6 +154,7 @@ Digitizer::Digitizer(int ID){
       printf("Can't read board info\n");
       isGood = false;
     }else{
+      isConnected = true;
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, boardID);
       NChannel = BoardInfo.Channels;
       printf("Number of Channels : %d\n", NChannel);
@@ -203,10 +219,20 @@ Digitizer::Digitizer(int ID){
 
 Digitizer::~Digitizer(){
   
+  
+  /* stop the acquisition, close the device and free the buffers */
+  CAEN_DGTZ_SWStopAcquisition(boardID);
+  CAEN_DGTZ_CloseDigitizer(boardID);
+  CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+  CAEN_DGTZ_FreeDPPEvents(boardID, reinterpret_cast<void**>(&Events));
+  
+  printf("Close digitizer\n");
+  
   for(int ch = 0; ch < MaxNChannels; ch++){
     delete Events[ch];
   }
-
+  
+  delete buffer;
 }
 
 

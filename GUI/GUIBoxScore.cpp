@@ -9,6 +9,9 @@
 #include <TF1.h>
 #include <TRandom.h>
 #include <TGButton.h>
+#include <TGLabel.h>
+#include <TGStatusBar.h>
+#include <TGComboBox.h>
 #include <TRootEmbeddedCanvas.h>
 #include "GUIBoxScore.h"
 
@@ -19,8 +22,46 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 		// Create a main frame
 		fMain = new TGMainFrame(p,w,h);
 
-    digitizer = new Digitizer(1);
+    fMain->Connect("CloseWindow()", "MyMainFrame", this, "CloseWindow()");
 
+    digitizer = new Digitizer(1);
+    
+    //Create a headup frame;
+		TGHorizontalFrame *hpFrame = new TGHorizontalFrame(fMain,200,30);
+    
+    TGTextButton *bNewFile = new TGTextButton(hpFrame,"&New File");
+    hpFrame->AddFrame(bNewFile, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+    
+    TGLabel * posLabel = new TGLabel(hpFrame, "Position : ");
+    hpFrame->AddFrame(posLabel,  new TGLayoutHints(kLHintsCenterX, 5,5,3,4) );
+    
+    TGComboBox * posCombox = new TGComboBox(hpFrame); 
+    posCombox->SetWidth(120);
+    posCombox->SetHeight(20);
+    posCombox->AddEntry("RAISOR Exit", 0x89);
+    posCombox->AddEntry("HELIOS Cross", 0x82);
+    posCombox->AddEntry("HELIOS ZeroDegree", 0xA4);
+    posCombox->Connect("Selected(Int_t)", "MyMainFrame", this, "SetDigitizerChannelMask(uint32_t)");
+    hpFrame->AddFrame(posCombox, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+    
+    TGTextButton *bStartPause = new TGTextButton(hpFrame,"&Start ACQ");
+    bStartPause->SetEnabled(false);
+    hpFrame->AddFrame(bStartPause, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+
+    TGTextButton *bStop = new TGTextButton(hpFrame,"&Stop ACQ");
+    bStop->SetEnabled(false);
+    hpFrame->AddFrame(bStop, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+
+    TGTextButton *bCleanHist = new TGTextButton(hpFrame,"&Clean Hist.");
+    bCleanHist->SetEnabled(false);
+    hpFrame->AddFrame(bCleanHist, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+
+    TGTextButton *bCutCreator = new TGTextButton(hpFrame,"&Cut Creator");
+    bCutCreator->SetEnabled(false);
+    hpFrame->AddFrame(bCutCreator, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+
+    fMain->AddFrame(hpFrame, new TGLayoutHints(kLHintsCenterX, 2,2,2,2));
+    
 		// Create canvas widget
 		fEcanvas = new TRootEmbeddedCanvas("Ecanvas",fMain,w,h);
 		fMain->AddFrame(fEcanvas, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY, 10,10,10,1));
@@ -37,11 +78,25 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 		
 		TGTextButton *exit = new TGTextButton(hframe,"&Exit", "gApplication->Terminate(0)");
 		hframe->AddFrame(exit, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
-		
+    
 		fMain->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX, 2,2,2,2));
 
+    // status bar
+    Int_t parts[] = {33, 10, 10, 47};
+    TGStatusBar *fStatusBar = new TGStatusBar(fMain,50,10,kHorizontalFrame);
+    fStatusBar->SetParts(parts,4);
+    fMain->AddFrame(fStatusBar, new TGLayoutHints(kLHintsBottom | kLHintsLeft | kLHintsExpandX, 0, 0, 2, 0));
+
+    //TODO for each object
+    // fill status bar fields with information; selected is the object
+    // below the cursor; atext contains pixel coordinates info
+    //fStatusBar->SetText(selected->GetTitle(),0);
+    //fStatusBar->SetText(selected->GetName(),1);
+    //fStatusBar->SetText(atext,2);
+    //fStatusBar->SetText(selected->GetObjectInfo(px,py),3);
+
 		// Set a name to the main frame
-		fMain->SetWindowName("Simple Example");
+		fMain->SetWindowName("BoxScore for RAISOR");
 
 		// Map all subwindows of main frame
 		fMain->MapSubwindows();
@@ -55,9 +110,23 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 }
 
 MyMainFrame::~MyMainFrame(){
-  		   // Clean up used widgets: frames, buttons, layout hints
+  
+    delete digitizer;
+  
+    // Clean up used widgets: frames, buttons, layout hints
 		fMain->Cleanup();
 		delete fMain;
+}
+
+
+void MyMainFrame::SetDigitizerChannelMask(uint32_t mask){
+  
+  digitizer->SetChannelMask(mask);
+  
+}
+
+void MyMainFrame::CloseWindow(){
+  gApplication->Terminate(0);
 }
 
 void MyMainFrame::DoDraw(){
@@ -79,6 +148,8 @@ void MyMainFrame::DoDraw(){
 		f2->SetLineWidth(3);
 		f2->Draw();
 		fCanvas->Update();
+    
+    digitizer->GetBoardConfiguration();
 }
 
 
@@ -86,7 +157,7 @@ int main(int argc, char **argv) {
   
   TApplication theApp("App",&argc,argv);
    
-  new MyMainFrame(gClient->GetRoot(),600,200);
+  new MyMainFrame(gClient->GetRoot(),800,800);
    
   theApp.Run();
   return 0;

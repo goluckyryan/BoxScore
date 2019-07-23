@@ -1,9 +1,10 @@
 #include <TQObject.h>
 #include <RQ_OBJECT.h>
 
+//prototype declariation
 class TGWindow;
 class TGMainFrame;
-class TRootEmbeddedCanvas; //limited function
+class TRootEmbeddedCanvas;
 class Digitizer;
 
 class MyMainFrame {
@@ -15,6 +16,12 @@ private:
 public:
    MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h);
    virtual ~MyMainFrame();
+   
+   void SetDigitizerChannelMask(uint32_t mask);
+
+
+   void CloseWindow();
    void DoDraw();
+
 };
 
