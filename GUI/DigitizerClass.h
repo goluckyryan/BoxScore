@@ -31,13 +31,18 @@ private:
 
   bool isConnected;
   bool isGood; 
+  
+  bool AcqRun;
 
   int boardID; // board identity
   //CAEN_DGTZ_ErrorCode ret1; // return value
   int ret; //return value
   int NChannel; // number of channel
 
+  int Nb; // number of byte
+  uint32_t NumEvents[MaxNChannels];
   char *buffer = NULL; // readout buffer
+  uint32_t AllocatedSize, BufferSize; 
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  // events buffer
 
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
@@ -64,27 +69,27 @@ private:
   int ECnt[MaxNChannels];
   int TrgCnt[MaxNChannels];
   int PurCnt[MaxNChannels];
+  int rawEvCount = 0;
+  
+  // ===== unsorted data
+  vector<ULong64_t> rawTimeStamp;   
+  vector<UInt_t> rawEnergy;
+  vector<int> rawChannel;
   
 
 public:
   Digitizer(int ID);
   ~Digitizer();
   
-  void SetChannelMask(uint32_t mask){ 
-    ChannelMask = mask; 
-    if( isConnected ){
-      ret = CAEN_DGTZ_SetChannelEnableMask(boardID, ChannelMask);
-      if( ret == 0 ){
-        printf("---- ChannelMask changed to %d \n", ChannelMask);
-      }else{
-        printf("---- Fail to change ChannelMask \n");
-      }
-    }
-  }
+  void SetChannelMask(uint32_t mask);
+  void SetDCOffset(int ch , float offset);
   
+  int GetNumRawEvent() {return rawEvCount;}
+  vector<ULong64_t> GetRawTimeStamp() {return rawTimeStamp;}
+  vector<UInt_t> GetRawEnergy() {return rawEnergy;}
+  vector<int> GetRawChannel() {return rawChannel;}
   
   void GetChannelSetting(int ch);
-  
   uint32_t GetChannelMask() const {return ChannelMask;}
   int GetNChannel(){ return NChannel;}
   
@@ -95,8 +100,10 @@ public:
   void ReadChannelSetting (const int ch, string fileName);
   void ReadGeneralSetting(string fileName);
   
-  void StopACQ(){}
-  void StartACQ(){}
+  void StopACQ();
+  void StartACQ();
+  
+  void ReadData();
   
 };
 
@@ -105,13 +112,20 @@ Digitizer::Digitizer(int ID){
   //================== initialization
   boardID = ID;
   NChannel = 0;
+  
+  AcqRun = false;
+  
   ch2ns = 2; // 1 channel = 2 ns
   DCOffset = 0.2;
   
+  Nb = 0;
+  
+
   for ( int i = 0; i < MaxNChannels ; i++ ) {
     inputDynamicRange[i] = 0;
     chGain[i] = 1.0;
     energyFineGain[i] = 100;
+    NumEvents[i] = 0; 
   }
   
   memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
@@ -195,7 +209,6 @@ Digitizer::Digitizer(int ID){
     because the following functions needs to know the digitizer configuration
     to allocate the right memory amount */
     // Allocate memory for the readout buffer 
-    uint32_t AllocatedSize;
     ret = CAEN_DGTZ_MallocReadoutBuffer(boardID, &buffer, &AllocatedSize);
     // Allocate memory for the events
     ret |= CAEN_DGTZ_MallocDPPEvents(boardID, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
@@ -234,6 +247,33 @@ Digitizer::~Digitizer(){
   
   delete buffer;
 }
+
+void Digitizer::SetChannelMask(uint32_t mask){ 
+  ChannelMask = mask; 
+  if( isConnected ){
+    ret = CAEN_DGTZ_SetChannelEnableMask(boardID, ChannelMask);
+    if( ret == 0 ){
+      printf("---- ChannelMask changed to %d \n", ChannelMask);
+    }else{
+      printf("---- Fail to change ChannelMask \n");
+    }
+  }
+}
+
+
+void Digitizer::SetDCOffset(int ch, float offset){
+  DCOffset = offset;
+  
+  ret = CAEN_DGTZ_SetChannelDCOffset(boardID, ch, uint( 0xffff * DCOffset ));
+  
+  if( ret == 0 ){
+    printf("---- DC Offset of CH : %d is set to %f \n", ch, DCOffset);
+  }else{
+    printf("---- Fail to Set DC Offset of CH : %d \n", ch);
+  }
+  
+}
+
 
 
 void Digitizer::GetBoardConfiguration(){
@@ -513,6 +553,72 @@ void Digitizer::ReadGeneralSetting(string fileName){
   
 }
 
+
+void Digitizer::StartACQ(){
+  
+  CAEN_DGTZ_SWStartAcquisition(boardID);
+  printf("Acquisition Started for Board %d\n", boardID);
+  AcqRun = true;
+  
+}
+
+void Digitizer::ReadData(){
+  /* Read data from the board */
+  ret = CAEN_DGTZ_ReadData(boardID, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
+  if (BufferSize == 0) return;
+  
+  Nb += BufferSize;
+  ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(boardID, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
+  if (ret) {
+    printf("Data Error: %d\n", ret);
+    CAEN_DGTZ_SWStopAcquisition(boardID);
+    CAEN_DGTZ_CloseDigitizer(boardID);
+    CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+    CAEN_DGTZ_FreeDPPEvents(boardID, reinterpret_cast<void**>(&Events));
+    return;
+  }
+  
+  /* Analyze data */
+  for (int ch = 0; ch < MaxNChannels; ch++) {
+    if (!(ChannelMask & (1<<ch))) continue;
+    //printf("------------------------ %d \n", ch);
+    for (int ev = 0; ev < NumEvents[ch]; ev++) {
+      TrgCnt[ch]++;
+      
+      if (Events[ch][ev].Energy > 0) {
+        ECnt[ch]++;
+          
+        ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
+        ULong64_t rollOver = Events[ch][ev].Extras2 >> 16;
+        rollOver = rollOver << 31;
+        timetag  += rollOver ;
+        
+        //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+                    
+        rawEvCount ++;
+        
+        rawChannel.push_back(ch);
+        rawEnergy.push_back(Events[ch][ev].Energy);
+        rawTimeStamp.push_back(timetag);
+        
+        
+      } else { /* PileUp */
+          PurCnt[ch]++;
+      }
+        
+    } // loop on events
+    
+  } // loop on channels
+  
+  
+}
+
+void Digitizer::StopACQ(){
+  
+  CAEN_DGTZ_SWStopAcquisition(boardID); 
+  printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
+  AcqRun = false;
+}
 
 
 #endif

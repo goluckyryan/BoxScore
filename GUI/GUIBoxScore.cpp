@@ -14,10 +14,16 @@
 #include <TGLabel.h>
 #include <TGStatusBar.h>
 #include <TGComboBox.h>
+#include <TGTextEntry.h>
+#include <TPaveText.h>
 #include <TRootEmbeddedCanvas.h>
-#include "GUIBoxScore.h"
 
+#include "GUIBoxScore.h"
 #include "DigitizerClass.h"
+
+#include <cmath>
+#include <vector>
+
 
 MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 
@@ -57,9 +63,11 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
   TGComboBox * posCombox = new TGComboBox(hpFrame); 
   posCombox->SetWidth(120);
   posCombox->SetHeight(20);
+  posCombox->AddEntry("All Channels", 0xff);
   posCombox->AddEntry("RAISOR Exit", 0x89);
   posCombox->AddEntry("HELIOS Cross", 0x82);
   posCombox->AddEntry("HELIOS ZeroDegree", 0xA4);
+  posCombox->Select(0xff);
   posCombox->Connect("Selected(Int_t)", "MyMainFrame", this, "SetDigitizerChannelMask(uint32_t)");
   hpFrame->AddFrame(posCombox, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
 
@@ -80,6 +88,11 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
   TGTextButton *bCutCreator = new TGTextButton(hpFrame,"&Cut Creator");
   //bCutCreator->SetEnabled(false);
   hpFrame->AddFrame(bCutCreator, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
+
+  TGTextEntry * tDisplay = new TGTextEntry(hpFrame);
+  tDisplay->SetHeight(120);
+  tDisplay->SetWidth(100);
+  hpFrame->AddFrame(tDisplay, new TGLayoutHints(kLHintsCenterX | kLHintsExpandY, 5,5,3,4));
 
   fMain->AddFrame(hpFrame, new TGLayoutHints(kLHintsRight, 10,10,10,10));
   
@@ -158,7 +171,14 @@ void MyMainFrame::StartPauseACQ(){
       
     //DoDraw();
     
-    EventGenerator();
+    //EventGenerator();
+    
+    digitizer->StartACQ();
+    digitizer->ReadData();
+    
+    printf("Number of event collected : %d \n", digitizer->GetNumRawEvent());
+    
+    
   } 
   
   if( !isACQPaused ){
@@ -180,6 +200,8 @@ void MyMainFrame::StopACQ(){
     isACQPaused = false;
     isACQStopped = true;
     
+    digitizer->StopACQ();
+    
   }
   
 }
@@ -190,6 +212,8 @@ void MyMainFrame::EventGenerator(){
   //this will continuously generate data and fill the histogram;
   
   // the testing objective is, when this generator is running, can I press other buttons?
+  
+  // need to use pThread, create a thread that continouly runnning and generating data
   
   int count = 0;
   
