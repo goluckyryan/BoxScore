@@ -15,6 +15,7 @@
 #include <TGStatusBar.h>
 #include <TGComboBox.h>
 #include <TGTextEntry.h>
+#include <TGTextEdit.h>
 #include <TPaveText.h>
 #include <TRootEmbeddedCanvas.h>
 
@@ -25,7 +26,7 @@
 #include <vector>
 
 
-MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
+GUIBoxScore::GUIBoxScore(const TGWindow *p,UInt_t w,UInt_t h){
 
   // Create histogram;
   h1 = new TH1F ("h1", "h1", 500, 0, 500);
@@ -38,11 +39,9 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 
   // Create a main frame
   fMain = new TGMainFrame(p,w,h);
-  fMain->Connect("CloseWindow()", "MyMainFrame", this, "CloseWindow()");
+  fMain->Connect("CloseWindow()", "GUIBoxScore", this, "CloseWindow()");
   
   fMain->ChangeOptions((fMain->GetOptions()& ~kVerticalFrame) | kHorizontalFrame);
-
-  digitizer = new Digitizer(1);
 
   // Create canvas widget
   fEcanvas = new TRootEmbeddedCanvas("Ecanvas",fMain,w,h);
@@ -68,17 +67,17 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
   posCombox->AddEntry("HELIOS Cross", 0x82);
   posCombox->AddEntry("HELIOS ZeroDegree", 0xA4);
   posCombox->Select(0xff);
-  posCombox->Connect("Selected(Int_t)", "MyMainFrame", this, "SetDigitizerChannelMask(uint32_t)");
+  posCombox->Connect("Selected(Int_t)", "GUIBoxScore", this, "SetDigitizerChannelMask(uint32_t)");
   hpFrame->AddFrame(posCombox, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
 
   TGTextButton *bStartPause = new TGTextButton(hpFrame,"&Start/Pause ACQ");
   //bStartPause->SetEnabled(false);
-  bStartPause->Connect("Clicked()","MyMainFrame",this,"StartPauseACQ()");
+  bStartPause->Connect("Clicked()","GUIBoxScore",this,"StartPauseACQ()");
   hpFrame->AddFrame(bStartPause, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
 
   TGTextButton *bStop = new TGTextButton(hpFrame,"&Stop ACQ");
   //bStop->SetEnabled(false);
-  bStop->Connect("Clicked()","MyMainFrame",this,"StopACQ()");
+  bStop->Connect("Clicked()","GUIBoxScore",this,"StopACQ()");
   hpFrame->AddFrame(bStop, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
 
   TGTextButton *bCleanHist = new TGTextButton(hpFrame,"&Clean Hist.");
@@ -89,7 +88,7 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
   //bCutCreator->SetEnabled(false);
   hpFrame->AddFrame(bCutCreator, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
 
-  TGTextEntry * tDisplay = new TGTextEntry(hpFrame);
+  TGTextEdit * tDisplay = new TGTextEdit(hpFrame);
   tDisplay->SetHeight(120);
   tDisplay->SetWidth(100);
   hpFrame->AddFrame(tDisplay, new TGLayoutHints(kLHintsCenterX | kLHintsExpandY, 5,5,3,4));
@@ -101,7 +100,7 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
   //TGHorizontalFrame *hframe = new TGHorizontalFrame(fMain,200,40);
   //
   //TGTextButton *draw = new TGTextButton(hframe,"&Draw");
-  //draw->Connect("Clicked()","MyMainFrame",this,"DoDraw()");
+  //draw->Connect("Clicked()","GUIBoxScore",this,"DoDraw()");
   //hframe->AddFrame(draw, new TGLayoutHints(kLHintsCenterX, 5,5,3,4));
   //
   //TGTextButton *exit = new TGTextButton(hframe,"&Exit", "gApplication->Terminate(0)");
@@ -134,10 +133,14 @@ MyMainFrame::MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h){
 
   // Map main frame
   fMain->MapWindow();
+  
+  
+  digitizer = new Digitizer(1, 0xff);
+
 
 }
 
-MyMainFrame::~MyMainFrame(){
+GUIBoxScore::~GUIBoxScore(){
 
   delete digitizer;
 
@@ -151,17 +154,17 @@ MyMainFrame::~MyMainFrame(){
 }
 
 
-void MyMainFrame::SetDigitizerChannelMask(uint32_t mask){
+void GUIBoxScore::SetDigitizerChannelMask(uint32_t mask){
   
   digitizer->SetChannelMask(mask);
   
 }
 
-void MyMainFrame::CloseWindow(){
+void GUIBoxScore::CloseWindow(){
   gApplication->Terminate(0);
 }
 
-void MyMainFrame::StartPauseACQ(){
+void GUIBoxScore::StartPauseACQ(){
   
   if( !isACQStarted ){
     
@@ -175,6 +178,15 @@ void MyMainFrame::StartPauseACQ(){
     
     digitizer->StartACQ();
     digitizer->ReadData();
+    
+    //while(isACQStarted){
+    //  digitizer->PrintReadStatistic();
+    //  sleep(1);
+    //}
+    
+    //digitizer->BuildEvent();
+    
+    
     
     printf("Number of event collected : %d \n", digitizer->GetNumRawEvent());
     
@@ -192,7 +204,7 @@ void MyMainFrame::StartPauseACQ(){
   
 }
 
-void MyMainFrame::StopACQ(){
+void GUIBoxScore::StopACQ(){
   
   if( !isACQStopped ){
     
@@ -206,7 +218,7 @@ void MyMainFrame::StopACQ(){
   
 }
 
-void MyMainFrame::EventGenerator(){
+void GUIBoxScore::EventGenerator(){
   
   //this is a dummy eventGenerator.
   //this will continuously generate data and fill the histogram;
@@ -232,7 +244,7 @@ void MyMainFrame::EventGenerator(){
 }
 
 
-void MyMainFrame::UpdatePlot(){
+void GUIBoxScore::UpdatePlot(){
   
   TCanvas *fCanvas = fEcanvas->GetCanvas();
   fCanvas->cd(1); h1->Draw();
@@ -242,7 +254,7 @@ void MyMainFrame::UpdatePlot(){
   fCanvas->Update();
 }
 
-void MyMainFrame::DoDraw(){
+void GUIBoxScore::DoDraw(){
   
   TCanvas *fCanvas = fEcanvas->GetCanvas();
   fCanvas->cd(1);
@@ -270,7 +282,7 @@ int main(int argc, char **argv) {
   
   TApplication theApp("App",&argc,argv);
    
-  new MyMainFrame(gClient->GetRoot(),1200,800);
+  new GUIBoxScore(gClient->GetRoot(),1200,800);
    
   theApp.Run();
   return 0;

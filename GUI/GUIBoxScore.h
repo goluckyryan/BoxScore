@@ -9,8 +9,8 @@ class Digitizer;
 class TH1F;
 class TH2F;
 
-class MyMainFrame {
-  RQ_OBJECT("MyMainFrame")
+class GUIBoxScore {
+  RQ_OBJECT("GUIBoxScore")
 private:
   TGMainFrame         *fMain;
   TRootEmbeddedCanvas *fEcanvas;
@@ -26,8 +26,8 @@ private:
   
 
 public:
-  MyMainFrame(const TGWindow *p,UInt_t w,UInt_t h);
-  virtual ~MyMainFrame();
+  GUIBoxScore(const TGWindow *p,UInt_t w,UInt_t h);
+  virtual ~GUIBoxScore();
 
   void SetDigitizerChannelMask(uint32_t mask);
 
