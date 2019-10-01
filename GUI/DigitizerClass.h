@@ -117,17 +117,19 @@ public:
     CoincidentTimeWindow = nanoSec;
   }
   
+  bool IsRunning() {return AcqRun;}
   int GetNChannel(){ return NChannel;}
   int * GetInputDynamicRange() { return inputDynamicRange;}
   float * GetChannelGain() {return chGain;}
   unsigned long long int Getch2ns() {return ch2ns;}
+  int GetCoincidentTimeWindow() { return CoincidentTimeWindow;}
   
   int GetNumRawEvent() {return rawEvCount;}
   vector<ULong64_t> GetRawTimeStamp() {return rawTimeStamp;}
   vector<UInt_t> GetRawEnergy() {return rawEnergy;}
   vector<int> GetRawChannel() {return rawChannel;}
   
-  uint32_t GetRawTimeRange() {return rawTimeRange;}
+  uint32_t GetRawTimeRange() {return rawTimeRange;} // in ch
   
   ULong64_t GetRawTimeStamp(int i) {return rawTimeStamp[i];}
   UInt_t GetRawEnergy(int i) {return rawEnergy[i];}
@@ -206,6 +208,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   ch2ns = 2; // 1 channel = 2 ns
   DCOffset = 0.2;
+  CoincidentTimeWindow = 100; // nano-sec
   
   Nb = 0;
   
@@ -318,7 +321,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   rawEvCount= 0;
   rawEvLeftCount = 0;
   
-  rawTimeRange = 0;
+  rawTimeRange = 999999999999999;
   
   singleEnergy.clear();
   singleChannel.clear();
@@ -769,6 +772,9 @@ int Digitizer::BuildEvent(){
   int nRawData = rawChannel.size();
   if( nRawData < 2 ) return 0; // too few event to build;
   
+  countEventBuilt = 0;
+  countMultiHitEventBuilt = 0;
+  
   int sortIndex[nRawData];
   double bubbleSortTime[nRawData];
   for( int i = 0; i < nRawData; i++){
@@ -796,7 +802,7 @@ int Digitizer::BuildEvent(){
   if( nRawData > 0 ) {
     rawTimeRange = rawTimeStamp[nRawData-1] - rawTimeStamp[0];
   }else{
-    rawTimeRange = 9999999.;
+    rawTimeRange = 99999999999.;
   }
   //################################################################
   // build event base on coincident window

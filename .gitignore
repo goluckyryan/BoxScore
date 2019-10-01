@@ -11,6 +11,7 @@
 
 DetectDigitizer
 BoxScore
+BoxScoreXY
 CutsCreator
 
 GUIBoxScore

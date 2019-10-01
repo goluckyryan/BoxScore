@@ -1,5 +1,5 @@
 //============= Discriminator
-350     // Trigger Threshold (in LSB)
+200     // Trigger Threshold (in LSB)
 496     // Trigger Hold Off
 32      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
 100     // Input Signal Rise time (ns) 

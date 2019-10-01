@@ -44,7 +44,7 @@ INCLUDES =	./include/*
 
 #########################################################################
 
-all	:	$(OUT1) $(OUT2) CutsCreator
+all	:	$(OUT1) $(OUT2) CutsCreator BoxScoreXY
 
 clean	:
 		/bin/rm -f $(OBJS) $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
@@ -65,6 +65,8 @@ $(OBJS1)	:	$(INCLUDES) Makefile
 
 $(OBJS2)	:	$(INCLUDES) Makefile
 
+BoxScoreXY	: src/BoxScoreXY.c GUI/DigitizerClass.h
+		g++ -std=c++11 -pthread src/BoxScoreXY.c -o BoxScoreXY -lCAENDigitizer `root-config --cflags --glibs`
 
 %.o	:	%.c
 		$(CC) $(COPTS) $(INCLUDEDIR) -c -o $@ $<
