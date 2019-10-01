@@ -400,7 +400,7 @@ void paintCanvas(){
   do{
     //cCanvas->Modified();
     gSystem->ProcessEvents();
-    //Sleep(10); // 10 mili-sec
+    Sleep(10); // 10 mili-sec
   }while(!QuitFlag);
 }
 
@@ -1024,6 +1024,7 @@ int main(int argc, char *argv[]){
     /* Calculate throughput and trigger rate (every second) */
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PrevRateTime; /* milliseconds */
+    uint64_t rawTimeRange = 0;
     int countEventBuilt = 0;
     int countMultiHitEventBuilt = 0;
     if (ElapsedTime > updatePeriod) {
@@ -1073,6 +1074,12 @@ int main(int argc, char *argv[]){
         //printf("%d| %d,  %d,  %llu  \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
       }
       
+      if ( nRawData > 0 ) {
+        rawTimeRange = rawTimeStamp[nRawData-1] - rawTimeStamp[0];
+      }else{
+        rawTimeRange = 99999999.;
+      }
+      
       // Fill TDiff
       for( int i = 0; i < nRawData-1; i++){
         ULong64_t timeDiff = rawTimeStamp[i+1]- rawTimeStamp[i] ;
@@ -1092,7 +1099,7 @@ int main(int argc, char *argv[]){
         
         int numRawEventGrouped = 0;
         
-        printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+        //printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
 
         int digitID = 1 << rawChannel[i]; // for checking if the Channel[i] is already taken.
         for( int j = i+1; j < nRawData; j++){
@@ -1104,7 +1111,7 @@ int main(int argc, char *argv[]){
                       
           unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
           
-          printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
+          //printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
           
           digitID += x;
           
@@ -1140,8 +1147,8 @@ int main(int argc, char *argv[]){
           channel[rawChannel[j]] = rawChannel[j];
           energy[rawChannel[j]] = rawEnergy[j];
           timeStamp[rawChannel[j]] = rawTimeStamp[j];
-          totEventBuilt++;
         }
+        totEventBuilt++;
         
         tree->Fill();
         
@@ -1185,6 +1192,7 @@ int main(int argc, char *argv[]){
       
       uint64_t buildStopTime = get_time();
       uint64_t buildTime = buildStopTime - buildStartTime;
+      float timeRangeSec = rawTimeRange * 2e-9;
       
       //if( buildTime > updatePeriod ) maxSortSize = nRawData * 0.9 ;
       
@@ -1227,7 +1235,7 @@ int main(int argc, char *argv[]){
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Number of retrieving per sec = %.2f \n", numDataRetriving*1000./updatePeriod);
       printf("Time Elapsed                 = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
-      printf("Readout Rate                 = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
+      printf("Readout Rate                 = %.5f MB/s\n", (float)Nb/(timeRangeSec/1e3*1048.576f));
       printf("Total number of Raw Event    = %d \n", rawEvCount);
       printf("Total number of Event Built  = %d \n", totEventBuilt);
       printf("Event-building time          = %lu msec\n", buildTime);
@@ -1239,7 +1247,7 @@ int main(int argc, char *argv[]){
       for(i=0; i<MaxNChannels; i++) {
         if( i != chE && i != chDE && i != chTAC) continue;
         if (TrgCnt[i]>0){
-          printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
+          printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/timeRangeSec, (float)PurCnt[i]*100/(float)TrgCnt[i]);
         }else{
           if (!(Params.ChannelMask & (1<<i))){
             printf("\tCh %d:\tMasked\n", i);
@@ -1261,7 +1269,8 @@ int main(int argc, char *argv[]){
         graphRate->GetPoint(j-1, x, y);
         if( x < lowerTime ) graphRate->RemovePoint(j-1);
       }
-      double totalRate = countEventBuilt*1.0/ElapsedTime*1e3;
+      
+      double totalRate = countEventBuilt*1.0/timeRangeSec;
       graphRate->SetPoint(graphRate->GetN(), (CurrentTime - StartTime)/1e3, totalRate);
       
       printf(" number of raw data to sort            : %d \n", nRawData);
@@ -1269,7 +1278,7 @@ int main(int argc, char *argv[]){
       printf(" number of multi-hit event built       : %d \n", countMultiHitEventBuilt);
       printf(" number of event built in this sort    : %d (x3 = %d)\n", countEventBuilt, 3*countEventBuilt);
       printf("===============================================\n");
-      printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", countEventBuilt*1.0/ElapsedTime*1e3, graphRate->GetMean(2));
+      printf(" Rate( all) :%7.2f pps | mean :%7.2f pps\n", totalRate, graphRate->GetMean(2));
       
       fullGraphRate->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, totalRate);
       string tag = "tag=" + location;
@@ -1284,14 +1293,14 @@ int main(int argc, char *argv[]){
               graphRateCut[i]->RemovePoint(j-1);
             }
           }
-          graphRateCut[i]->SetPoint(graphRateCut[i]->GetN(), (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
+          graphRateCut[i]->SetPoint(graphRateCut[i]->GetN(), (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/timeRangeSec);
           fullGraphRateCut[i]->SetPoint(graphIndex, (CurrentTime - StartTime)/1e3, countFromCut[i]*1.0/ElapsedTime*1e3);
           cutG = (TCutG *)cutList->At(i) ;
           cCanvas->cd(1)->cd(1); cutG->Draw("same");
-          printf(" Rate(%4s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/ElapsedTime*1e3, graphRateCut[i]->GetMean(2));
+          printf(" Rate(%4s) :%7.2f pps | mean :%7.2f pps\n", cutG->GetName(), countFromCut[i]*1.0/timeRangeSec, graphRateCut[i]->GetMean(2));
           
           //============= write to database 
-          WriteToDataBase(databaseName, cutG->GetName(), tag,  countFromCut[i]*1.0/ElapsedTime*1e3);
+          WriteToDataBase(databaseName, cutG->GetName(), tag,  countFromCut[i]*1.0/timeRangeSec);
         }
         
         // ratio matrix
