@@ -29,6 +29,72 @@ using namespace std;
 
 class Digitizer{
   RQ_OBJECT("Digitizer") 
+public:
+  Digitizer(int ID, uint32_t ChannelMask);
+  ~Digitizer();
+  
+  void SetChannelMask(uint32_t mask);
+  void SetDCOffset(int ch , float offset);
+  void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
+  
+  bool IsConnected() {return isConnected;} // can connect and retrieve Digitizer Info.
+  bool IsGood() {return isGood;} // can detect digitizer
+  int GetByteRetrived() { return Nb;}
+  int GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
+  bool IsRunning() {return AcqRun;}
+  int GetNChannel(){ return NChannel;}
+  int * GetInputDynamicRange() { return inputDynamicRange;}
+  float * GetChannelGain() {return chGain;}
+  float GetChannelGain(int ch) { return chGain[ch];}
+  
+  unsigned long long int Getch2ns() {return ch2ns;}
+  int GetCoincidentTimeWindow() { return CoincidentTimeWindow;}
+  uint32_t GetChannelMask() const {return ChannelMask;}
+  
+  void GetBoardConfiguration();
+  void GetChannelSetting(int ch);
+  
+  //======== Get Raw Data
+  int GetNumRawEvent() {return rawEvCount;}
+  vector<ULong64_t> GetRawTimeStamp() {return rawTimeStamp;}
+  vector<UInt_t> GetRawEnergy() {return rawEnergy;}
+  vector<int> GetRawChannel() {return rawChannel;}
+  uint32_t GetRawTimeRange() {return rawTimeRange;} // in ch
+  ULong64_t GetRawTimeStamp(int i) {return rawTimeStamp[i];}
+  UInt_t GetRawEnergy(int i) {return rawEnergy[i];}
+  int GetRawChannel(int i) {return rawChannel[i];}
+  
+  void ClearRawData(); // clear Raw Data and set rawEvCount = 0;
+  void ClearData();  // clear built event vectors, and set countEventBuild =  0;
+  
+  int GetMultiHitEventBuilt(){ return countMultiHitEventBuilt; }
+  int GetTotalMultiHitEventBuilt(){ return totMultiHitEventBuilt; }
+  int GetEventBuilt(){ return countEventBuilt; }
+  int GetEventBuiltCount() { return countEventBuilt;}
+  int GetTotalEventBuilt(){ return totEventBuilt; }
+  
+  //======== Get built event
+  vector<ULong64_t> GetTimeStamp(int ev) {return TimeStamp[ev];}
+  vector<UInt_t> GetEnergy(int ev) {return Energy[ev];}
+  vector<int> GetChannel(int ev) {return Channel[ev];}
+  ULong64_t GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
+  UInt_t GetEnergy(int ev, int ch){return Energy[ev][ch];}
+  int GetChannel(int ev, int ch){return Channel[ev][ch];}
+  
+  //========= Digitizer Control
+  int ProgramDigitizer();
+  void LoadChannelSetting (const int ch, string fileName);
+  void LoadGeneralSetting(string fileName);
+  
+  void StopACQ();
+  void StartACQ();
+  
+  void ReadData();
+  int BuildEvent();
+  
+  void PrintReadStatistic();
+  void PrintEventBuildingStat(int updatePeriod);
+
 private:
 
   bool isConnected; //can get digitizer info
@@ -37,8 +103,7 @@ private:
   bool AcqRun;
 
   int boardID; // board identity
-  //CAEN_DGTZ_ErrorCode ret1; // return value
-  int ret; //return value
+  int ret; //return value, refer to CAEN_DGTZ_ErrorCode
   int NChannel; // number of channel
 
   int Nb; // number of byte
@@ -96,101 +161,7 @@ private:
   vector<vector<UInt_t>> Energy;
   vector<vector<ULong64_t>> TimeStamp;
   
-  void ZeroSingleEvent(){
-    if( NChannel != 0 ) {
-      for( int i = 0; i < NChannel ; i++){
-        singleEnergy.push_back(0);
-        singleChannel.push_back(-1);
-        singleTimeStamp.push_back(0);
-      }
-    }
-  }
-  
-
-public:
-  Digitizer(int ID, uint32_t ChannelMask);
-  ~Digitizer();
-  
-  void SetChannelMask(uint32_t mask);
-  void SetDCOffset(int ch , float offset);
-  void SetCoincidentTimeWindow(int nanoSec){
-    CoincidentTimeWindow = nanoSec;
-  }
-  
-  bool IsConnected() {return isConnected;}
-  bool IsRunning() {return AcqRun;}
-  int GetNChannel(){ return NChannel;}
-  int * GetInputDynamicRange() { return inputDynamicRange;}
-  float * GetChannelGain() {return chGain;}
-  unsigned long long int Getch2ns() {return ch2ns;}
-  int GetCoincidentTimeWindow() { return CoincidentTimeWindow;}
-  
-  int GetNumRawEvent() {return rawEvCount;}
-  vector<ULong64_t> GetRawTimeStamp() {return rawTimeStamp;}
-  vector<UInt_t> GetRawEnergy() {return rawEnergy;}
-  vector<int> GetRawChannel() {return rawChannel;}
-  
-  uint32_t GetRawTimeRange() {return rawTimeRange;} // in ch
-  
-  ULong64_t GetRawTimeStamp(int i) {return rawTimeStamp[i];}
-  UInt_t GetRawEnergy(int i) {return rawEnergy[i];}
-  int GetRawChannel(int i) {return rawChannel[i];}
-  
-  void ClearRawData(){
-    rawEnergy.clear();
-    rawChannel.clear();
-    rawTimeStamp.clear();
-    rawEvCount = 0;
-  }
-  
-  void ClearData(){
-    Energy.clear();
-    Channel.clear();
-    TimeStamp.clear();
-    
-    countMultiHitEventBuilt = 0;
-    countEventBuilt = 0;
-  }
-  
-  int GetMultiHitEventBuilt(){ return countMultiHitEventBuilt; }
-  int GetTotalMultiHitEventBuilt(){ return totMultiHitEventBuilt; }
-  int GetEventBuilt(){ return countEventBuilt; }
-  int GetEventBuiltCount() { return countEventBuilt;}
-  int GetTotalEventBuilt(){ return totEventBuilt; }
-  
-  vector<ULong64_t> GetTimeStamp(int ev) {return TimeStamp[ev];}
-  vector<UInt_t> GetEnergy(int ev) {return Energy[ev];}
-  vector<int> GetChannel(int ev) {return Channel[ev];}
-
-  ULong64_t GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
-  UInt_t GetEnergy(int ev, int ch){return Energy[ev][ch];}
-  int GetChannel(int ev, int ch){return Channel[ev][ch];}
-  
-  void GetChannelSetting(int ch);
-  uint32_t GetChannelMask() const {return ChannelMask;}
-  
-  
-  bool IsGood() {return isGood;}
-  void GetBoardConfiguration();
-  
-  int ProgramDigitizer();
-  void LoadChannelSetting (const int ch, string fileName);
-  void LoadGeneralSetting(string fileName);
-  
-  void StopACQ();
-  void StartACQ();
-  
-  void ReadData();
-  int GetByteRetrived() { return Nb;}
-  int BuildEvent();
-  
-  void PrintReadStatistic();
-  void PrintEventBuildingStat(int updatePeriod);
-  
-  
-  int GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
-  float GetChannelGain(int ch) { return chGain[ch];}
-
+  void ZeroSingleEvent();
 };
 
 Digitizer::Digitizer(int ID, uint32_t ChannelMask){
@@ -348,6 +319,22 @@ Digitizer::~Digitizer(){
   }
   
   delete buffer;
+}
+
+void Digitizer::ClearRawData(){
+  rawEnergy.clear();
+  rawChannel.clear();
+  rawTimeStamp.clear();
+  rawEvCount = 0;
+}
+  
+void Digitizer::ClearData(){
+  Energy.clear();
+  Channel.clear();
+  TimeStamp.clear();
+  
+  countMultiHitEventBuilt = 0;
+  countEventBuilt = 0;
 }
 
 void Digitizer::SetChannelMask(uint32_t mask){ 
@@ -654,6 +641,16 @@ void Digitizer::LoadGeneralSetting(string fileName){
 
   return;
   
+}
+
+void Digitizer::ZeroSingleEvent(){
+  if( NChannel != 0 ) {
+    for( int i = 0; i < NChannel ; i++){
+      singleEnergy.push_back(0);
+      singleChannel.push_back(-1);
+      singleTimeStamp.push_back(0);
+    }
+  }
 }
 
 

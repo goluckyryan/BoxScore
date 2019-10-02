@@ -169,10 +169,7 @@ int main(int argc, char *argv[]){
   TApplication app ("app", &argc, argv);
   
   Digitizer dig(boardID, ChannelMask);
-  
-  if( !dig.IsConnected() ){
-    return -1;
-  }
+  if( !dig.IsConnected() ) return -1;
   
   /* *************************************************************************************** */
   /* ROOT TREE                                                                               */
@@ -193,7 +190,6 @@ int main(int argc, char *argv[]){
     rawFile = new FileIO("raw.root");
     rawFile->SetTree("rawTree", 1);
   }
-  //==== Drawing 
   
   HeliosTarget gp;
   gp.SetCanvasDivision();
@@ -204,6 +200,7 @@ int main(int argc, char *argv[]){
   gp.SetXYHistogram(-100, 100, -100, 100);
   gp.LoadCuts("cutsFile.root");
   gp.Draw();
+  
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
@@ -348,7 +345,6 @@ int main(int argc, char *argv[]){
       }
       
       //Draw histogram 
-      
       gp.Draw();
       
       // wirte histogram into tree

@@ -65,14 +65,13 @@ void HeliosTarget::SetXYHistogram(int xMin, int xMax, int yMin, int yMax){
   
   hXY->SetMinimum(1);
   
-  isHistogramSet = true;
 }
 
 void HeliosTarget::SetCanvasDivision(){
  
   GenericPlane::SetCanvasDivision();
   
-  /*  
+  /*
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
@@ -80,6 +79,8 @@ void HeliosTarget::SetCanvasDivision(){
   
   
   fCanvas->cd(2)->Divide(2,1); 
+  fCanvas->cd(2)->cd(1)->SetLogz();
+  fCanvas->cd(2)->cd(2)->Divide(2,2);
   
   fCanvas->cd(2)->SetGridy();
   fCanvas->cd(2)->SetTicky();
