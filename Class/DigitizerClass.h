@@ -117,6 +117,7 @@ public:
     CoincidentTimeWindow = nanoSec;
   }
   
+  bool IsConnected() {return isConnected;}
   bool IsRunning() {return AcqRun;}
   int GetNChannel(){ return NChannel;}
   int * GetInputDynamicRange() { return inputDynamicRange;}
@@ -139,12 +140,10 @@ public:
     rawEnergy.clear();
     rawChannel.clear();
     rawTimeStamp.clear();
-    
     rawEvCount = 0;
   }
   
   void ClearData(){
-    
     Energy.clear();
     Channel.clear();
     TimeStamp.clear();
@@ -191,10 +190,6 @@ public:
   
   int GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
   float GetChannelGain(int ch) { return chGain[ch];}
-  
-  void test(Int_t key){
-    printf("=============== %d \n", key);
-  }
 
 };
 
@@ -687,13 +682,8 @@ void Digitizer::ReadData(){
   }
   
   /* Analyze data */
-  
   rawEvCount = 0;
-  for (int ch = 0; ch < MaxNChannels; ch++) {
-    TrgCnt[ch] = 0;
-    ECnt[ch] = 0;
-    PurCnt[ch] = 0;
-    
+  for (int ch = 0; ch < MaxNChannels; ch++) {    
     if (!(ChannelMask & (1<<ch))) continue;
     //printf("------------------------ %d \n", ch);
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
@@ -709,12 +699,13 @@ void Digitizer::ReadData(){
         
         //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
                     
-        rawEvCount ++;
+        
         
         rawChannel.push_back(ch);
         rawEnergy.push_back(Events[ch][ev].Energy);
         rawTimeStamp.push_back(timetag);
         
+        rawEvCount = rawChannel.size();
         
       } else { /* PileUp */
           PurCnt[ch]++;
@@ -723,7 +714,6 @@ void Digitizer::ReadData(){
     } // loop on events
     
   } // loop on channels
-  
   
 }
 
@@ -745,15 +735,24 @@ void Digitizer::PrintReadStatistic(){
       }
     }
   }
+  
+  for (int ch = 0; ch < MaxNChannels; ch++) {
+    TrgCnt[ch] = 0;
+    ECnt[ch] = 0;
+    PurCnt[ch] = 0;
+  }
+
 }
 
 void Digitizer::PrintEventBuildingStat(int updatePeriod){
+  printf("===============================================\n");
   printf("        Number of retrieving = %d = %.2f per sec\n", rawEvCount, rawEvCount*1000./updatePeriod);
   printf("       multi-hit event built = %d \n", countMultiHitEventBuilt);
   printf("                 event built = %d \n", countEventBuilt);
   printf(" =================== raw data left   = %d \n", rawEvLeftCount);
   printf(" total multi-hit event built = %d \n", totMultiHitEventBuilt);
-  printf("           total event built = %d \n", totEventBuilt);  
+  printf("           total event built = %d \n", totEventBuilt);
+  printf("===============================================\n");  
   
 }
 
