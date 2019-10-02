@@ -708,7 +708,7 @@ int main(int argc, char *argv[]){
             cutG = (TCutG *)cutList->At(j) ;
             printf("%10s", cutG->GetName()) ;
           }
-          printf("\n");
+          printf("\n"); 
           for( int i = 0; i < numCut; i++){
             cutG = (TCutG *)cutList->At(i) ;
             printf("%10s", cutG->GetName()) ;
