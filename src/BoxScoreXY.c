@@ -58,22 +58,24 @@ using namespace std;
 //========== General setting;
 unsigned long long int ch2ns = 2.;
 
-uint ChannelMask = 0x03;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+uint ChannelMask = 0x9b;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
 int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
 
-int chE = 0;   //channel ID for E
+int chE = 7;   //channel ID for E
 int chDE = 1;  //channel ID for dE
 
-int rangeDE[2] = {0, 5000}; // range for dE
-int rangeE[2] = {0, 5000};  // range for E
-double rangeTime = 500;  // range for Tdiff, nano-sec
+int rangeDE[2] = {0, 20000}; // range for dE
+int rangeE[2] = { 0, 16000};  // range for E
+double rangeTime = 150;  // range for Tdiff, nano-sec
 
 float RateWindow = 10.; // sec
 
 bool isSaveRaw = false; // saving Raw data
 
 string location;
+
+bool isDebug= false;
 
 //database
 TString databaseName="RAISOR_exit";
@@ -161,10 +163,6 @@ int main(int argc, char *argv[]){
   printf("   board ID : %d \n", boardID );
   printf("   Location : %s \n", location.c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
-
-  ChannelMask = 0xff;
-  chE  = 4;
-  chDE = 1;
   
   TApplication app ("app", &argc, argv);
   
@@ -196,8 +194,8 @@ int main(int argc, char *argv[]){
   gp.SetdEEChannels(chDE, chE);
   gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
-  gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], 300);
-  gp.SetXYHistogram(-100, 100, -100, 100);
+  gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], rangeTime);
+  gp.SetXYHistogram(-1, 1, -1, 1);
   gp.LoadCuts("cutsFile.root");
   gp.Draw();
   
@@ -263,8 +261,8 @@ int main(int argc, char *argv[]){
         expression = expression + to_string(chE) + " ";
         expression = expression + to_string(rangeDE[0]) + " ";
         expression = expression + to_string(rangeDE[1]) + " ";
-        expression = expression + to_string(rangeE[0]) + " ";
-        expression = expression + to_string(rangeE[1]) + " ";
+        expression = expression + to_string(rangeDE[0]+rangeE[0]) + " ";
+        expression = expression + to_string(rangeDE[1]+rangeE[1]) + " ";
         expression = expression + to_string(mode) + " ";
         expression = expression + to_string(chGain[chDE]) + " ";
         expression = expression + to_string(chGain[chE]) + " ";
@@ -282,7 +280,7 @@ int main(int argc, char *argv[]){
       continue;
     }
     
-    dig.ReadData();
+    dig.ReadData(); //the digitizer will output a channel after a channel., so data should be read as fast as possible, that the digitizer will not store any data.
     
     if( isSaveRaw ) {
       //for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
@@ -305,7 +303,7 @@ int main(int argc, char *argv[]){
       file.Append();
       double fileSize = file.GetFileSize() ;
 
-      int buildID = dig.BuildEvent();
+      int buildID = dig.BuildEvent(isDebug); 
       gp.ZeroCountOfCut();
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){          
@@ -313,9 +311,10 @@ int main(int argc, char *argv[]){
           gp.Fill(dig.GetEnergy(i));
         }
       }
+      gp.FillHit(dig.GetNChannelEvent());
       
       //=========================== Display
-      system("clear");
+      if( !isDebug) system("clear");
       PrintCommands();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
       printf("Time Elapsed         = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
@@ -328,7 +327,8 @@ int main(int argc, char *argv[]){
       dig.PrintEventBuildingStat(updatePeriod);
       
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      double totalRate = dig.GetEventBuiltCount()*1.0/timeRangeSec;
+      //double totalRate = dig.GetEventBuiltCount()*1.0/timeRangeSec;
+      double totalRate = dig.GetNChannelEvent(5)*1.0/timeRangeSec;
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0. ) gp.FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       

@@ -32,7 +32,7 @@ public:
   GenericPlane();
   ~GenericPlane();
 
-  void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
+  virtual void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
   void SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void SetCoincidentTimeWindow(int nanoSec);
   void SetHistograms(int dEmin, int dEmax, int Emin, int Emax, int rangeTime);
@@ -44,13 +44,14 @@ public:
   void FillRateGraph(float x, float y);
   
   virtual void Draw();
-  void ClearHistograms();
+  virtual void ClearHistograms();
   void ZeroCountOfCut();
   void LoadCuts(TString cutFileName);
   void CutCreator();
 
   int GetMode() {return mode;}
 
+  TH1F * GetTH1F(TString name){ return (TH1F*)gROOT->FindObjectAny(name);};
   TH1F * GethE() {return hE;}
   TH1F * GethdE() {return hdE;}
   TH1F * GethtotE() {return htotE;}
@@ -67,13 +68,9 @@ public:
 
   bool IsCutFileOpen(){ return numCut > 0 ? true : false;}
 
-private:
-
-  int chdE, chE;
-  float chdEGain, chEGain;
-  int mode;
-
+protected:
   TCanvas *fCanvas;
+
   TH1F * hE;
   TH1F * hdE;
   TH2F * hdEE;
@@ -81,23 +78,30 @@ private:
   
   TH1F * htotE;
   TH1F * hTDiff;
+  TLine * line; // line for coincident window
   
   TMultiGraph * rateGraph;
+  TLegend * legend; 
+  
+  TObjArray * cutList; 
+  int numCut;
+  TCutG * cutG;
+  vector<int> countOfCut;
+  
+  int chdE, chE;
+  float chdEGain, chEGain;
+  int mode;
+  
+  bool isHistogramSet;
+
+private:
+
   TGraph * graphRate;
   TGraph ** graphRateCut; 
-  TLegend * legend; 
+  
   TGraph * rangeGraph;
   
   int graphIndex;
-  
-  TLine * line; // line for coincident window
-  
-  TCutG * cutG;
-  TObjArray * cutList; 
-  int numCut;
-  vector<int> countOfCut;
-  
-  bool isHistogramSet;
   
 };
 
@@ -126,7 +130,7 @@ GenericPlane::~GenericPlane(){
 
 GenericPlane::GenericPlane(){
   
-  fCanvas = new TCanvas("fCanvas", "testing", 100, 100, 1400, 1000);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -134,7 +138,7 @@ GenericPlane::GenericPlane(){
   
   chdE = -1;  chdEGain = 0; 
   chE = -1;   chEGain = 0;
-  mode = -1;
+  mode = 1; //default channel Gain is equal
   
   hdE  = NULL;
   hE = NULL;
@@ -420,6 +424,7 @@ void GenericPlane::LoadCuts(TString cutFileName){
   bool isCutFileOpen = fCut->IsOpen();
   numCut = 0;
 
+  legend->Clear();
   legend->AddEntry(graphRate, "Total");
 
   if( isCutFileOpen ){

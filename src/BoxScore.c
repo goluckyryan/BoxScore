@@ -319,7 +319,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
     CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
     ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, Params.AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-    
+
     // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
     ret |= CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED);
     
@@ -348,7 +348,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
     /* Set the mode used to syncronize the acquisition between different boards.
     In this example the sync is disabled */
     ret |= CAEN_DGTZ_SetRunSynchronizationMode(handle, CAEN_DGTZ_RUN_SYNC_Disabled);
-    
+
     // Set the DPP specific parameters for the channels in the given channelMask
     ret |= CAEN_DGTZ_SetDPPParameters(handle, Params.ChannelMask, &DPPParams);
     
@@ -380,7 +380,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
             //printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
         }
     }
-
+    
     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
@@ -524,6 +524,11 @@ int main(int argc, char *argv[]){
     chE  = 4;
     chDE = 1;
     chTAC = 7;
+  }else if (location == "target"){
+    ChannelMask = 0xff;
+    chE = 7;
+    chDE = 0;
+    chTAC = 1;
   }else if (location == "ZD"){
     ChannelMask = 0x24; // was 0xA4 for ch 2,5,7
     chE  = 5;
@@ -613,7 +618,7 @@ int main(int argc, char *argv[]){
   \****************************/
   TMacro chSetting[MaxNChannels];
   for(ch=0; ch<MaxNChannels; ch++) {
-    if ( ch != chE && ch != chDE && ch != chTAC ) continue;
+    if ( location != "target" && ch != chE && ch != chDE && ch != chTAC ) continue;
     string chSettingFileName = "setting_" + to_string(ch) + ".txt";
     float* para = ReadChannelSetting(ch, chSettingFileName);
     
@@ -1245,7 +1250,7 @@ int main(int argc, char *argv[]){
       printf("Database :  %s\n", databaseName.Data());
       printf("\nBoard %d:\n",boardID);
       for(i=0; i<MaxNChannels; i++) {
-        if( i != chE && i != chDE && i != chTAC) continue;
+        if( location != "target" && i != chE && i != chDE && i != chTAC) continue;
         if (TrgCnt[i]>0){
           printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/timeRangeSec, (float)PurCnt[i]*100/(float)TrgCnt[i]);
         }else{

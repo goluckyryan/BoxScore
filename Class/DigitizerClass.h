@@ -33,6 +33,7 @@ public:
   Digitizer(int ID, uint32_t ChannelMask);
   ~Digitizer();
   
+  void SetPulsePolarity(bool isPositive);
   void SetChannelMask(uint32_t mask);
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
@@ -66,12 +67,13 @@ public:
   
   void ClearRawData(); // clear Raw Data and set rawEvCount = 0;
   void ClearData();  // clear built event vectors, and set countEventBuild =  0;
-  
-  int GetMultiHitEventBuilt(){ return countMultiHitEventBuilt; }
-  int GetTotalMultiHitEventBuilt(){ return totMultiHitEventBuilt; }
+
   int GetEventBuilt(){ return countEventBuilt; }
   int GetEventBuiltCount() { return countEventBuilt;}
   int GetTotalEventBuilt(){ return totEventBuilt; }
+  int GetNChannelEvent(int Nch){ return countNChannelEvent[Nch-1];}
+  int * GetNChannelEvent(){ return countNChannelEvent;}
+  int GetTotalNChannelEvent(int Nch){ return totNChannelEvent[Nch-1];}
   
   //======== Get built event
   vector<ULong64_t> GetTimeStamp(int ev) {return TimeStamp[ev];}
@@ -90,7 +92,7 @@ public:
   void StartACQ();
   
   void ReadData();
-  int BuildEvent();
+  int BuildEvent(bool debug);
   
   void PrintReadStatistic();
   void PrintEventBuildingStat(int updatePeriod);
@@ -148,10 +150,10 @@ private:
   vector<int> rawChannel;
   
   //===== builded event
-  int countMultiHitEventBuilt;
-  int totMultiHitEventBuilt;
   int countEventBuilt;
   int totEventBuilt;
+  int countNChannelEvent[MaxNChannels];
+  int totNChannelEvent[MaxNChannels];
   
   vector<ULong64_t> singleTimeStamp;   
   vector<UInt_t> singleEnergy;
@@ -201,6 +203,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   EventAggr = 1;
   PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
   //PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
+  
+  LoadGeneralSetting("generalSetting.txt");
   
   //===================== end of initization
 
@@ -294,16 +298,18 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   singleTimeStamp.clear();
   ClearData();
   ZeroSingleEvent();
-  
-  countMultiHitEventBuilt = 0;
-  totMultiHitEventBuilt = 0;
+
   countEventBuilt = 0;
   totEventBuilt = 0;
+  
+  for( int k = 0; k < MaxNChannels ; k++) {
+    countNChannelEvent[k] = 0;
+    totNChannelEvent[k] = 0;
+  }
 }
 
 
 Digitizer::~Digitizer(){
-  
   
   /* stop the acquisition, close the device and free the buffers */
   CAEN_DGTZ_SWStopAcquisition(boardID);
@@ -321,6 +327,22 @@ Digitizer::~Digitizer(){
   delete buffer;
 }
 
+void Digitizer::SetPulsePolarity(bool isPositive){ 
+  if ( isPositive ){
+    PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
+    //printf(" Set all channel to be positive parity pulse. \n");
+  }else{
+    PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
+    //printf(" Set all channel to be positive parity pulse. \n");
+  }
+  
+  //for(i=0; i<MaxNChannels; i++) {
+  //  if (ChannelMask & (1<<i)) {
+  //    ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, i, PulsePolarity);
+  //  }
+  //}
+}
+
 void Digitizer::ClearRawData(){
   rawEnergy.clear();
   rawChannel.clear();
@@ -333,7 +355,8 @@ void Digitizer::ClearData(){
   Channel.clear();
   TimeStamp.clear();
   
-  countMultiHitEventBuilt = 0;
+  for( int k = 0; k < MaxNChannels ; k++)  countNChannelEvent[k] = 0;
+
   countEventBuilt = 0;
 }
 
@@ -632,7 +655,7 @@ void Digitizer::LoadGeneralSetting(string fileName){
     
     //=============== print setting
     printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
-    printf(" %-20s  %d\n", "Pulse Polarity", PulsePolarity);
+    printf(" %-20s  %s\n", "Pulse Polarity", PulsePolarity == 0 ? "Positive" : "Negative");
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
     printf("====================================== \n");
@@ -645,6 +668,9 @@ void Digitizer::LoadGeneralSetting(string fileName){
 
 void Digitizer::ZeroSingleEvent(){
   if( NChannel != 0 ) {
+    singleChannel.clear();
+    singleEnergy.clear();
+    singleTimeStamp.clear();
     for( int i = 0; i < NChannel ; i++){
       singleEnergy.push_back(0);
       singleChannel.push_back(-1);
@@ -667,8 +693,12 @@ void Digitizer::ReadData(){
   ret = CAEN_DGTZ_ReadData(boardID, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
   if (BufferSize == 0) return;
   
+  //ret |= CAEN_DGTZ_FreeDPPEvents(boardID, reinterpret_cast<void**>(&Events));
+  //ret |= CAEN_DGTZ_MallocDPPEvents(boardID, reinterpret_cast<void**>(&Events), &AllocatedSize) ; 
+  
   Nb = BufferSize;
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(boardID, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
+  
   if (ret) {
     printf("Data Error: %d\n", ret);
     CAEN_DGTZ_SWStopAcquisition(boardID);
@@ -686,7 +716,7 @@ void Digitizer::ReadData(){
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
       TrgCnt[ch]++;
       
-      if (Events[ch][ev].Energy > 0) {
+      if (Events[ch][ev].Energy > 0 && Events[ch][ev].TimeTag > 0 ) {
         ECnt[ch]++;
           
         ULong64_t timetag = (ULong64_t) Events[ch][ev].TimeTag;
@@ -695,8 +725,6 @@ void Digitizer::ReadData(){
         timetag  += rollOver ;
         
         //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
-                    
-        
         
         rawChannel.push_back(ch);
         rawEnergy.push_back(Events[ch][ev].Energy);
@@ -720,19 +748,30 @@ void Digitizer::PrintReadStatistic(){
   uint64_t ElapsedTime = rawTimeRange * ch2ns * 1e-6; // in mili-sec
   printf(" Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
       
+  printf("     | %7s| %12s| %8s\n", "Get", "TrgRate [Hz]", "PileUp");
   for(int i = 0; i < MaxNChannels; i++) {
     if (!(ChannelMask & (1<<i))) continue;
     if (TrgCnt[i]>0){
-      printf("\tCh %d:\tTrgRate=%.2f Hz\tPileUpRate=%.2f%%\n", i, (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
+      printf(" Ch %d| %7d| %12.2f| %7.2f%%\n", i, ECnt[i], (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
     }else{
       if (!(ChannelMask & (1<<i))){
-        printf("\tCh %d:\tMasked\n", i);
+        printf(" Ch %d|\tMasked\n", i);
       }else{
-        printf("\tCh %d:\tNo Data\n", i);
+        printf(" Ch %d|\tNo Data\n", i);
       }
     }
   }
+  printf("-----------------------------------\n");
+  printf("total| %7d \n", rawEvCount);
   
+  /*
+  printf("                        ");
+  for( int ch =0 ; ch < MaxNChannels; ch++) printf(" %3d|", ch);
+  printf("\n");
+  printf("Count for each Channel: ");
+  for( int ch =0 ; ch < MaxNChannels; ch++) printf(" %3d|", ECnt[ch]);
+  printf("\n");
+    */
   for (int ch = 0; ch < MaxNChannels; ch++) {
     TrgCnt[ch] = 0;
     ECnt[ch] = 0;
@@ -743,14 +782,16 @@ void Digitizer::PrintReadStatistic(){
 
 void Digitizer::PrintEventBuildingStat(int updatePeriod){
   printf("===============================================\n");
-  printf("        Number of retrieving = %d = %.2f per sec\n", rawEvCount, rawEvCount*1000./updatePeriod);
-  printf("       multi-hit event built = %d \n", countMultiHitEventBuilt);
-  printf("                 event built = %d \n", countEventBuilt);
-  printf(" =================== raw data left   = %d \n", rawEvLeftCount);
-  printf(" total multi-hit event built = %d \n", totMultiHitEventBuilt);
-  printf("           total event built = %d \n", totEventBuilt);
-  printf("===============================================\n");  
-  
+  //printf("Number of retrieving = %d = %.2f per sec\n", rawEvCount, rawEvCount*1000./updatePeriod);
+  printf(" %5s| %5s| %5s| \n", "#ch", "Built", "Total");
+  //printf("-----------------------------------\n");
+  for( int k = 0; k < MaxNChannels-1 ; k ++){
+    printf(" %5d| %5d| %5d|\n", k+1, countNChannelEvent[k], totNChannelEvent[k]);
+  }
+  printf(" %5d| %5d| %5d| %5s\n", MaxNChannels, countNChannelEvent[MaxNChannels-1], totNChannelEvent[MaxNChannels-1], "left");
+  printf("-----------------------------------\n");
+  printf(" %5s| %5d| %5d| %5d\n", "total", countEventBuilt, totEventBuilt, rawEvLeftCount);
+  printf("===============================================\n");
 }
 
 void Digitizer::StopACQ(){
@@ -760,7 +801,7 @@ void Digitizer::StopACQ(){
   AcqRun = false;
 }
 
-int Digitizer::BuildEvent(){
+int Digitizer::BuildEvent(bool debug = false){
   
   //################################################################
   //  Sorrting raw event timeStamp
@@ -769,7 +810,6 @@ int Digitizer::BuildEvent(){
   if( nRawData < 2 ) return 0; // too few event to build;
   
   countEventBuilt = 0;
-  countMultiHitEventBuilt = 0;
   
   int sortIndex[nRawData];
   double bubbleSortTime[nRawData];
@@ -792,7 +832,7 @@ int Digitizer::BuildEvent(){
     rawChannel[i] = channelT[sortIndex[i]];
     rawTimeStamp[i] = timeStampT[sortIndex[i]];
     rawEnergy[i] = energyT[sortIndex[i]];
-    //printf("%d| %d,  %d,  %llu  \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
+    printf("%d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
   }
   
   if( nRawData > 0 ) {
@@ -803,53 +843,98 @@ int Digitizer::BuildEvent(){
   //################################################################
   // build event base on coincident window
   //################################################################
+
+  if (debug) printf("=========================\n");
+  for( int k = 0; k < MaxNChannels ; k++) countNChannelEvent[k] = 0;
   int endID = 0;
   for( int i = 0; i < nRawData-1; i++){
     ULong64_t timeToEnd = (rawTimeStamp[nRawData-1] - rawTimeStamp[i]) * ch2ns ; // in nano-sec
     endID = i;
-    //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentWindow, i , endID);
+    //printf(" time to end %d / %d , %d, %d\n", timeToEnd, CoincidentTimeWindow, i , endID);
     if( timeToEnd < CoincidentTimeWindow ) {
       break;
     }
     
-    int numRawEventGrouped = 0;
-    
-    //printf("%4d--------- %d, %llu, %d \n", countEventBuilt, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
-
     int digitID = 1 << rawChannel[i]; // for checking if the Channel[i] is already taken.
+    
+    /*
+    //if too may same channel event in a sequence, break, probably other channels not read.
+    bool breakFlag = false;
+    int breakForSameChannel = 0;
+    for( int j = i+1; j < nRawData; j++){
+      //check is channel[j] is taken or not
+      unsigned int x = 1 << rawChannel[j];
+      unsigned int y = digitID ^ x; // bitwise XOR, 00=0, 01=1, 10=1, 11=0 
+      unsigned int z = 1 & (y >> rawChannel[j]); // if z = 0, the channel already token.
+      unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
+      
+      if( timeDiff > CoincidentTimeWindow && z == 0){
+        breakForSameChannel ++;
+        if( breakForSameChannel > 3 ) {
+          breakFlag = true;
+          break;
+        }
+      }else{
+        if( breakForSameChannel <=3 ){
+          break;
+        }
+      }
+    }
+    if( breakFlag ) break;
+    /**///----------------- end of check
+    
+    int numRawEventGrouped = 0;
+
+    
+    if( debug) printf("%3d | %d | %d, %llu, %d, %d \n", digitID, rawChannel[i], 0, rawTimeStamp[i], 0, rawEnergy[i]); 
     for( int j = i+1; j < nRawData; j++){
       
       //check is channel[j] is taken or not
       unsigned int x = 1 << rawChannel[j];
-      unsigned int y = digitID ^ x; // bitwise XOR
-      unsigned int z = 1 & (y >> rawChannel[j]);
+      unsigned int y = digitID ^ x; // bitwise XOR, 00=0, 01=1, 10=1, 11=0 
+      unsigned int z = 1 & (y >> rawChannel[j]); // if z = 0, the channel already token.
                   
       unsigned long long int timeDiff = (rawTimeStamp[j] - rawTimeStamp[i]) * ch2ns;
-      
-      //printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
       
       digitID += x;
       
       if( timeDiff < CoincidentTimeWindow ){
         // if channel already taken
-        if( z == 0 ) { 
-          countMultiHitEventBuilt ++;
-          totMultiHitEventBuilt ++;
-          //break;
-        }
+        //if( z == 0 ) { 
+        //  breakForSameChannel ++;
+        //  //break;
+        //}
         numRawEventGrouped ++;
       
       }else{
+        if( debug) printf("---- %d/ %d,  num in Group : %d | %d\n", i, nRawData,  numRawEventGrouped, CoincidentTimeWindow);
         // normal exit when next event outside coincident window
         break;
       }
+      
+      if(debug) printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
       
     }
     
     // when chTAC is single, skip.
     //if( numRawEventGrouped == 0 && rawChannel[i] == chTAC) continue;
- 
-    //printf("---- %d/ %d,  num in Group : %d \n", i, nRawData,  numRawEventGrouped);
+    
+    switch (numRawEventGrouped){
+      case 0: countNChannelEvent[0] += 1; totNChannelEvent[0] += 1; break;
+      case 1: countNChannelEvent[1] += 1; totNChannelEvent[1] += 1; break;
+      case 2: countNChannelEvent[2] += 1; totNChannelEvent[2] += 1; break;
+      case 3: countNChannelEvent[3] += 1; totNChannelEvent[3] += 1; break;
+      case 4: countNChannelEvent[4] += 1; totNChannelEvent[4] += 1; break;
+      case 5: countNChannelEvent[5] += 1; totNChannelEvent[5] += 1; break;
+      case 6: countNChannelEvent[6] += 1; totNChannelEvent[6] += 1; break;
+      case 7: countNChannelEvent[7] += 1; totNChannelEvent[7] += 1; break;
+    }
+     
+    if( debug){ 
+      printf("============");
+      for( int k = 0; k < MaxNChannels ; k++) printf(" %d, ", countNChannelEvent[k]);
+      printf("\n");
+    } 
     countEventBuilt ++;
     
     //fill in an event
