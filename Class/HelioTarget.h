@@ -10,7 +10,7 @@ public:
   HeliosTarget();
   ~HeliosTarget();
   
-  void SetXYHistogram(int xMin, int xMax, int yMin, int yMax);
+  void SetXYHistogram(float xMin, float xMax, float yMin, float yMax);
   void SetCanvasDivision();
   
   void Fill(vector<UInt_t> energy);
@@ -48,11 +48,11 @@ HeliosTarget::HeliosTarget(){
   hY1 = NULL;
   hY2 = NULL;
   
-  chX1 = 0;
-  chX2 = 4;
+  chX1 = 1;
+  chX2 = 5;
   
-  chY1 = 1;
-  chY2 = 3;
+  chY1 = 2;
+  chY2 = 4;
   
 }
 
@@ -71,7 +71,7 @@ HeliosTarget::~HeliosTarget(){
   
 }
 
-void HeliosTarget::SetXYHistogram(int xMin, int xMax, int yMin, int yMax){
+void HeliosTarget::SetXYHistogram(float xMin, float xMax, float yMin, float yMax){
   
   int bin = 200;
   float labelSize = 0.08;
@@ -94,10 +94,10 @@ void HeliosTarget::SetXYHistogram(int xMin, int xMax, int yMin, int yMax){
   
   hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
   
-  hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 0, 16000);
-  hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 0, 16000);
-  hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 0, 16000);
-  hY2 = new TH1F("hY2", Form("Y2 (ch=%d)", chY2), bin, 0, 16000);
+  hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 1000, 26000);
+  hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 1000, 26000);
+  hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 1000, 26000);
+  hY2 = new TH1F("hY2", Form("Y2 (ch=%d)", chY2), bin, 1000, 26000);
   
   isHistogramSet = true;
   
@@ -136,30 +136,31 @@ void HeliosTarget::Draw(){
   if ( !isHistogramSet ) return;
   //GenericPlane::Draw();
   
-  fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
-  //fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
+  //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
+  fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
 
-  if( numCut > 0 ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      cutG->Draw("same");
-    }
-  }
+  //if( numCut > 0 ){
+  //  for( int i = 0; i < numCut; i++){
+  //    cutG = (TCutG *) cutList->At(i);
+  //    cutG->Draw("same");
+  //  }
+  //}
 
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
   fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
   
-  fCanvas->cd(2)->cd(1)->cd(1); hX1->Draw("");
-  fCanvas->cd(2)->cd(1)->cd(2); hX2->Draw("");
-  fCanvas->cd(2)->cd(1)->cd(3); hY1->Draw("");
-  fCanvas->cd(2)->cd(1)->cd(4); hY2->Draw("");
+  fCanvas->cd(2)->cd(2)->cd(1); hX1->Draw("");
+  fCanvas->cd(2)->cd(2)->cd(2); hX2->Draw("");
+  fCanvas->cd(2)->cd(2)->cd(3); hY1->Draw("");
+  fCanvas->cd(2)->cd(2)->cd(4); hY2->Draw("");
   
-  fCanvas->cd(2)->cd(2)->cd(1); hHit->Draw("HIST");
-  fCanvas->cd(2)->cd(2)->cd(2); hX->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(3); hY->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(4); hXY->Draw("colz");
+  fCanvas->cd(2)->cd(1)->cd(2); hHit->Draw("HIST");
+  fCanvas->cd(2)->cd(1)->cd(3); hX->Draw("");
+  fCanvas->cd(2)->cd(1)->cd(4); hY->Draw("");
+  fCanvas->cd(2)->cd(1)->cd(1); hXY->Draw("colz");
+  fCanvas->cd(2)->cd(1)->cd(1)->SetLogz();
   
   
   fCanvas->Modified();
@@ -176,12 +177,17 @@ void HeliosTarget::Fill(vector<UInt_t> energy){
   if ( !isHistogramSet ) return;
   
   //check non-zero
-  int count = 0;
-  for( int k = 0; k < energy.size() ; k++){
-    if( energy[k] != 0 ) count++;
-  }
+  //int count = 0;
+  //int detIndex = 0;
+  //for( int k = 0; k < energy.size() ; k++){
+  //  if( energy[k] != 0 ) {
+  //    count++;
+  //    detIndex += (1 << k);
+  //  }
+  //}
+  //if( detIndex == 1 || detIndex == 8 || detIndex == 9 ) return; // skipping only ch=0, ch=3, or both 
   
-  if( count != 5 ) return;
+  //if( count != 5 ) return;
   
   int E = energy[chE] + gRandom->Gaus(0, 500);
   int dE = energy[chY1] + energy[chY2] + gRandom->Gaus(0, 500);

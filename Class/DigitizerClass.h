@@ -33,10 +33,10 @@ public:
   Digitizer(int ID, uint32_t ChannelMask);
   ~Digitizer();
   
-  void SetPulsePolarity(bool isPositive);
   void SetChannelMask(uint32_t mask);
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
+  int SetChannelParity(int ch, bool isPositive);
   
   bool IsConnected() {return isConnected;} // can connect and retrieve Digitizer Info.
   bool IsGood() {return isGood;} // can detect digitizer
@@ -176,7 +176,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   ch2ns = 2; // 1 channel = 2 ns
   DCOffset = 0.2;
-  CoincidentTimeWindow = 100; // nano-sec
+  CoincidentTimeWindow = 200; // nano-sec
   
   Nb = 0;
   
@@ -327,20 +327,19 @@ Digitizer::~Digitizer(){
   delete buffer;
 }
 
-void Digitizer::SetPulsePolarity(bool isPositive){ 
+int Digitizer::SetChannelParity(int ch, bool isPositive){
+  
   if ( isPositive ){
     PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
-    //printf(" Set all channel to be positive parity pulse. \n");
+    printf(" Set channel %d to be + parity pulse. \n", ch);
   }else{
     PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
-    //printf(" Set all channel to be positive parity pulse. \n");
+    printf(" Set channel %d to be - parity pulse. \n", ch);
   }
   
-  //for(i=0; i<MaxNChannels; i++) {
-  //  if (ChannelMask & (1<<i)) {
-  //    ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, i, PulsePolarity);
-  //  }
-  //}
+  ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, ch, PulsePolarity);
+  
+  return ret;
 }
 
 void Digitizer::ClearRawData(){
@@ -832,7 +831,7 @@ int Digitizer::BuildEvent(bool debug = false){
     rawChannel[i] = channelT[sortIndex[i]];
     rawTimeStamp[i] = timeStampT[sortIndex[i]];
     rawEnergy[i] = energyT[sortIndex[i]];
-    printf("%d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+    if( debug) printf("%d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
   }
   
   if( nRawData > 0 ) {

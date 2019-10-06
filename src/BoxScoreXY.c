@@ -58,16 +58,16 @@ using namespace std;
 //========== General setting;
 unsigned long long int ch2ns = 2.;
 
-uint ChannelMask = 0x9b;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+uint ChannelMask = 0xb6;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
 
 int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
 
 int chE = 7;   //channel ID for E
 int chDE = 1;  //channel ID for dE
 
-int rangeDE[2] = {0, 20000}; // range for dE
-int rangeE[2] = { 0, 16000};  // range for E
-double rangeTime = 150;  // range for Tdiff, nano-sec
+int rangeDE[2] = {0, 60000}; // range for dE
+int rangeE[2] = { 0, 60000};  // range for E
+double rangeTime = 500;  // range for Tdiff, nano-sec
 
 float RateWindow = 10.; // sec
 
@@ -167,6 +167,11 @@ int main(int argc, char *argv[]){
   TApplication app ("app", &argc, argv);
   
   Digitizer dig(boardID, ChannelMask);
+  dig.SetChannelParity(1, true);
+  dig.SetChannelParity(2, false);
+  dig.SetChannelParity(4, false);
+  dig.SetChannelParity(5, true);
+  dig.SetCoincidentTimeWindow(100000);
   if( !dig.IsConnected() ) return -1;
   
   /* *************************************************************************************** */
@@ -195,7 +200,7 @@ int main(int argc, char *argv[]){
   gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], rangeTime);
-  gp.SetXYHistogram(-1, 1, -1, 1);
+  gp.SetXYHistogram(-0.9, 0.9, -0.9, 0.9);
   gp.LoadCuts("cutsFile.root");
   gp.Draw();
   
