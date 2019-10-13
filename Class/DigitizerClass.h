@@ -37,6 +37,7 @@ public:
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
   int SetChannelParity(int ch, bool isPositive);
+  int SetChannelThreshold(int ch, int threshold);
   
   bool IsConnected() {return isConnected;} // can connect and retrieve Digitizer Info.
   bool IsGood() {return isGood;} // can detect digitizer
@@ -325,6 +326,19 @@ Digitizer::~Digitizer(){
   }
   
   delete buffer;
+}
+
+int Digitizer::SetChannelThreshold(int ch, int threshold){
+  
+  ret |= CAEN_DGTZ_WriteRegister(boardID, 0x106C +  (ch<<8), threshold);
+  
+  if( ret == 0 ) {
+    printf("Done. Threshold of Ch=%d is %d.\n", ch, threshold);
+    GetChannelSetting(ch);
+  }else{
+    printf("fail. something wrong.\n");
+  }
+  return ret;
 }
 
 int Digitizer::SetChannelParity(int ch, bool isPositive){

@@ -94,9 +94,11 @@ int getch(void);
 int keyboardhit();
 
 void PrintCommands(){
-  printf("\ns ) Start acquisition\n");
+  printf("\n");
+  printf("s ) Start acquisition\n");
   printf("a ) Stop acquisition\n");
-  //printf("c ) Cuts Creator\n");
+  printf("z ) Change Threhsold\n");
+  printf("c ) Cuts Creator\n");
   printf("y ) Clear histograms\n");
   printf("p ) Read Channel setting\n");
   printf("q ) Quit\n");
@@ -167,11 +169,11 @@ int main(int argc, char *argv[]){
   TApplication app ("app", &argc, argv);
   
   Digitizer dig(boardID, ChannelMask);
-  dig.SetChannelParity(1, true);
+  dig.SetChannelParity(1, true); // move this into setting file
   dig.SetChannelParity(2, false);
   dig.SetChannelParity(4, false);
   dig.SetChannelParity(5, true);
-  dig.SetCoincidentTimeWindow(100000);
+  dig.SetCoincidentTimeWindow(100000); // move this to general setting
   if( !dig.IsConnected() ) return -1;
   
   /* *************************************************************************************** */
@@ -253,6 +255,18 @@ int main(int argc, char *argv[]){
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
         
+      }
+      if (c == 'z')  { //========== Change threhold
+        dig.StopACQ();
+        dig.ClearRawData();
+        int channel;
+        printf("Please tell me which channel (type and press enter)?");
+        int temp = scanf("%d", &channel);
+        printf("\nOK, you want to chanhe the threshold of ch=%d, to what?", channel);
+        int threshold;
+        temp = scanf("%d", &threshold);
+        printf("\nNow, I will change the threshold of ch=%d to %d. \n", channel, threshold);
+        dig.SetChannelThreshold(channel, threshold);
       }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
