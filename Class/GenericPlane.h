@@ -34,7 +34,7 @@ public:
 
   virtual void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
   void SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
-  void SetCoincidentTimeWindow(int nanoSec);
+  void SetCoincidentTimeWindow(int nanoSec);  
   void SetHistograms(int dEmin, int dEmax, int Emin, int Emax, int rangeTime);
   virtual void SetCanvasDivision();
   

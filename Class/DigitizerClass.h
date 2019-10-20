@@ -48,6 +48,12 @@ public:
   int * GetInputDynamicRange() { return inputDynamicRange;}
   float * GetChannelGain() {return chGain;}
   float GetChannelGain(int ch) { return chGain[ch];}
+  uint32_t GetChannelThreshold(int ch) {  
+    uint32_t * value = new uint32_t[MaxNChannels];
+    CAEN_DGTZ_ReadRegister(boardID, 0x106C + (ch << 8), value); 
+    //printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
+    return value[0]; 
+  }
   
   unsigned long long int Getch2ns() {return ch2ns;}
   int GetCoincidentTimeWindow() { return CoincidentTimeWindow;}
@@ -101,17 +107,16 @@ public:
 private:
 
   bool isConnected; //can get digitizer info
-  bool isGood; // can open digitizer
-  
-  bool AcqRun;
+  bool isGood;      // can open digitizer
+  bool AcqRun;      // is digitizer taking data
 
-  int boardID; // board identity
-  int ret; //return value, refer to CAEN_DGTZ_ErrorCode
-  int NChannel; // number of channel
+  int boardID;   // board identity
+  int ret;       //return value, refer to CAEN_DGTZ_ErrorCode
+  int NChannel;  // number of channel
 
-  int Nb; // number of byte
+  int Nb;                                  // number of byte
   uint32_t NumEvents[MaxNChannels];
-  char *buffer = NULL; // readout buffer
+  char *buffer = NULL;                     // readout buffer
   uint32_t AllocatedSize, BufferSize; 
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  // events buffer
 
@@ -125,9 +130,7 @@ private:
   float DCOffset[MaxNChannels];  
   
   //====================== General Setting
-  unsigned long long int ch2ns;
-
-    
+  unsigned long long int ch2ns;    
   CAEN_DGTZ_ConnectionType LinkType;
   uint32_t VMEBaseAddress;
   CAEN_DGTZ_IOLevel_t IOlev;
@@ -137,7 +140,7 @@ private:
   int EventAggr;                             // number of events in one aggregate (0=automatic), number of event acculated for read-off
   uint32_t ChannelMask;                      // Channel enable mask, 0x01, only frist channel, 0xff, all channel  
 
-  int CoincidentTimeWindow;
+  int CoincidentTimeWindow;  // nano-sec
 
   //==================== retreved data
   int ECnt[MaxNChannels];
@@ -206,7 +209,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   RecordLength = 20000;
   this->ChannelMask = ChannelMask;
-  EventAggr = 1;
+  EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout
+
   
   LoadGeneralSetting("generalSetting.txt");
   
@@ -335,12 +339,18 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
   
   ret |= CAEN_DGTZ_WriteRegister(boardID, 0x106C +  (ch<<8), threshold);
   
+  DPPParams.thr[ch] = threshold;
+  
   if( ret == 0 ) {
-    printf("Done. Threshold of Ch=%d is %d now.\n", ch, threshold);
-    GetChannelSetting(ch);
-
-    //TODO change the setting file.
     
+    TString command;
+    command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' setting_%d.txt", threshold, ch);
+    //printf(" %s \n", command.Data());
+    system(command.Data());
+    
+    //GetChannelSetting(ch);
+
+    printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
     
   }else{
     printf("fail. something wrong.\n");
@@ -660,19 +670,14 @@ void Digitizer::LoadGeneralSetting(string fileName){
       getline(file_in, line);
       size_t pos = line.find("//");
       if( pos > 1 ){
-        if( count > numPara - 1) break;
-        
-        //if( count == 0 )  DCOffset = atof(line.substr(0, pos).c_str());
-        if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
-        count ++;
+        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
+        if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
+        count++;
       }
     }
     
     //=============== print setting
-    //printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
-    //printf(" %-20s  %s\n", "Pulse Polarity", PulsePolarity == 0 ? "Positive" : "Negative");
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
-    //printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
     printf("====================================== \n");
     
   }

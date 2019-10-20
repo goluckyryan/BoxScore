@@ -69,8 +69,6 @@ int rangeDE[2] = {0, 60000}; // range for dE
 int rangeE[2] = { 0, 60000};  // range for E
 double rangeTime = 500;  // range for Tdiff, nano-sec
 
-float RateWindow = 10.; // sec
-
 bool isSaveRaw = false; // saving Raw data
 
 string location;
@@ -169,11 +167,6 @@ int main(int argc, char *argv[]){
   TApplication app ("app", &argc, argv);
   
   Digitizer dig(boardID, ChannelMask);
-  dig.SetChannelParity(1, true); // move this into setting file
-  dig.SetChannelParity(2, false);
-  dig.SetChannelParity(4, false);
-  dig.SetChannelParity(5, true);
-  dig.SetCoincidentTimeWindow(100000); // move this to general setting
   if( !dig.IsConnected() ) return -1;
   
   /* *************************************************************************************** */
@@ -192,8 +185,8 @@ int main(int argc, char *argv[]){
   
   FileIO * rawFile = NULL ;
   if( isSaveRaw ) {
-    rawFile = new FileIO("raw.root");
-    rawFile->SetTree("rawTree", 1);
+    //rawFile = new FileIO("raw.root");
+    //rawFile->SetTree("rawTree", 1);
   }
   
   HeliosTarget gp;
@@ -202,7 +195,7 @@ int main(int argc, char *argv[]){
   gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], rangeTime);
-  gp.SetXYHistogram(-0.9, 0.9, -0.9, 0.9);
+  gp.SetXYHistogram(-0.9, 0.9, -0.9, 0.9); // for XY detector
   gp.LoadCuts("cutsFile.root");
   gp.Draw();
   
@@ -224,19 +217,15 @@ int main(int argc, char *argv[]){
       
       if (c == 'q') { //========== quit
         QuitFlag = true;
-        
         if( gp.IsCutFileOpen() ) {          
           file.Append();
           file.WriteObjArray(gp.GetCutList());
           file.Close();
         }
-        
       }
-      
       if ( c == 'y'){ //========== reset histograms
         gp.ClearHistograms();
       }
-      
       if (c == 'p') { //==========read channel setting form digitizer
         dig.StopACQ();
         for( int id = 0 ; id < MaxNChannels ; id++ ) {
@@ -254,19 +243,20 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
-        
       }
       if (c == 'z')  { //========== Change threhold
         dig.StopACQ();
         dig.ClearRawData();
         int channel;
-        printf("Please tell me which channel (type and press enter)?");
+        printf("Please tell me which channel (type channel ID and press enter)?");
         int temp = scanf("%d", &channel);
-        printf("\nOK, you want to chanhe the threshold of ch=%d, to what?", channel);
+        uint32_t present_threshold = dig.GetChannelThreshold(channel); 
+        printf("\nOK, you want to chanhe the threshold of ch-%d, From %d to what?", channel, present_threshold);
         int threshold;
         temp = scanf("%d", &threshold);
-        printf("\nNow, I will change the threshold of ch=%d to %d. \n", channel, threshold);
+        printf("\nNow, I will change the threshold of ch-%d to %d. \n", channel, threshold);
         dig.SetChannelThreshold(channel, threshold);
+        PrintCommands();
       }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
@@ -290,9 +280,8 @@ int main(int argc, char *argv[]){
         
         gp.LoadCuts("cutsFile.root");
         PrintCommands();
-        
       }
-    }
+    }//------------ End of keyboardHit
     
     if (!dig.IsRunning()) {
       sleep(0.01); // 10 mili-sec
@@ -386,7 +375,7 @@ int main(int argc, char *argv[]){
   } // End of readout loop
   
   if( isSaveRaw ) {
-    rawFile->Close();
+    //rawFile->Close();
   }
   
   paintCanvasThread.detach();
