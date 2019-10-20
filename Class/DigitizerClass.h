@@ -115,24 +115,26 @@ private:
   uint32_t AllocatedSize, BufferSize; 
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  // events buffer
 
+  //====================== Channel Setting
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
   int inputDynamicRange[MaxNChannels];
   int energyFineGain[MaxNChannels];
   float chGain[MaxNChannels];
+  uint PreTriggerSize[MaxNChannels];     
+  CAEN_DGTZ_PulsePolarity_t PulsePolarity[MaxNChannels];   
+  float DCOffset[MaxNChannels];  
   
   //====================== General Setting
   unsigned long long int ch2ns;
-  float DCOffset;
+
     
   CAEN_DGTZ_ConnectionType LinkType;
   uint32_t VMEBaseAddress;
   CAEN_DGTZ_IOLevel_t IOlev;
   
-  CAEN_DGTZ_PulsePolarity_t PulsePolarity;   // Pulse Polarity (this parameter can be individual)
   CAEN_DGTZ_DPP_AcqMode_t AcqMode;
   uint32_t RecordLength;                     // Num of samples of the waveforms (only for waveform mode)
   int EventAggr;                             // number of events in one aggregate (0=automatic), number of event acculated for read-off
-  uint PreTriggerSize;     
   uint32_t ChannelMask;                      // Channel enable mask, 0x01, only frist channel, 0xff, all channel  
 
   int CoincidentTimeWindow;
@@ -176,16 +178,20 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   AcqRun = false;
   
   ch2ns = 2; // 1 channel = 2 ns
-  DCOffset = 0.2;
+
   CoincidentTimeWindow = 200; // nano-sec
   
   Nb = 0;
   
+  //----------------- default channel setting
   for ( int i = 0; i < MaxNChannels ; i++ ) {
+    DCOffset[i] = 0.2;
     inputDynamicRange[i] = 0;
     chGain[i] = 1.0;
     energyFineGain[i] = 100;
     NumEvents[i] = 0; 
+    PreTriggerSize[i] = 2000;
+    PulsePolarity[i] = CAEN_DGTZ_PulsePolarityPositive; 
   }
   
   memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
@@ -199,11 +205,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   RecordLength = 20000;
-  PreTriggerSize = 2000;
   this->ChannelMask = ChannelMask;
   EventAggr = 1;
-  PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
-  //PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
   
   LoadGeneralSetting("generalSetting.txt");
   
@@ -333,8 +336,12 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
   ret |= CAEN_DGTZ_WriteRegister(boardID, 0x106C +  (ch<<8), threshold);
   
   if( ret == 0 ) {
-    printf("Done. Threshold of Ch=%d is %d.\n", ch, threshold);
+    printf("Done. Threshold of Ch=%d is %d now.\n", ch, threshold);
     GetChannelSetting(ch);
+
+    //TODO change the setting file.
+    
+    
   }else{
     printf("fail. something wrong.\n");
   }
@@ -344,14 +351,14 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
 int Digitizer::SetChannelParity(int ch, bool isPositive){
   
   if ( isPositive ){
-    PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
+    PulsePolarity[ch] = CAEN_DGTZ_PulsePolarityPositive; 
     printf(" Set channel %d to be + parity pulse. \n", ch);
   }else{
-    PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
+    PulsePolarity[ch] = CAEN_DGTZ_PulsePolarityNegative; 
     printf(" Set channel %d to be - parity pulse. \n", ch);
   }
   
-  ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, ch, PulsePolarity);
+  ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, ch, PulsePolarity[ch]);
   
   return ret;
 }
@@ -387,12 +394,12 @@ void Digitizer::SetChannelMask(uint32_t mask){
 
 
 void Digitizer::SetDCOffset(int ch, float offset){
-  DCOffset = offset;
+  DCOffset[ch] = offset;
   
-  ret = CAEN_DGTZ_SetChannelDCOffset(boardID, ch, uint( 0xffff * DCOffset ));
+  ret = CAEN_DGTZ_SetChannelDCOffset(boardID, ch, uint( 0xffff * DCOffset[ch] ));
   
   if( ret == 0 ){
-    printf("---- DC Offset of CH : %d is set to %f \n", ch, DCOffset);
+    printf("---- DC Offset of CH : %d is set to %f \n", ch, DCOffset[ch]);
   }else{
     printf("---- Fail to Set DC Offset of CH : %d \n", ch);
   }
@@ -530,32 +537,32 @@ int Digitizer::ProgramDigitizer(){
     
     for(int i=0; i<MaxNChannels; i++) {
         if (ChannelMask & (1<<i)) {
-            // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
-            //ret |= CAEN_DGTZ_SetChannelDCOffset(boardID, i, 0x3333); // 20%
-            ret |= CAEN_DGTZ_SetChannelDCOffset(boardID, i, uint( 0xffff * DCOffset ));
+            /// Set a DC offset to the input signal to adapt it to digitizer's dynamic range
+            ///ret |= CAEN_DGTZ_SetChannelDCOffset(boardID, i, 0x3333); // 20%
+            ret |= CAEN_DGTZ_SetChannelDCOffset(boardID, i, uint( 0xffff * DCOffset[i] ));
             
-            // Set the Pre-Trigger size (in samples)
-            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(boardID, i, PreTriggerSize);
+            /// Set the Pre-Trigger size (in samples)
+            ret |= CAEN_DGTZ_SetDPPPreTriggerSize(boardID, i, PreTriggerSize[i]);
             
-            // Set the polarity for the given channel (CAEN_DGTZ_PulsePolarityPositive or CAEN_DGTZ_PulsePolarityNegative)
-            ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, i, PulsePolarity);
+            /// Set the polarity for the given channel (CAEN_DGTZ_PulsePolarityPositive or CAEN_DGTZ_PulsePolarityNegative)
+            ret |= CAEN_DGTZ_SetChannelPulsePolarity(boardID, i, PulsePolarity[i]);
             
-            // Set InputDynamic Range
+            /// Set InputDynamic Range
             ret |= CAEN_DGTZ_WriteRegister(boardID, 0x1028 +  (i<<8), inputDynamicRange[i]);
             
-            // Set Energy Fine gain
+            /// Set Energy Fine gain
             ret |= CAEN_DGTZ_WriteRegister(boardID, 0x104C +  (i<<8), energyFineGain[i]);
             
-            // read the register to check the input is correct
-            //uint32_t * value = new uint32_t[8];
-            //ret = CAEN_DGTZ_ReadRegister(boardID, 0x1028 + (i << 8), value);
-            //printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
+            /// read the register to check the input is correct
+            ///uint32_t * value = new uint32_t[8];
+            ///ret = CAEN_DGTZ_ReadRegister(boardID, 0x1028 + (i << 8), value);
+            ///printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
         }
     }
 
-    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-    //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(boardID, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
 
     if (ret) {
         printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
@@ -618,13 +625,16 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
         if( count ==  9 ) DPPParams.pkho[ch]       = atoi(line.substr(0, pos).c_str());
         if( count == 10 ) DPPParams.nsbl[ch]       = atoi(line.substr(0, pos).c_str());
         if( count == 11 ) inputDynamicRange[ch]    = atoi(line.substr(0, pos).c_str());
-        if( count == 12 ) energyFineGain[ch]       = atoi(line.substr(0, pos).c_str());
-        if( count == 13 ) DPPParams.blho[ch]       = atoi(line.substr(0, pos).c_str());
-        if( count == 14 ) DPPParams.enf[ch]        = atof(line.substr(0, pos).c_str());
-        if( count == 15 ) DPPParams.decimation[ch] = atoi(line.substr(0, pos).c_str());
-        if( count == 16 ) DPPParams.dgain[ch]      = atoi(line.substr(0, pos).c_str());
-        if( count == 17 ) DPPParams.trgwin[ch]     = atoi(line.substr(0, pos).c_str());
-        if( count == 18 ) DPPParams.twwdt[ch]      = atoi(line.substr(0, pos).c_str());
+        if( count == 12 ) DCOffset[ch]             = atof(line.substr(0, pos).c_str());
+        if( count == 13 ) PreTriggerSize[ch]       = atoi(line.substr(0, pos).c_str());
+        if( count == 14 ) PulsePolarity[ch] = (line.substr(0, 4) == "true") ? CAEN_DGTZ_PulsePolarityPositive : CAEN_DGTZ_PulsePolarityNegative;
+        if( count == 15 ) energyFineGain[ch]       = atoi(line.substr(0, pos).c_str());
+        if( count == 16 ) DPPParams.blho[ch]       = atoi(line.substr(0, pos).c_str());
+        if( count == 17 ) DPPParams.enf[ch]        = atof(line.substr(0, pos).c_str());
+        if( count == 18 ) DPPParams.decimation[ch] = atoi(line.substr(0, pos).c_str());
+        if( count == 19 ) DPPParams.dgain[ch]      = atoi(line.substr(0, pos).c_str());
+        if( count == 20 ) DPPParams.trgwin[ch]     = atoi(line.substr(0, pos).c_str());
+        if( count == 21 ) DPPParams.twwdt[ch]      = atoi(line.substr(0, pos).c_str());
         count++;
       }
     }
@@ -652,25 +662,17 @@ void Digitizer::LoadGeneralSetting(string fileName){
       if( pos > 1 ){
         if( count > numPara - 1) break;
         
-        if( count == 0 )  DCOffset = atof(line.substr(0, pos).c_str());
-        if( count == 1 )  {
-          if( line.substr(0, 4) == "true" ) {
-            PulsePolarity = CAEN_DGTZ_PulsePolarityPositive; 
-          }else{
-            PulsePolarity = CAEN_DGTZ_PulsePolarityNegative; 
-          }
-        }
+        //if( count == 0 )  DCOffset = atof(line.substr(0, pos).c_str());
         if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
-        if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
         count ++;
       }
     }
     
     //=============== print setting
-    printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
-    printf(" %-20s  %s\n", "Pulse Polarity", PulsePolarity == 0 ? "Positive" : "Negative");
+    //printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
+    //printf(" %-20s  %s\n", "Pulse Polarity", PulsePolarity == 0 ? "Positive" : "Negative");
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
-    printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
+    //printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
     printf("====================================== \n");
     
   }
@@ -705,9 +707,6 @@ void Digitizer::ReadData(){
   /* Read data from the board */
   ret = CAEN_DGTZ_ReadData(boardID, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
   if (BufferSize == 0) return;
-  
-  //ret |= CAEN_DGTZ_FreeDPPEvents(boardID, reinterpret_cast<void**>(&Events));
-  //ret |= CAEN_DGTZ_MallocDPPEvents(boardID, reinterpret_cast<void**>(&Events), &AllocatedSize) ; 
   
   Nb = BufferSize;
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(boardID, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
