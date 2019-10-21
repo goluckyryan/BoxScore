@@ -40,5 +40,5 @@ There are few things to pay attension on creating a new Plane Class from Generic
 ## TODO list
 - read waveform
 - generic method to save all histograms
-- read multiple digitizers 
+- read multiple digitizers ( require sycn )
 - more generic method for read/write digitizer setting

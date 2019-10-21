@@ -92,19 +92,17 @@ void WriteToDataBase(TString databaseName, TString seriesName, TString tag, floa
   if( value >= 0 ){
     TString databaseStr;
     databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
-    //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
 }
 
 void paintCanvas(){
-  //This function is running in a parrellel thread.
-  //This continously update the Root system with user input
-  //avoid frozen
+  ///This function is running in a parrellel thread.
+  ///This continously update the Root system with user input
+  ///avoid frozen
   do{
-    //cCanvas->Modified();
     gSystem->ProcessEvents();
-    sleep(0.01); // 10 mili-sec
+    sleep(0.01); /// 10 mili-sec
   }while(!QuitFlag);
 }
 
@@ -113,15 +111,24 @@ void paintCanvas(){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
-  if( argc != 2 && argc != 3 ) {
-    printf("Please input boardID ! (optional root file name)\n");
+  if( argc != 3 && argc != 4 ) {
     printf("usage:\n");
-    printf("$./BoxScoreXY boardID (tree.root)\n");
+    printf("$./BoxScoreXY boardID location (tree.root) \n");
+    printf("                         | \n");
+    printf("                         +-- exit \n");
+    printf("                         +-- cross \n");
+    printf("                         +-- ZD (zero-degree) \n");
+    printf("                         +-- XY (Helios target XY) \n");
+    printf("                         +-- iso (isomer with Glover Ge detector) \n");
     return -1;
   }
   
+  const int nInput = argc;
   const int boardID = atoi(argv[1]);
-    
+  string location = argv[2];
+  TString rootFileName;
+  if( nInput == 4 ) rootFileName = argv[3];
+  
   char hostname[100];
   gethostname(hostname, 100);
   
@@ -134,9 +141,6 @@ int main(int argc, char *argv[]){
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
   
-  int nInput = argc;
-  TString rootFileName;
-  if( nInput >= 3 ) rootFileName = argv[2];
   
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
    
@@ -144,12 +148,25 @@ int main(int argc, char *argv[]){
   GenericPlane * gp = NULL ;  
   
   ///------Initialize the ChannelMask, updatePeroid, and histogram setting
-  gp = new GenericPlane();
-  ///gp = new HeliosTarget();
-  ///gp = new IsoDetect();
-  
+  if( location == "exit") {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0x89);
+    gp->SetdEEChannels(0, 3);
+  }else if ( location == "cross" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0x12);
+    gp->SetdEEChannels(1, 4);
+  }else if ( location == "ZD" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0x24);
+    gp->SetdEEChannels(2, 5);
+  }else if ( location == "XY" ) {
+    gp = new HeliosTarget();
+  }else if ( location == "iso" ) {
+    gp = new IsoDetect();
+  }
   //==== default root file name based on datetime and plane
-  if( nInput == 2 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp->GetLocation().c_str());
+  if( nInput == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp->GetLocation().c_str());
   
   printf("******************************************** \n");
   printf("****          BoxScoreXY                **** \n");
@@ -158,7 +175,8 @@ int main(int argc, char *argv[]){
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   Location :\e[33m %s \e[0m\n", gp->GetLocation().c_str() );
+  printf("   Location :\e[33m %s \e[0m\n", location.c_str() );
+  printf("      Class :\e[33m %s \e[0m\n", gp->GetClassName().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
   
   /* *************************************************************************************** */
@@ -201,7 +219,7 @@ int main(int argc, char *argv[]){
     ///rawFile->SetTree("rawTree", 1);
   }
   
-  //thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
+  thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -370,7 +388,7 @@ int main(int argc, char *argv[]){
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0. ) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       
-      string tag = "tag=" + gp->GetLocation();
+      string tag = "tag=" + location;
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
       
       if(gp->IsCutFileOpen()){
@@ -409,7 +427,7 @@ int main(int argc, char *argv[]){
     ///rawFile->Close();
   }
   
-  //paintCanvasThread.detach();
+  paintCanvasThread.detach();
 
   return 0;
 }

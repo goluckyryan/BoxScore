@@ -32,12 +32,14 @@ public:
   GenericPlane();
   ~GenericPlane();
 
-  virtual void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
+  void         SetChannelMask(uint32_t mask)       {ChannelMask = mask;}
+  void         SetLocation(string loc)             {location = loc;}        ///kind of redanance?
+  virtual void SetdEEChannels( int chdE, int chE)  {this->chE = chE; this->chdE = chdE; }
   void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void         SetCoincidentTimeWindow(int nanoSec);  
   void         SetGenericHistograms();
   virtual void SetCanvasDivision();
-  void         SetERange(int x1, int x2) { rangeE[0] = x1; this->rangeE[1] = x2; };
+  void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   
   void         Fill(UInt_t  dE, UInt_t E);
