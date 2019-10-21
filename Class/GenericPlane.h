@@ -32,6 +32,7 @@ public:
   GenericPlane();
   ~GenericPlane();
 
+  void         SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
   void         SetChannelMask(uint32_t mask)       {ChannelMask = mask;}
   void         SetLocation(string loc)             {location = loc;}        ///kind of redanance?
   virtual void SetdEEChannels( int chdE, int chE)  {this->chE = chE; this->chdE = chdE; }
@@ -214,6 +215,22 @@ GenericPlane::GenericPlane(){
 
 }
 
+void GenericPlane::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0){
+  
+  uint32_t mask = 0;
+  
+  if( ch0 ) mask +=   1;
+  if( ch1 ) mask +=   2;
+  if( ch2 ) mask +=   4;
+  if( ch3 ) mask +=   8;
+  if( ch4 ) mask +=  16;
+  if( ch5 ) mask +=  32;
+  if( ch6 ) mask +=  64;
+  if( ch7 ) mask += 128;
+  
+  ChannelMask = mask;
+  
+}
 
 void GenericPlane::SetCoincidentTimeWindow(int nanoSec){
   

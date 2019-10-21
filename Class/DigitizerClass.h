@@ -41,11 +41,14 @@ public:
   Digitizer(int ID, uint32_t ChannelMask);
   ~Digitizer();
   
+  void SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
   void SetChannelMask(uint32_t mask);
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
   int  SetChannelParity(int ch, bool isPositive);
   int  SetChannelThreshold(int ch, int threshold);
+  int  SetChannelDynamicRange(int ch, int dyRange);
+  
   //void SetRegister(uin32_t address, int ch, float value); 
   //void SetRegister(DigiReg regName, int ch, float value); 
   
@@ -55,11 +58,13 @@ public:
   int      GetByteRetrived()            {return Nb;}
   int      GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
   int      GetNChannel()                {return NChannel;}
+  int      GetNChannelOpen()            {return nChannelOpen;}
   int *    GetInputDynamicRange()       {return inputDynamicRange;}
   float *  GetChannelGain()             {return chGain;}
   float    GetChannelGain(int ch)       {return chGain[ch];}
   int      GetChannelToNanoSec()        {return ch2ns;};
   uint32_t GetChannelThreshold(int ch);
+  int      GetChannelDynamicRange(int ch);
   
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
@@ -109,6 +114,9 @@ public:
   
   void PrintReadStatistic();
   void PrintEventBuildingStat(int updatePeriod);
+  void PrintDynamicRange();
+  void PrintThreshold();
+  void PrintThresholdAndDynamicRange();
 
 private:
 
@@ -116,10 +124,11 @@ private:
   bool isGood;      /// can open digitizer
   bool AcqRun;      /// is digitizer taking data
 
-  int boardID;   /// board identity
-  int handle;    /// i don't know why, but better separete the handle from handle
-  int ret;       /// return value, refer to CAEN_DGTZ_ErrorCode
-  int NChannel;  /// number of channel
+  int boardID;      /// board identity
+  int handle;       /// i don't know why, but better separete the handle from handle
+  int ret;          /// return value, refer to CAEN_DGTZ_ErrorCode
+  int NChannel;     /// number of channel
+  int nChannelOpen; /// number of open channel
 
   int Nb;                                  /// number of byte
   char *buffer = NULL;                     /// readout buffer
@@ -177,6 +186,8 @@ private:
   vector<vector<ULong64_t>> TimeStamp;
   
   void ZeroSingleEvent();
+  
+  int CalNOpenChannel(uint32_t mask);
 };
 
 Digitizer::Digitizer(int ID, uint32_t ChannelMask){
@@ -213,6 +224,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
   RecordLength = 20000;
   this->ChannelMask = ChannelMask;
+  CalNOpenChannel(ChannelMask);
   EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout
 
   LoadGeneralSetting("generalSetting.txt");
@@ -348,11 +360,7 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
     
     TString command;
     command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' setting_%d.txt", threshold, ch);
-    //printf(" %s \n", command.Data());
     system(command.Data());
-    
-    //GetChannelSetting(ch);
-
     printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
     
   }else{
@@ -360,6 +368,53 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
   }
   return ret;
 }
+
+int Digitizer::SetChannelDynamicRange(int ch, int dyRange){
+  
+  if( dyRange != 0 && dyRange != 1 ) {
+    printf(" Dynamic Range can be either 0.5 Vpp (use 1) or 2.0 Vpp (use 0). \n");
+    return 0;
+  }
+  
+  ret |= CAEN_DGTZ_WriteRegister(handle, 0x1028 +  (ch<<8), dyRange);
+  inputDynamicRange[ch] = dyRange;
+  
+  if( ret == 0 ) {
+    TString command;
+    command.Form("sed -i '15s/.*/%d     \\/\\/input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp/' setting_%d.txt", dyRange, ch);
+    system(command.Data());
+    printf("Done. Dynamic Range of ch-%d is %3.1f Vpp now.\n", ch, dyRange == 0 ? 2.0 : 0.5);
+  }else{
+    printf("fail. something wrong.\n");
+  }
+  return ret;
+  
+}
+
+void Digitizer::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0){
+  ChannelMask = 0;
+  nChannelOpen = 0;
+  
+  if( ch0 ) {ChannelMask +=   1; nChannelOpen += 1;}
+  if( ch1 ) {ChannelMask +=   2; nChannelOpen += 1;}
+  if( ch2 ) {ChannelMask +=   4; nChannelOpen += 1;}
+  if( ch3 ) {ChannelMask +=   8; nChannelOpen += 1;}
+  if( ch4 ) {ChannelMask +=  16; nChannelOpen += 1;}
+  if( ch5 ) {ChannelMask +=  32; nChannelOpen += 1;}
+  if( ch6 ) {ChannelMask +=  64; nChannelOpen += 1;}
+  if( ch7 ) {ChannelMask += 128; nChannelOpen += 1;}
+  
+  if( isConnected ){
+    ret = CAEN_DGTZ_SetChannelEnableMask(handle, ChannelMask);
+    if( ret == 0 ){
+      printf("---- ChannelMask changed to %d \n", ChannelMask);
+    }else{
+      printf("---- Fail to change ChannelMask \n");
+    }
+  }
+  
+}
+  
 
 int Digitizer::SetChannelParity(int ch, bool isPositive){
   
@@ -394,7 +449,10 @@ void Digitizer::ClearData(){
 }
 
 void Digitizer::SetChannelMask(uint32_t mask){ 
-  ChannelMask = mask; 
+  ChannelMask = mask;
+  
+  CalNOpenChannel(mask); 
+
   if( isConnected ){
     ret = CAEN_DGTZ_SetChannelEnableMask(handle, ChannelMask);
     if( ret == 0 ){
@@ -416,13 +474,18 @@ void Digitizer::SetDCOffset(int ch, float offset){
   }else{
     printf("---- Fail to Set DC Offset of CH : %d \n", ch);
   }
-  
 }
 
 uint32_t Digitizer::GetChannelThreshold(int ch) {  
   uint32_t * value = new uint32_t[MaxNChannels];
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); 
-  //printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
+  return value[0]; 
+}
+
+
+int Digitizer::GetChannelDynamicRange(int ch) {  
+  uint32_t * value = new uint32_t[MaxNChannels];
+  CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value); 
   return value[0]; 
 }
 
@@ -811,19 +874,48 @@ void Digitizer::PrintEventBuildingStat(int updatePeriod){
   //printf("Number of retrieving = %d = %.2f per sec\n", rawEvCount, rawEvCount*1000./updatePeriod);
   printf(" %5s| %5s| %5s| \n", "#ch", "Built", "Total");
   //printf("-----------------------------------\n");
-  for( int k = 0; k < MaxNChannels-1 ; k ++){
+  //for( int k = 0; k < MaxNChannels-1 ; k ++){
+  for( int k = 0; k < nChannelOpen-1 ; k ++){
     printf(" %5d| %5d| %5d|\n", k+1, countNChannelEvent[k], totNChannelEvent[k]);
   }
-  printf(" %5d| %5d| %5d| %5s\n", MaxNChannels, countNChannelEvent[MaxNChannels-1], totNChannelEvent[MaxNChannels-1], "left");
+  //printf(" %5d| %5d| %5d| %5s\n", MaxNChannels, countNChannelEvent[MaxNChannels-1], totNChannelEvent[MaxNChannels-1], "left");
+  printf(" %5d| %5d| %5d| %5s\n", nChannelOpen, countNChannelEvent[nChannelOpen-1], totNChannelEvent[nChannelOpen-1], "left");
   printf("-----------------------------------\n");
   printf(" %5s| %5d| %5d| %5d\n", "total", countEventBuilt, totEventBuilt, rawEvLeftCount);
   printf("===============================================\n");
 }
 
+void Digitizer::PrintDynamicRange(){
+  printf("\n Ch | Dynamic Range \n");
+  for( int i = 0 ; i < MaxNChannels; i ++ ){
+    if ( ChannelMask & ( 1 << i) ) {
+      printf(" %2d | %3.1f Vpp \n", i, GetChannelDynamicRange(i) == 0 ? 2.0: 0.5);
+    }
+  }
+}
+
+void Digitizer::PrintThreshold(){
+  printf("\n Ch | Threshold \n");
+  for( int i = 0 ; i < MaxNChannels; i ++ ){
+    if ( ChannelMask & ( 1 << i) ) {
+      printf(" %2d | %6d LSB \n", i, GetChannelThreshold(i));
+    }
+  }
+}
+
+void Digitizer::PrintThresholdAndDynamicRange(){
+  printf("\n Ch | %9s  | %s \n", "Threshold", "Dynamic Range");
+  for( int i = 0 ; i < MaxNChannels; i ++ ){
+    if ( ChannelMask & ( 1 << i) ) {
+      printf(" %2d | %6d LSB | %3.1f Vpp \n", i, GetChannelThreshold(i), GetChannelDynamicRange(i) == 0 ? 2.0: 0.5);
+    }
+  }
+}
+
 void Digitizer::StopACQ(){
-  
+  if( !AcqRun ) return;
   CAEN_DGTZ_SWStopAcquisition(handle); 
-  printf("\n====== Acquisition STOPPED for Board %d\n", boardID);
+  printf("\n\e[1m\e[33m====== Acquisition STOPPED for Board %d\e[0m\n", boardID);
   AcqRun = false;
 }
 
@@ -991,6 +1083,18 @@ int Digitizer::BuildEvent(bool debug = false){
   
   return 1; // for sucessful
  
+}
+
+int Digitizer::CalNOpenChannel(uint32_t mask){
+  
+  nChannelOpen = 0;
+  int len = (int) ceil(log(mask)/log(2));
+  for( int i = 0; i < len; i++){
+    short bit = (mask >> i) & 1;
+    if( bit == 1) nChannelOpen ++;
+  }
+  
+  return nChannelOpen;
 }
 
 #endif

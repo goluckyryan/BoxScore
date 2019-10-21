@@ -71,6 +71,8 @@ HeliosTarget::HeliosTarget(){
   chY1 = 2;
   chY2 = 4;
   
+  GenericPlane::SetChannelMask(1,0,1,1, 0,1,1,0);
+  
 }
 
 HeliosTarget::~HeliosTarget(){

@@ -62,6 +62,8 @@ IsoDetect::IsoDetect(){
   chG3 = 6;
   chG4 = 7;
   
+  GenericPlane::SetChannelMask(1,1,1,1, 0,1,0,1);
+  
   isHistogramSet = false;
   
 }

@@ -78,22 +78,17 @@ static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
 int keyboardhit();
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
 
 void PrintCommands(){
   printf("\n");
-  printf("=============  Command List  =================== \n");
+  printf("\e[96m=============  Command List  ===================\e[0m\n");
   printf("s ) Start acquisition   z ) Change Threhsold\n");
-  printf("a ) Stop acquisition    x ) Change Coincident Time Window\n");
-  printf("c ) Cuts Creator        y ) Clear histograms\n");
-  printf("q ) Quit                p ) Read Channel setting\n");
-}
-
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
-  if( value >= 0 ){
-    TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
-    system(databaseStr.Data());
-  }
+  printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
+  printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
+  printf("q ) Quit                y ) Clear histograms\n");
+  printf("                        p ) Print Channel setting\n");
+  printf("                        o ) Print Channel threshold and DynamicRange\n");
 }
 
 void paintCanvas(){
@@ -115,6 +110,7 @@ int main(int argc, char *argv[]){
     printf("usage:\n");
     printf("$./BoxScoreXY boardID location (tree.root) \n");
     printf("                         | \n");
+    printf("                         +-- testing \n");
     printf("                         +-- exit \n");
     printf("                         +-- cross \n");
     printf("                         +-- ZD (zero-degree) \n");
@@ -150,17 +146,24 @@ int main(int argc, char *argv[]){
   GenericPlane * gp = NULL ;  
   
   ///------Initialize the ChannelMask and histogram setting
-  if( location == "exit") {
+  if( location == "testing") {
     gp = new GenericPlane();
-    gp->SetChannelMask(0x89);
+    gp->SetChannelMask(1,1,1,1,1,1,1,1);
+    printf(" testing ### dE = ch-0, E = ch-4 \n");
+    printf(" testing ### output file is test.root \n");
+    gp->SetdEEChannels(0, 4);
+    rootFileName = "test.root";
+  }else if( location == "exit") {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0,0,0,0,1,0,0,1);
     gp->SetdEEChannels(0, 3);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(0x12);
+    gp->SetChannelMask(0,0,0,1,0,0,1,0);
     gp->SetdEEChannels(1, 4);
   }else if ( location == "ZD" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(0x24);
+    gp->SetChannelMask(0,0,1,0,0,1,0,0);
     gp->SetdEEChannels(2, 5);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
@@ -274,17 +277,47 @@ int main(int argc, char *argv[]){
         int channel;
         printf("Please tell me which channel ? ");
         int temp = scanf("%d", &channel);
-        uint32_t present_threshold = dig.GetChannelThreshold(channel); 
-        printf("The threshold of ch-\e[33m%d\e[0m, From \e[33m%d\e[0m to what ? ", channel, present_threshold);
-        int threshold;
-        temp = scanf("%d", &threshold);
-        printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
-        dig.SetChannelThreshold(channel, threshold);
-        file.Append();
-        file.WriteMacro(Form("setting_%i.txt", channel));
-        file.Close();
+        if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ){
+          printf(" !!!!!! Channel is closed. \n");
+        }else{
+          uint32_t present_threshold = dig.GetChannelThreshold(channel); 
+          printf("The threshold of ch-\e[33m%d\e[0m, From \e[33m%d\e[0m to what ? ", channel, present_threshold);
+          int threshold;
+          temp = scanf("%d", &threshold);
+          printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
+          dig.SetChannelThreshold(channel, threshold);
+          file.Append();
+          file.WriteMacro(Form("setting_%i.txt", channel));
+          file.Close();
+        }
         PrintCommands();
         uncooked();
+      }
+      if (c == 'k')  { //========== Change Dynamic Range
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked(); ///set keyboard need enter to responds
+        dig.PrintDynamicRange();
+        int channel;
+        printf("Please tell me which channel to switch ( 2.0 Vpp <-> 0.5 Vpp ) ? ");
+        int temp = scanf("%d", &channel);
+        if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ) {
+          printf(" !!!!!!! Channel is closed. \n");
+        }else{
+          int dyRange = (dig.GetChannelDynamicRange(channel) == 0 ? 1 : 0);        
+          dig.SetChannelDynamicRange(channel, dyRange);
+          file.Append();
+          file.WriteMacro(Form("setting_%i.txt", channel));
+          file.Close();
+        }
+        PrintCommands();
+        uncooked();
+      }
+      if (c == 'o')  { //========== Print threshold and Dynamic Range
+        dig.StopACQ();
+        dig.ClearRawData();
+        dig.PrintThresholdAndDynamicRange();
+        PrintCommands();
       }
       if( c == 'x' ){ //========== Change coincident time window
         dig.StopACQ();
@@ -500,4 +533,12 @@ int keyboardhit(){
     exit(1);
   }
   return (status);
+}
+
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+  if( value >= 0 ){
+    TString databaseStr;
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    system(databaseStr.Data());
+  }
 }
