@@ -26,6 +26,15 @@
 
 using namespace std;
 
+enum DigiReg {
+  recordLength = 0x1020,
+  preTrigger   = 0x1038,
+  dcOffset     = 0x1098,
+  dynamicRange = 0x1028,
+  threshold    = 0x106C,
+  trigHoldOff  = 0x1074
+};
+
 class Digitizer{
   RQ_OBJECT("Digitizer") 
 public:
@@ -35,58 +44,60 @@ public:
   void SetChannelMask(uint32_t mask);
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
-  int SetChannelParity(int ch, bool isPositive);
-  int SetChannelThreshold(int ch, int threshold);
+  int  SetChannelParity(int ch, bool isPositive);
+  int  SetChannelThreshold(int ch, int threshold);
+  //void SetRegister(uin32_t address, int ch, float value); 
+  //void SetRegister(DigiReg regName, int ch, float value); 
   
-  bool IsConnected() {return isConnected;} // can connect and retrieve Digitizer Info.
-  bool IsGood() {return isGood;} // can detect digitizer
-  int GetByteRetrived() { return Nb;}
-  int GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
-  bool IsRunning() {return AcqRun;}
-  int GetNChannel(){ return NChannel;}
-  int * GetInputDynamicRange() { return inputDynamicRange;}
-  float * GetChannelGain() {return chGain;}
-  float GetChannelGain(int ch) { return chGain[ch];}
-  int GetChannelToNanoSec() {return ch2ns;};
+  bool     IsConnected()                {return isConnected;} /// can connect and retrieve Digitizer Info.
+  bool     IsGood()                     {return isGood;}      /// can detect digitizer
+  bool     IsRunning()                  {return AcqRun;}
+  int      GetByteRetrived()            {return Nb;}
+  int      GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
+  int      GetNChannel()                {return NChannel;}
+  int *    GetInputDynamicRange()       {return inputDynamicRange;}
+  float *  GetChannelGain()             {return chGain;}
+  float    GetChannelGain(int ch)       {return chGain[ch];}
+  int      GetChannelToNanoSec()        {return ch2ns;};
   uint32_t GetChannelThreshold(int ch);
   
-  unsigned long long int Getch2ns() {return ch2ns;}
-  int GetCoincidentTimeWindow() { return CoincidentTimeWindow;}
-  uint32_t GetChannelMask() const {return ChannelMask;}
+  unsigned long long int Getch2ns()     {return ch2ns;}
+  int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
+  uint32_t GetChannelMask() const       {return ChannelMask;}
   
   void GetBoardConfiguration();
   void GetChannelSetting(int ch);
   
   //======== Get Raw Data
-  int GetNumRawEvent() {return rawEvCount;}
-  vector<ULong64_t> GetRawTimeStamp() {return rawTimeStamp;}
-  vector<UInt_t> GetRawEnergy() {return rawEnergy;}
-  vector<int> GetRawChannel() {return rawChannel;}
-  uint32_t GetRawTimeRange() {return rawTimeRange;} // in ch
-  ULong64_t GetRawTimeStamp(int i) {return rawTimeStamp[i];}
-  UInt_t GetRawEnergy(int i) {return rawEnergy[i];}
-  int GetRawChannel(int i) {return rawChannel[i];}
+  int               GetNumRawEvent()       {return rawEvCount;}
+  vector<ULong64_t> GetRawTimeStamp()      {return rawTimeStamp;}
+  vector<UInt_t>    GetRawEnergy()         {return rawEnergy;}
+  vector<int>       GetRawChannel()        {return rawChannel;}
+  uint32_t          GetRawTimeRange()      {return rawTimeRange;}     // in ch
+  ULong64_t         GetRawTimeStamp(int i) {return rawTimeStamp[i];}
+  UInt_t            GetRawEnergy(int i)    {return rawEnergy[i];}
+  int               GetRawChannel(int i)   {return rawChannel[i];}
   
-  void ClearRawData(); // clear Raw Data and set rawEvCount = 0;
-  void ClearData();  // clear built event vectors, and set countEventBuild =  0;
+  void ClearRawData(); /// clear Raw Data and set rawEvCount = 0;
+  void ClearData();    /// clear built event vectors, and set countEventBuild =  0;
 
-  int GetEventBuilt(){ return countEventBuilt; }
-  int GetEventBuiltCount() { return countEventBuilt;}
-  int GetTotalEventBuilt(){ return totEventBuilt; }
-  int GetNChannelEvent(int Nch){ return countNChannelEvent[Nch-1];}
-  int * GetNChannelEvent(){ return countNChannelEvent;}
-  int GetTotalNChannelEvent(int Nch){ return totNChannelEvent[Nch-1];}
+  int   GetEventBuilt()                 {return countEventBuilt; }
+  int   GetEventBuiltCount()            {return countEventBuilt;}
+  int   GetTotalEventBuilt()            {return totEventBuilt; }
+  int   GetNChannelEventCount(int Nch)  {return countNChannelEvent[Nch-1];}
+  int * GetNChannelEventCount()         {return countNChannelEvent;}
+  int   GetTotalNChannelEvent(int Nch)  {return totNChannelEvent[Nch-1];}
   
   //======== Get built event
-  vector<ULong64_t> GetTimeStamp(int ev) {return TimeStamp[ev];}
-  vector<UInt_t> GetEnergy(int ev) {return Energy[ev];}
-  vector<int> GetChannel(int ev) {return Channel[ev];}
-  ULong64_t GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
-  UInt_t GetEnergy(int ev, int ch){return Energy[ev][ch];}
-  int GetChannel(int ev, int ch){return Channel[ev][ch];}
+  vector<ULong64_t> GetTimeStamp(int ev)        {return TimeStamp[ev];}
+  vector<UInt_t>    GetEnergy(int ev)           {return Energy[ev];}
+  vector<int>       GetChannel(int ev)          {return Channel[ev];}
+  ULong64_t         GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
+  UInt_t            GetEnergy(int ev, int ch)   {return Energy[ev][ch];}
+  int               GetChannel(int ev, int ch)  {return Channel[ev][ch];}
   
   //========= Digitizer Control
-  int ProgramDigitizer();
+  int  ProgramDigitizer();
   void LoadChannelSetting (const int ch, string fileName);
   void LoadGeneralSetting(string fileName);
   
@@ -94,49 +105,49 @@ public:
   void StartACQ();
   
   void ReadData();
-  int BuildEvent(bool debug);
+  int  BuildEvent(bool debug);
   
   void PrintReadStatistic();
   void PrintEventBuildingStat(int updatePeriod);
 
 private:
 
-  bool isConnected; //can get digitizer info
-  bool isGood;      // can open digitizer
-  bool AcqRun;      // is digitizer taking data
+  bool isConnected; /// can get digitizer info
+  bool isGood;      /// can open digitizer
+  bool AcqRun;      /// is digitizer taking data
 
-  int boardID;   // board identity
-  int handle;    // i don't know why, but better separete the handle from handle
-  int ret;       //return value, refer to CAEN_DGTZ_ErrorCode
-  int NChannel;  // number of channel
+  int boardID;   /// board identity
+  int handle;    /// i don't know why, but better separete the handle from handle
+  int ret;       /// return value, refer to CAEN_DGTZ_ErrorCode
+  int NChannel;  /// number of channel
 
-  int Nb;                                  // number of byte
+  int Nb;                                  /// number of byte
+  char *buffer = NULL;                     /// readout buffer
   uint32_t NumEvents[MaxNChannels];
-  char *buffer = NULL;                     // readout buffer
   uint32_t AllocatedSize, BufferSize; 
-  CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  // events buffer
+  CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
 
   //====================== Channel Setting
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
-  int inputDynamicRange[MaxNChannels];
-  int energyFineGain[MaxNChannels];
+  CAEN_DGTZ_PulsePolarity_t  PulsePolarity[MaxNChannels];   
+  int   inputDynamicRange[MaxNChannels];
+  int   energyFineGain[MaxNChannels];
   float chGain[MaxNChannels];
-  uint PreTriggerSize[MaxNChannels];     
-  CAEN_DGTZ_PulsePolarity_t PulsePolarity[MaxNChannels];   
+  uint  PreTriggerSize[MaxNChannels];     
   float DCOffset[MaxNChannels];  
   
   //====================== General Setting
   unsigned long long int ch2ns;    
-  CAEN_DGTZ_ConnectionType LinkType;
   uint32_t VMEBaseAddress;
+  CAEN_DGTZ_ConnectionType LinkType;
   CAEN_DGTZ_IOLevel_t IOlev;
   
   CAEN_DGTZ_DPP_AcqMode_t AcqMode;
-  uint32_t RecordLength;                     // Num of samples of the waveforms (only for waveform mode)
-  int EventAggr;                             // number of events in one aggregate (0=automatic), number of event acculated for read-off
-  uint32_t ChannelMask;                      // Channel enable mask, 0x01, only frist channel, 0xff, all channel  
-
-  int CoincidentTimeWindow;  // nano-sec
+  uint32_t ChannelMask;                      /// Channel enable mask, 0x01, only frist channel, 0xff, all channel  
+  uint32_t RecordLength;                     /// Num of samples of the waveforms (only for waveform mode)
+  int EventAggr;                             /// number of events in one aggregate (0=automatic), number of event acculated for read-off
+ 
+  int CoincidentTimeWindow;  /// nano-sec
 
   //==================== retreved data
   int ECnt[MaxNChannels];
@@ -171,27 +182,23 @@ private:
 Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   //================== initialization
-  boardID = ID;
-  handle = -1;
+  boardID  = ID;
+  handle   = -1;
   NChannel = 0;
-  
-  AcqRun = false;
-  
-  ch2ns = 2; // 1 channel = 2 ns
-
+  AcqRun   = false;
+  ch2ns    = 2; // 1 channel = 2 ns
+  Nb       = 0;
   CoincidentTimeWindow = 100; // nano-sec
-  
-  Nb = 0;
   
   //----------------- default channel setting
   for ( int i = 0; i < MaxNChannels ; i++ ) {
-    DCOffset[i] = 0.2;
+    DCOffset[i]          = 0.2;
     inputDynamicRange[i] = 0;
-    chGain[i] = 1.0;
-    energyFineGain[i] = 100;
-    NumEvents[i] = 0; 
-    PreTriggerSize[i] = 2000;
-    PulsePolarity[i] = CAEN_DGTZ_PulsePolarityPositive; 
+    chGain[i]            = 1.0;
+    energyFineGain[i]    = 100;
+    NumEvents[i]         = 0; 
+    PreTriggerSize[i]    = 2000;
+    PulsePolarity[i]     = CAEN_DGTZ_PulsePolarityPositive; 
   }
   
   memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
@@ -208,7 +215,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   this->ChannelMask = ChannelMask;
   EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout
 
-  
   LoadGeneralSetting("generalSetting.txt");
   
   //===================== end of initization

@@ -33,55 +33,54 @@ public:
   ~GenericPlane();
 
   virtual void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
-  void SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
-  void SetCoincidentTimeWindow(int nanoSec);  
-  void SetGenericHistograms();
+  void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
+  void         SetCoincidentTimeWindow(int nanoSec);  
+  void         SetGenericHistograms();
   virtual void SetCanvasDivision();
-  void SetERange(int x1, int x2) { rangeE[0] = x1; this->rangeE[1] = x2; };
-  void SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
+  void         SetERange(int x1, int x2) { rangeE[0] = x1; this->rangeE[1] = x2; };
+  void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   
-  void Fill(UInt_t  dE, UInt_t E);
+  void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(vector<UInt_t> energy);
-  void FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
-  void FillRateGraph(float x, float y);
-  
+  void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
+  void         FillRateGraph(float x, float y);
+  void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
+    
   virtual void Draw();
   virtual void ClearHistograms();
-  void ZeroCountOfCut();
-  void LoadCuts(TString cutFileName);
-  void CutCreator();
+  void         ZeroCountOfCut();
+  void         LoadCuts(TString cutFileName);
+  void         CutCreator();
 
-  string GetLocation() { return location;}
-  string GetClassName() {return className;}
-  int GetClassID() {return classID;}
-  int GetMode() {return mode;}
-  uint GetChannelMask() {return ChannelMask;}
-  int* GetERange() { return rangeE;}
-  int* GetdERange() { return rangeDE;}
-  int GetEChannel() { return chE;}
-  int GetdEChannel() { return chdE;}
+  string GetLocation()    {return location;}
+  string GetClassName()   {return className;}
+  int    GetClassID()     {return classID;}
+  int    GetMode()        {return mode;}
+  uint   GetChannelMask() {return ChannelMask;}
+  int*   GetERange()      {return rangeE;}
+  int*   GetdERange()     {return rangeDE;}
+  int    GetEChannel()    {return chE;}
+  int    GetdEChannel()   {return chdE;}
   
-  TH1F * GetTH1F(TString name){ return (TH1F*)gROOT->FindObjectAny(name);};
-  TH1F * GethE() {return hE;}
-  TH1F * GethdE() {return hdE;}
-  TH1F * GethtotE() {return htotE;}
-  TH1F * GethTDiff() {return hTDiff;}
-  TH2F * GethdEE() {return hdEE;}
-  TH2F * GethdEtotE() {return hdEtotE;}
+  TH1F * GetTH1F(TString name) {return (TH1F*)gROOT->FindObjectAny(name);};
+  TH1F * GethE()               {return hE;}
+  TH1F * GethdE()              {return hdE;}
+  TH1F * GethtotE()            {return htotE;}
+  TH1F * GethTDiff()           {return hTDiff;}
+  TH2F * GethdEE()             {return hdEE;}
+  TH2F * GethdEtotE()          {return hdEtotE;}
   TMultiGraph * GetRateGraph() {return rateGraph;}
 
-  TObjArray * GetCutList() {return cutList;}
-  int GetCountOfCut (int i) { if( countOfCut.size() <= i ) return -404; return countOfCut[i];}
-  int GetNumCut() { return numCut;}
+  TObjArray * GetCutList()  {return cutList;}
+  int GetCountOfCut (int i) {if( countOfCut.size() <= i ) return -404; return countOfCut[i];}
+  int GetNumCut()           {return numCut;}
 
-  TString GetCutName(int i) { cutG = (TCutG*) cutList->At(i); return cutG->GetName();}
+  TString GetCutName(int i) {cutG = (TCutG*) cutList->At(i); return cutG->GetName();}
 
-  bool IsCutFileOpen(){ return numCut > 0 ? true : false;}
+  bool IsCutFileOpen()      {return numCut > 0 ? true : false;}
   
   //=========== empty method for adding back from derivative Class
-  ///------ HeliosTarget
-  virtual void FillHit(int * hit){}
-  virtual void SetXYHistogram(){}
+  virtual void SetOthersHistograms(){} /// this can be overwrite by derived class
 
 protected:
 
@@ -101,6 +100,8 @@ protected:
   TH1F * hdE;
   TH2F * hdEE;
   TH2F * hdEtotE;
+  
+  TH1F * hHit;
   
   TH1F * htotE;
   TH1F * hTDiff;
@@ -140,7 +141,7 @@ GenericPlane::~GenericPlane(){
   delete hdEtotE;
   delete htotE;
   delete hTDiff;
-  
+  delete hHit;
   
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
@@ -181,12 +182,14 @@ GenericPlane::GenericPlane(){
   chE = 7;   chEGain = 1;
   mode = 1; ///default channel Gain is equal
   
-  hdE  = NULL;
-  hE = NULL;
-  hdEE  = NULL;
-  htotE = NULL;
+  hdE     = NULL;
+  hE      = NULL;
+  hdEE    = NULL;
+  htotE   = NULL;
   hdEtotE = NULL;
-  hTDiff = NULL;
+  hTDiff  = NULL;
+  
+  hHit = NULL;
   
   rateGraph    = NULL;
   graphRate    = NULL;
@@ -199,9 +202,9 @@ GenericPlane::GenericPlane(){
   
   graphIndex = 0;
   
-  cutG = NULL;
+  cutG    = NULL;
   cutList = NULL;
-  numCut = 0;
+  numCut  = 0;
   countOfCut.clear();
 
   isHistogramSet = false;
@@ -228,6 +231,8 @@ void GenericPlane::ClearHistograms(){
   
   htotE->Reset();
   hTDiff->Reset();
+  
+  hHit->Reset();
   
 }
 
@@ -291,6 +296,8 @@ void GenericPlane::SetGenericHistograms(){
   
   hdEE->SetMinimum(1);
   hdEtotE->SetMinimum(1);
+  
+  hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
   
   rateGraph = new TMultiGraph();
   rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");

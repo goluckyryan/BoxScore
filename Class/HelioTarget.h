@@ -10,11 +10,10 @@ public:
   HeliosTarget();
   ~HeliosTarget();
   
-  void SetXYHistogram();
+  void SetOthersHistograms();
   void SetCanvasDivision();
   
   void Fill(vector<UInt_t> energy);
-  void FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void Draw();
 
@@ -25,8 +24,7 @@ private:
   TH1F * hX;
   TH1F * hY;
   TH2F * hXY;
-  
-  TH1F * hHit;
+
   
   TH1F * hX1, * hX2, * hY1, * hY2;
   
@@ -90,7 +88,7 @@ HeliosTarget::~HeliosTarget(){
   
 }
 
-void HeliosTarget::SetXYHistogram(){
+void HeliosTarget::SetOthersHistograms(){
   
   int bin = 200;
   float labelSize = 0.08;
@@ -116,8 +114,6 @@ void HeliosTarget::SetXYHistogram(){
   
   hXY->SetMinimum(1);
   
-  hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
-  
   hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 1000, 26000);
   hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 1000, 26000);
   hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 1000, 26000);
@@ -142,23 +138,12 @@ void HeliosTarget::SetCanvasDivision(){
   fCanvas->cd(2)->Divide(2,1); 
   fCanvas->cd(2)->cd(1)->Divide(2,2);
   fCanvas->cd(2)->cd(2)->Divide(2,2);
-  
-  /*
-  fCanvas->cd(2)->SetGridy();
-  fCanvas->cd(2)->SetTicky();
-  fCanvas->cd(2)->SetTickx();
-  
-  fCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
-  fCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
-  */
+
 }
 
 void HeliosTarget::Draw(){
   
   if ( !isHistogramSet ) return;
-  //GenericPlane::Draw();
   
   //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   fCanvas->cd(1)->cd(1); hdEE->Draw("colz");

@@ -10,11 +10,10 @@ public:
   IsoDetect();
   ~IsoDetect();
   
-  void SetXYHistogram();
   void SetCanvasDivision();
+  void SetOthersHistograms();
   
   void Fill(vector<UInt_t> energy);
-  void FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void Draw();
 
@@ -22,16 +21,13 @@ public:
 
 private:
   
-  TH1F * hX;
-  TH1F * hY;
-  TH2F * hXY;
+  //==== add 4 histograms for Glover detectors
+  TH1F * hG1;
+  TH1F * hG2;
+  TH1F * hG3;
+  TH1F * hG4;
   
-  TH1F * hHit;
-  
-  TH1F * hX1, * hX2, * hY1, * hY2;
-  
-  int chX1, chX2; // yellow, Red
-  int chY1, chY2; // Blue, White
+  int chG1, chG2, chG3, chG4; 
   
 };
 
@@ -51,87 +47,62 @@ IsoDetect::IsoDetect(){
   rangeE[1] =  60000; /// max range for E
   rangeTime =    500; /// range for Tdiff, nano-sec
   
-  //chdE = 1;  chdEGain = 0; 
-  //chE = 7;   chEGain = 0;
-  //mode = 1; ///default channel Gain is equal
+  chdE = 0;  chdEGain = 0; 
+  chE  = 2;   chEGain = 0;
+  mode = 1; ///default channel Gain is equal
   
   //=========== custom histograms for HelioTarget
-  hX = NULL;
-  hY = NULL;
-  hXY = NULL;
+  hG1 = NULL;
+  hG2 = NULL;
+  hG3 = NULL;
+  hG4 = NULL;
   
-  hHit = NULL;
+  chG1 = 4;
+  chG2 = 5;
+  chG3 = 6;
+  chG4 = 7;
   
-  hX1 = NULL;
-  hX2 = NULL;
-  hY1 = NULL;
-  hY2 = NULL;
-  
-  chX1 = 1;
-  chX2 = 5;
-  
-  chY1 = 2;
-  chY2 = 4;
+  isHistogramSet = false;
   
 }
 
 IsoDetect::~IsoDetect(){
   
-  delete hX;
-  delete hY;
-  delete hXY;
-  
-  delete hHit;
-  
-  delete hX1;
-  delete hX2;
-  delete hY1;
-  delete hY2;
+  delete hG1;
+  delete hG2;
+  delete hG3;
+  delete hG4;
   
 }
 
-void IsoDetect::SetXYHistogram(){
+void IsoDetect::SetOthersHistograms(){
   
   int bin = 200;
   float labelSize = 0.08;
   
-  float xMin = -0.9;
-  float xMax =  0.9;
-  float yMin = -0.9;
-  float yMax =  0.9;
+  float xMin = 0;
+  float xMax = 160000;
   
-  hX = new TH1F("hX", "X; X[ch]; count", bin, xMin, xMax);
-  hY = new TH1F("hY", "Y; Y[ch]; count", bin, yMin, yMax);
+  hG1 = new TH1F("hG1", "G1; [ch]; count", bin, xMin, xMax);
+  hG2 = new TH1F("hG2", "G2; [ch]; count", bin, xMin, xMax);
+  hG3 = new TH1F("hG3", "G3; [ch]; count", bin, xMin, xMax);
+  hG4 = new TH1F("hG4", "G4; [ch]; count", bin, xMin, xMax);
   
-  hXY = new TH2F("hXY", "X-Y; X[ch]; Y[ch]", bin, xMin, xMax, bin, yMin, yMax);
+  hG1->GetXaxis()->SetLabelSize(labelSize);
+  hG1->GetYaxis()->SetLabelSize(labelSize);
   
-  hX->GetXaxis()->SetLabelSize(labelSize);
-  hX->GetYaxis()->SetLabelSize(labelSize);
+  hG2->GetXaxis()->SetLabelSize(labelSize);
+  hG2->GetYaxis()->SetLabelSize(labelSize);
   
-  hY->GetXaxis()->SetLabelSize(labelSize);
-  hY->GetYaxis()->SetLabelSize(labelSize);
+  hG3->GetXaxis()->SetLabelSize(labelSize);
+  hG3->GetYaxis()->SetLabelSize(labelSize);
   
-  hXY->GetXaxis()->SetLabelSize(labelSize);
-  hXY->GetYaxis()->SetLabelSize(labelSize);
-  
-  hXY->SetMinimum(1);
-  
-  hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
-  
-  hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 1000, 26000);
-  hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 1000, 26000);
-  hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 1000, 26000);
-  hY2 = new TH1F("hY2", Form("Y2 (ch=%d)", chY2), bin, 1000, 26000);
-  
-  isHistogramSet = true;
-  
-  printf(" Histogram setted. \n");
+  hG4->GetXaxis()->SetLabelSize(labelSize);
+  hG4->GetYaxis()->SetLabelSize(labelSize);
   
 }
 
 void IsoDetect::SetCanvasDivision(){
- 
-  //GenericPlane::SetCanvasDivision();
   
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
@@ -139,53 +110,37 @@ void IsoDetect::SetCanvasDivision(){
   fCanvas->cd(1)->cd(2)->Divide(2,2);
   
   
-  fCanvas->cd(2)->Divide(2,1); 
-  fCanvas->cd(2)->cd(1)->Divide(2,2);
-  fCanvas->cd(2)->cd(2)->Divide(2,2);
-  
-  /*
-  fCanvas->cd(2)->SetGridy();
-  fCanvas->cd(2)->SetTicky();
-  fCanvas->cd(2)->SetTickx();
-  
-  fCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
-  fCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
-  */
+  fCanvas->cd(2)->Divide(1,2); 
+  fCanvas->cd(2)->cd(1)->Divide(4,1);
+
 }
 
 void IsoDetect::Draw(){
   
   if ( !isHistogramSet ) return;
-  //GenericPlane::Draw();
   
   //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
 
-  //if( numCut > 0 ){
-  //  for( int i = 0; i < numCut; i++){
-  //    cutG = (TCutG *) cutList->At(i);
-  //    cutG->Draw("same");
-  //  }
-  //}
+  if( numCut > 0 ){
+    for( int i = 0; i < numCut; i++){
+      cutG = (TCutG *) cutList->At(i);
+      cutG->Draw("same");
+    }
+  }
 
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
-  fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
+  fCanvas->cd(1)->cd(2)->cd(3); hHit->Draw("HIST");
   
-  fCanvas->cd(2)->cd(2)->cd(1); hX1->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(2); hX2->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(3); hY1->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(4); hY2->Draw("");
   
-  fCanvas->cd(2)->cd(1)->cd(2); hHit->Draw("HIST");
-  fCanvas->cd(2)->cd(1)->cd(3); hX->Draw("");
-  fCanvas->cd(2)->cd(1)->cd(4); hY->Draw("");
-  fCanvas->cd(2)->cd(1)->cd(1); hXY->Draw("colz");
-  fCanvas->cd(2)->cd(1)->cd(1)->SetLogz();
+  fCanvas->cd(2)->cd(1)->cd(1); hG1->Draw("");
+  fCanvas->cd(2)->cd(1)->cd(2); hG2->Draw("");
+  fCanvas->cd(2)->cd(1)->cd(3); hG3->Draw("");
+  fCanvas->cd(2)->cd(1)->cd(4); hG4->Draw("");
   
+  fCanvas->cd(2)->cd(2) ;rateGraph->Draw("AP"); legend->Draw();
   
   fCanvas->Modified();
   fCanvas->Update();
@@ -196,52 +151,14 @@ void IsoDetect::Draw(){
 
 void IsoDetect::Fill(vector<UInt_t> energy){
   
-  //GenericPlane::Fill(energy);
-  
   if ( !isHistogramSet ) return;
   
-  //check non-zero
-  //int count = 0;
-  //int detIndex = 0;
-  //for( int k = 0; k < energy.size() ; k++){
-  //  if( energy[k] != 0 ) {
-  //    count++;
-  //    detIndex += (1 << k);
-  //  }
-  //}
-  //if( detIndex == 1 || detIndex == 8 || detIndex == 9 ) return; // skipping only ch=0, ch=3, or both 
-  
-  //if( count != 5 ) return;
-  
-  int E = energy[chE] + gRandom->Gaus(0, 500);
-  int dE = energy[chY1] + energy[chY2] + gRandom->Gaus(0, 500);
-  
-  float X = ((float)energy[chX1] - (float)energy[chX2])*1.0/(energy[chX1] + energy[chX2]);
-  float Y = ((float)energy[chY1] - (float)energy[chY2])*1.0/(energy[chY1] + energy[chY2]);
-
-  hX1->Fill(energy[chX1]);
-  hX2->Fill(energy[chX2]);
-  hY1->Fill(energy[chY1]);
-  hY2->Fill(energy[chY2]);
-    
-  hX->Fill(X);
-  hY->Fill(Y);
-  hXY->Fill(X, Y);
-  
-  hE->Fill(E);
-  hdE->Fill(dE);
-  hdEE->Fill(E, dE);
-  float totalE = dE * chdEGain + E * chEGain;
-  hdEtotE->Fill(totalE, dE);
-  
-  if( numCut > 0  ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(totalE, dE)){
-        countOfCut[i] += 1;
-      }
-    }
-  }
+  GenericPlane::Fill(energy);
+   
+  hG1->Fill(energy[chG1]);
+  hG2->Fill(energy[chG2]);
+  hG3->Fill(energy[chG3]);
+  hG4->Fill(energy[chG4]);
   
 }
 
@@ -249,16 +166,10 @@ void IsoDetect::ClearHistograms(){
   
   GenericPlane::ClearHistograms();
   
-  hX1->Reset();
-  hX2->Reset();
-  hY1->Reset();
-  hY2->Reset();
-  
-  hX->Reset();
-  hY->Reset();
-  hXY->Reset();
-  
-  hHit->Reset();
+  hG1->Reset();
+  hG2->Reset();
+  hG3->Reset();
+  hG4->Reset();
   
 }
 
