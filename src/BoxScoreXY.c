@@ -127,7 +127,7 @@ int main(int argc, char *argv[]){
   const int boardID = atoi(argv[1]);
   string location = argv[2];
   TString rootFileName;
-  if( nInput == 4 ) rootFileName = argv[3];
+  if( argc == 4 ) rootFileName = argv[3];
   
   char hostname[100];
   gethostname(hostname, 100);
@@ -141,13 +141,15 @@ int main(int argc, char *argv[]){
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
   
+  //==== default root file name based on datetime and plane
+  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
   
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
    
   //############ The Class Selection should be the only thing change 
   GenericPlane * gp = NULL ;  
   
-  ///------Initialize the ChannelMask, updatePeroid, and histogram setting
+  ///------Initialize the ChannelMask and histogram setting
   if( location == "exit") {
     gp = new GenericPlane();
     gp->SetChannelMask(0x89);
@@ -165,8 +167,6 @@ int main(int argc, char *argv[]){
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
   }
-  //==== default root file name based on datetime and plane
-  if( nInput == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp->GetLocation().c_str());
   
   printf("******************************************** \n");
   printf("****          BoxScoreXY                **** \n");
