@@ -171,7 +171,8 @@ private:
 Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   //================== initialization
-  handle = ID;
+  boardID = ID;
+  handle = -1;
   NChannel = 0;
   
   AcqRun = false;

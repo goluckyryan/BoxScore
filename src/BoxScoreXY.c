@@ -358,7 +358,7 @@ int main(int argc, char *argv[]){
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0. ) gp.FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       
-      string tag = "tag=" + location;
+      string tag = "tag=" + gp.GetLocation();
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
       
       if(gp.IsCutFileOpen()){

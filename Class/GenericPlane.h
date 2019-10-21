@@ -256,6 +256,11 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
       chEGain = 1.;
       mode = 3;
     }
+  }else{
+    
+    chdEGain = chGain[chdE];
+    chEGain = chGain[chE];
+    
   }
 }
 

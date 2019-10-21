@@ -25,4 +25,4 @@ true   // is pulse positive parity;
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
-1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
+2.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
