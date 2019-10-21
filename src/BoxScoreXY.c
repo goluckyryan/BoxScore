@@ -73,21 +73,19 @@ bool  QuitFlag = false;
 
 long get_time();
 static struct termios g_old_kbd_mode;
-static void cooked(void);
+static void cooked(void);  ///set keyboard behaviour as normal
+static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
 int keyboardhit();
 
 void PrintCommands(){
   printf("\n");
-  printf("s ) Start acquisition\n");
-  printf("a ) Stop acquisition\n");
-  printf("z ) Change Threhsold\n");
-  printf("x ) Change Coincident Time Window\n");
-  printf("c ) Cuts Creator\n");
-  printf("y ) Clear histograms\n");
-  printf("p ) Read Channel setting\n");
-  printf("q ) Quit\n");
+  printf("=============  Command List  =================== \n");
+  printf("s ) Start acquisition   z ) Change Threhsold\n");
+  printf("a ) Stop acquisition    x ) Change Coincident Time Window\n");
+  printf("c ) Cuts Creator        y ) Clear histograms\n");
+  printf("q ) Quit                p ) Read Channel setting\n");
 }
 
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
@@ -135,9 +133,13 @@ int main(int argc, char *argv[]){
   int hour = ltm->tm_hour;
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
-    
-  TApplication app ("app", &argc, argv);
   
+  int nInput = argc;
+  TString rootFileName;
+  if( nInput >= 3 ) rootFileName = argv[2];
+  
+  TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
+   
   //############ The Class Selection should be the only thing change 
   GenericPlane * gp = NULL ;  
   
@@ -147,18 +149,16 @@ int main(int argc, char *argv[]){
   ///gp = new IsoDetect();
   
   //==== default root file name based on datetime and plane
-  TString rootFileName;
-  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp->GetLocation().c_str());
-  if( argc == 3 ) rootFileName = argv[2];
+  if( nInput == 2 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp->GetLocation().c_str());
   
   printf("******************************************** \n");
-  printf("****            BoxScore                **** \n");
+  printf("****          BoxScoreXY                **** \n");
   printf("******************************************** \n");
   printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   Location : %s \n", gp->GetLocation().c_str() );
+  printf("   Location :\e[33m %s \e[0m\n", gp->GetLocation().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
   
   /* *************************************************************************************** */
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]){
     ///rawFile->SetTree("rawTree", 1);
   }
   
-  thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
+  //thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -218,7 +218,6 @@ int main(int argc, char *argv[]){
     
     if(keyboardhit()) {
       char c = getch();
-      
       if (c == 'q') { //========== quit
         QuitFlag = true;
         if( gp->IsCutFileOpen() ) {          
@@ -248,35 +247,40 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
+        PrintCommands();
       }
       if (c == 'z')  { //========== Change threshold
         dig.StopACQ();
         dig.ClearRawData();
+        cooked(); ///set keyboard need enter to responds
         int channel;
-        printf("Please tell me which channel (type channel ID and press enter)?");
+        printf("Please tell me which channel ? ");
         int temp = scanf("%d", &channel);
         uint32_t present_threshold = dig.GetChannelThreshold(channel); 
-        printf("\nOK, you want to chanhe the threshold of ch-%d, From %d to what?", channel, present_threshold);
+        printf("The threshold of ch-\e[33m%d\e[0m, From \e[33m%d\e[0m to what ? ", channel, present_threshold);
         int threshold;
         temp = scanf("%d", &threshold);
-        printf("\nNow, I will change the threshold of ch-%d to %d. \n", channel, threshold);
+        printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
         dig.SetChannelThreshold(channel, threshold);
-        FileIO fileTemp(rootFileName);
-        fileTemp.WriteMacro(Form("setting_%i.txt", channel));
-        fileTemp.Close();
+        file.Append();
+        file.WriteMacro(Form("setting_%i.txt", channel));
+        file.Close();
         PrintCommands();
+        uncooked();
       }
       if( c == 'x' ){ //========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
+        cooked();
         int coinTime;
-        printf("Change coincident time window from %d ns to ??", dig.GetCoincidentTimeWindow());
+        printf("Change coincident time window from \e[33m%d\e[0m ns to ? ", dig.GetCoincidentTimeWindow());
         int temp = scanf("%d", &coinTime);
         dig.SetCoincidentTimeWindow(coinTime);
         gp->SetCoincidentTimeWindow(coinTime);
-        printf("Done, the coincident time window is now %d.", dig.GetCoincidentTimeWindow());
+        printf("Done, the coincident time window is now \e[33m%d\e[0m.\n", dig.GetCoincidentTimeWindow());
         gp->Draw();
         PrintCommands();
+        uncooked();
       }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
@@ -405,7 +409,7 @@ int main(int argc, char *argv[]){
     ///rawFile->Close();
   }
   
-  paintCanvasThread.detach();
+  //paintCanvasThread.detach();
 
   return 0;
 }
@@ -430,11 +434,8 @@ static void cooked(void){
   tcsetattr(0, TCSANOW, &g_old_kbd_mode);
 }
 
-static void raw(void){
-  static char init;
+static void uncooked(void){
   struct termios new_kbd_mode;
-
-  if(init) return;
   /* put keyboard (stdin, actually) in raw, unbuffered mode */
   tcgetattr(0, &g_old_kbd_mode);
   memcpy(&new_kbd_mode, &g_old_kbd_mode, sizeof(struct termios));
@@ -442,6 +443,13 @@ static void raw(void){
   new_kbd_mode.c_cc[VTIME] = 0;
   new_kbd_mode.c_cc[VMIN] = 1;
   tcsetattr(0, TCSANOW, &new_kbd_mode);
+}
+
+static void raw(void){
+  static char init;
+  if(init) return;
+  /* put keyboard (stdin, actually) in raw, unbuffered mode */
+  uncooked();
   /* when we exit, go back to normal, "cooked" mode */
   atexit(cooked);
 
@@ -452,8 +460,8 @@ int getch(void){
   unsigned char temp;
   raw();
   /* stdin = fd 0 */
-  if(read(0, &temp, 1) != 1)
-  return 0;
+  if(read(0, &temp, 1) != 1) return 0;
+  //printf("%s", &temp);
   return temp;
 }
 

@@ -244,7 +244,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d with handle %d\n", BoardInfo.ModelName, boardID, handle);
       NChannel = BoardInfo.Channels;
       printf("Number of Channels : %d\n", NChannel);
-      printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
+      printf("SerialNumber :\e[1m\e[33m %d\e[0m\n", BoardInfo.SerialNumber);
       printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
       printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
       
@@ -443,9 +443,9 @@ void Digitizer::GetBoardConfiguration(){
 void Digitizer::GetChannelSetting(int ch){
   
   uint32_t * value = new uint32_t[MaxNChannels];
-  printf("================================================\n");
+  printf("\e[33m================================================\n");
   printf("================ Getting setting for channel %d \n", ch);
-  printf("================================================\n");
+  printf("================================================\e[0m\n");
   //DPP algorithm Control
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value);
   printf("                          32  28  24  20  16  12   8   4   0\n");
@@ -477,7 +477,7 @@ void Digitizer::GetChannelSetting(int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time *",  value[0] * 8); //Input rise time
   
   printf("==========----- Trapezoid \n");
-  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise * decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
+  CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise x decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
   CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time *",  value[0] * 8 ); //Trap. rise time
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value); 
   int flatTopTime = value[0] * 8;
