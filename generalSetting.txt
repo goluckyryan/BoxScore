@@ -2,7 +2,6 @@
 100    // nano-sec (int), coincident time for event building 
 2000   // Pre trigger size;
 1000   // Table, tree, Plots update period in mili-sec.
-90 // nano-sec, coincident time for event building 
 0      // range for Energy
 10000 
 0      // range for delta-Energy

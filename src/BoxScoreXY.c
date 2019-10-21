@@ -135,16 +135,16 @@ int main(int argc, char *argv[]){
   int hour = ltm->tm_hour;
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
-
-  TString rootFileName;
-  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
-  if( argc == 3 ) rootFileName = argv[2];
   
   TApplication app ("app", &argc, argv);
   
   //############ The Class Selection should be the only thing change 
   GenericPlane gp;  // this will initialize the ChannelMask, updatePeroid, and histogram setting
   gp.SetCanvasDivision();
+  
+  TString rootFileName;
+  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, gp.GetLocation().c_str());
+  if( argc == 3 ) rootFileName = argv[2];
   
   printf("******************************************** \n");
   printf("****            BoxScore                **** \n");
@@ -254,9 +254,12 @@ int main(int argc, char *argv[]){
         temp = scanf("%d", &threshold);
         printf("\nNow, I will change the threshold of ch-%d to %d. \n", channel, threshold);
         dig.SetChannelThreshold(channel, threshold);
+        FileIO fileTemp(rootFileName);
+        fileTemp.WriteMacro(Form("setting_%i.txt", channel));
+        fileTemp.Close();
         PrintCommands();
       }
-      if( c == 'x' ){
+      if( c == 'x' ){ //========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
         int coinTime;
@@ -371,6 +374,7 @@ int main(int argc, char *argv[]){
       gp.Draw();
       
       // wirte histogram into tree
+      // TODO, a generic method for saving all histogram even in derivative class
       file.WriteHistogram(gp.GethdEtotE());
       file.WriteHistogram(gp.GethE());
       file.WriteHistogram(gp.GethdE());

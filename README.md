@@ -1,6 +1,6 @@
 # BoxScore
 The latest development is focus on Objectization of the program.
-The result is BoxScoreXY. BoxScore could be run after modification on the method for loading the setting files.
+The result is BoxScoreXY. 
 
 The general idea are that
 - All digitizer channel settings should be edited in the setting_*.txt
@@ -15,6 +15,8 @@ The general idea are that
     - This class provides all the methods for handling digitizer, getting thr data, and event building. One thing need to fix is that the boardID will changed. That may cause mishandleing when multiple digitizers are being opened.
     - The generalSetting.txt is kind of obsolete. becasue the waveform is not read and the coincident Time window can be changed during the program.
     - The setting_X.txt is the place for channel setting.
+- FileIO.h
+    - This class handle root tree, histogram, and setting files saving.
 - GenericPlane.h (Plane Class)
     - This class setup the basics need for Canvas and Histograms. It also stores the ChannelMask, database tag.
     - This class also handle how the data processing. The digitizer always output raw event based on channel. 
@@ -34,3 +36,9 @@ There are few things to pay attension on creating a new Plane Class from Generic
 1. make sure you change the Plane class in BoxScoreXY.C
 2. sometimes, you need to add some code for special histogram filling.
 3. please add-back some now methods from the derived class in GenericPlane.h
+
+## TODO list
+- read waveform
+- generic method to save all histograms
+- read multiple digitizers 
+- more generic method for read/write digitizer setting
