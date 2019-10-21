@@ -47,27 +47,14 @@
 #include "../Class/FileIO.h"
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
+#include "../Class/IsoDetect.h"
 
 using namespace std;
 
 #define MaxNChannels 8
 
-//TODO 1) change DCoffset, pulseParity to channel
-//TODO 2) change the tree structure to be like HELIOS
-
-//========== General setting;
-unsigned long long int ch2ns = 2.;
-
-uint ChannelMask = 0xb6;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-
+//========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
-
-int chE = 7;   //channel ID for E
-int chDE = 1;  //channel ID for dE
-
-int rangeDE[2] = {0, 60000}; // range for dE
-int rangeE[2] = { 0, 60000};  // range for E
-double rangeTime = 500;  // range for Tdiff, nano-sec
 
 bool isSaveRaw = false; // saving Raw data
 
@@ -96,6 +83,7 @@ void PrintCommands(){
   printf("s ) Start acquisition\n");
   printf("a ) Stop acquisition\n");
   printf("z ) Change Threhsold\n");
+  printf("x ) Change Coincident Time Window\n");
   printf("c ) Cuts Creator\n");
   printf("y ) Clear histograms\n");
   printf("p ) Read Channel setting\n");
@@ -135,14 +123,12 @@ int main(int argc, char *argv[]){
   }
   
   const int boardID = atoi(argv[1]);
-  location = "Target";
     
   char hostname[100];
   gethostname(hostname, 100);
   
   time_t now = time(0);
-  tm *ltm = localtime(&now);
-  
+  tm *ltm = localtime(&now);  
   int year = 1900 + ltm->tm_year;
   int month = 1 + ltm->tm_mon;
   int day = ltm->tm_mday;
@@ -154,20 +140,40 @@ int main(int argc, char *argv[]){
   rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
   if( argc == 3 ) rootFileName = argv[2];
   
+  TApplication app ("app", &argc, argv);
+  
+  //############ The Class Selection should be the only thing change 
+  GenericPlane gp;  // this will initialize the ChannelMask, updatePeroid, and histogram setting
+  gp.SetCanvasDivision();
+  
   printf("******************************************** \n");
-  printf("****         Real Time PID              **** \n");
+  printf("****            BoxScore                **** \n");
   printf("******************************************** \n");
   printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   Location : %s \n", location.c_str() );
+  printf("   Location : %s \n", gp.GetLocation().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
   
-  TApplication app ("app", &argc, argv);
+  /* *************************************************************************************** */
+  /* Canvas and Digitzer                                                                               */
+  /* *************************************************************************************** */
   
+  uint ChannelMask = gp.GetChannelMask();
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
+  
+  gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
+  gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
+  gp.SetGenericHistograms(); //must be after SetChannelGain  
+  
+  //things for derivative of GenericPlane
+  if( gp.GetClassID() == 1 ) gp.SetXYHistogram(); // for XY detector
+  
+  //====== load cut and Draw
+  gp.LoadCuts("cutsFile.root");
+  gp.Draw();
   
   /* *************************************************************************************** */
   /* ROOT TREE                                                                               */
@@ -189,16 +195,6 @@ int main(int argc, char *argv[]){
     //rawFile->SetTree("rawTree", 1);
   }
   
-  HeliosTarget gp;
-  gp.SetCanvasDivision();
-  gp.SetdEEChannels(chDE, chE);
-  gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
-  gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
-  gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], rangeTime);
-  gp.SetXYHistogram(-0.9, 0.9, -0.9, 0.9); // for XY detector
-  gp.LoadCuts("cutsFile.root");
-  gp.Draw();
-  
   thread paintCanvasThread(paintCanvas); // using loop keep root responding
 
   /* *************************************************************************************** */
@@ -208,6 +204,8 @@ int main(int argc, char *argv[]){
   uint32_t PreviousTime = get_time();
   uint32_t StartTime = 0, StopTime, CurrentTime, ElapsedTime;
   PrintCommands();
+
+  const unsigned long long int ch2ns = dig.GetChannelToNanoSec();
   
   //##################################################################     
   while(!QuitFlag) {
@@ -244,7 +242,7 @@ int main(int argc, char *argv[]){
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
       }
-      if (c == 'z')  { //========== Change threhold
+      if (c == 'z')  { //========== Change threshold
         dig.StopACQ();
         dig.ClearRawData();
         int channel;
@@ -258,12 +256,28 @@ int main(int argc, char *argv[]){
         dig.SetChannelThreshold(channel, threshold);
         PrintCommands();
       }
+      if( c == 'x' ){
+        dig.StopACQ();
+        dig.ClearRawData();
+        int coinTime;
+        printf("Change coincident time window from %d ns to ??", dig.GetCoincidentTimeWindow());
+        int temp = scanf("%d", &coinTime);
+        dig.SetCoincidentTimeWindow(coinTime);
+        gp.SetCoincidentTimeWindow(coinTime);
+        printf("Done, the coincident time window is now %d.", dig.GetCoincidentTimeWindow());
+        gp.Draw();
+        PrintCommands();
+      }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
         dig.ClearRawData();
         
         int mode = gp.GetMode();
         float * chGain = dig.GetChannelGain(); 
+        int * rangeE = gp.GetERange();
+        int * rangeDE = gp.GetdERange();
+        int chE = gp.GetEChannel();
+        int chDE = gp.GetdEChannel();
         
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + to_string(chDE) + " ";
@@ -319,7 +333,8 @@ int main(int argc, char *argv[]){
           gp.Fill(dig.GetEnergy(i));
         }
       }
-      gp.FillHit(dig.GetNChannelEvent());
+      
+      if( gp.GetClassID() == 1 ) gp.FillHit(dig.GetNChannelEvent()); // for HelioTarget
       
       //=========================== Display
       if( !isDebug) system("clear");

@@ -10,7 +10,7 @@ public:
   HeliosTarget();
   ~HeliosTarget();
   
-  void SetXYHistogram(float xMin, float xMax, float yMin, float yMax);
+  void SetXYHistogram();
   void SetCanvasDivision();
   
   void Fill(vector<UInt_t> energy);
@@ -36,7 +36,26 @@ private:
 };
 
 HeliosTarget::HeliosTarget(){
+    
+  //=========== ClassName and ClassID is for class identification in BoxScoreXY
+  className = "HeliosTarget";
+  classID = 1;
+  location = "target";  //this is for database tag
   
+  //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
+  ChannelMask = 0xb6; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  
+  rangeDE[0] =     0; /// min range for dE
+  rangeDE[1] = 60000; /// max range for dE
+  rangeE[0] =      0; /// min range for E
+  rangeE[1] =  60000; /// max range for E
+  rangeTime =    500; /// range for Tdiff, nano-sec
+  
+  //chdE = 1;  chdEGain = 0; 
+  //chE = 7;   chEGain = 0;
+  //mode = 1; ///default channel Gain is equal
+  
+  //=========== custom histograms for HelioTarget
   hX = NULL;
   hY = NULL;
   hXY = NULL;
@@ -71,10 +90,15 @@ HeliosTarget::~HeliosTarget(){
   
 }
 
-void HeliosTarget::SetXYHistogram(float xMin, float xMax, float yMin, float yMax){
+void HeliosTarget::SetXYHistogram(){
   
   int bin = 200;
   float labelSize = 0.08;
+  
+  float xMin = -0.9;
+  float xMax =  0.9;
+  float yMin = -0.9;
+  float yMax =  0.9;
   
   hX = new TH1F("hX", "X; X[ch]; count", bin, xMin, xMax);
   hY = new TH1F("hY", "Y; Y[ch]; count", bin, yMin, yMax);

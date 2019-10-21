@@ -35,8 +35,10 @@ public:
   virtual void SetdEEChannels( int chdE, int chE){ this->chE = chE; this->chdE = chdE; }
   void SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void SetCoincidentTimeWindow(int nanoSec);  
-  void SetHistograms(int dEmin, int dEmax, int Emin, int Emax, int rangeTime);
+  void SetGenericHistograms();
   virtual void SetCanvasDivision();
+  void SetERange(int x1, int x2) { rangeE[0] = x1; this->rangeE[1] = x2; };
+  void SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   
   void Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(vector<UInt_t> energy);
@@ -49,8 +51,16 @@ public:
   void LoadCuts(TString cutFileName);
   void CutCreator();
 
+  string GetLocation() { return location;}
+  string GetClassName() {return className;}
+  int GetClassID() {return classID;}
   int GetMode() {return mode;}
-
+  uint GetChannelMask() {return ChannelMask;}
+  int* GetERange() { return rangeE;}
+  int* GetdERange() { return rangeDE;}
+  int GetEChannel() { return chE;}
+  int GetdEChannel() { return chdE;}
+  
   TH1F * GetTH1F(TString name){ return (TH1F*)gROOT->FindObjectAny(name);};
   TH1F * GethE() {return hE;}
   TH1F * GethdE() {return hdE;}
@@ -67,8 +77,24 @@ public:
   TString GetCutName(int i) { cutG = (TCutG*) cutList->At(i); return cutG->GetName();}
 
   bool IsCutFileOpen(){ return numCut > 0 ? true : false;}
+  
+  //=========== empty method for adding back from derivative Class
+  ///------ HeliosTarget
+  virtual void FillHit(int * hit){}
+  virtual void SetXYHistogram(){}
 
 protected:
+
+  string className;
+  int classID;
+  string location;  //this is for database tag
+
+  uint ChannelMask;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  
+  int rangeDE[2]; // range for dE
+  int rangeE[2];  // range for E
+  double rangeTime;  // range for Tdiff, nano-sec
+
   TCanvas *fCanvas;
 
   TH1F * hE;
@@ -88,7 +114,7 @@ protected:
   TCutG * cutG;
   vector<int> countOfCut;
   
-  int chdE, chE;
+  int chdE, chE; //channel ID for E, dE
   float chdEGain, chEGain;
   int mode;
   
@@ -130,15 +156,30 @@ GenericPlane::~GenericPlane(){
 
 GenericPlane::GenericPlane(){
   
+  //======= className, classID, location muse be unique and declared in every derivative Class.
+  className = "GenericPlane";
+  classID = 0;
+  location = "Generic";
+  
+  //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
+  ChannelMask = 0xff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  
+  rangeDE[0] =     0; /// min range for dE
+  rangeDE[1] = 60000; /// max range for dE
+  rangeE[0] =      0; /// min range for E
+  rangeE[1] =  60000; /// max range for E
+  rangeTime =    500; /// range for Tdiff, nano-sec
+
+  
   fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
   if( fCanvas->GetShowToolBar() ) fCanvas->ToggleToolBar();
   
-  chdE = -1;  chdEGain = 0; 
-  chE = -1;   chEGain = 0;
-  mode = 1; //default channel Gain is equal
+  chdE = 1;  chdEGain = 1; 
+  chE = 7;   chEGain = 1;
+  mode = 1; ///default channel Gain is equal
   
   hdE  = NULL;
   hE = NULL;
@@ -153,7 +194,8 @@ GenericPlane::GenericPlane(){
   legend       = NULL; 
   rangeGraph   = NULL;
   
-  line = NULL;
+  line = new TLine();
+  line->SetLineColor(2);
   
   graphIndex = 0;
   
@@ -163,16 +205,18 @@ GenericPlane::GenericPlane(){
   countOfCut.clear();
 
   isHistogramSet = false;
+  
+
 }
 
 
 void GenericPlane::SetCoincidentTimeWindow(int nanoSec){
-  line = new TLine();
-  line->SetLineColor(2);
+  
   line->SetX1(nanoSec);
   line->SetY1(0);
   line->SetX2(nanoSec);
   line->SetY2(100000000);
+  
 }
 
 void GenericPlane::ClearHistograms(){
@@ -188,9 +232,8 @@ void GenericPlane::ClearHistograms(){
 }
 
 void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChannel){
-  //for(int i = 0; i < NChannel; i++) printf("ch: %d | chGain: %f , DynamicRange: %d \n", i, chGain[i], dynamicRange[i]); 
   
-  printf(" dE : %d , E: %d \n", chdE, chE);
+  //printf(" dE : %d , E: %d \n", chdE, chE);
   
   if( chdE == -1 || chE == -1 ){
     chdEGain = 1.;
@@ -216,19 +259,19 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
   }
 }
 
-void GenericPlane::SetHistograms(int dEmin, int dEmax, int Emin, int Emax, int rangeTime){
+void GenericPlane::SetGenericHistograms(){
   
-  printf("Setting up histogram\n");
+  //printf("Setting up histogram\n");
   
   int bin = 200;
   float labelSize = 0.08;
   
-  hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),   bin,  Emin,  Emax);
-  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chdE), bin, dEmin, dEmax);
-  htotE = new TH1F("htotE", "total E ; totR [ch]; count", bin, Emin+dEmin, Emax+dEmax);
+  hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),   bin,  rangeE[0],  rangeE[1]);
+  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chdE), bin, rangeDE[0], rangeDE[1]);
+  htotE = new TH1F("htotE", "total E ; totR [ch]; count", bin, rangeE[0]+rangeDE[0], rangeE[1]+rangeDE[1]);
   
-  hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ", bin, Emin, Emax, bin, dEmin, dEmax);
-  hdEtotE  = new TH2F( "hdEtotE", Form("dE vs. totE = %4.2fdE + %4.2fE; totalE [ch]; dE [ch ", chdEGain, chEGain ), bin, dEmin * chdEGain + Emin* chEGain, dEmax * chdEGain + Emax* chEGain, bin, dEmin * chdEGain, dEmax * chdEGain);  
+  hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ", bin, rangeE[0], rangeE[1], bin, rangeDE[0], rangeDE[1]);
+  hdEtotE  = new TH2F( "hdEtotE", Form("dE vs. totE = %4.2fdE + %4.2fE; totalE [ch]; dE [ch ", chdEGain, chEGain ), bin, rangeDE[0] * chdEGain + rangeE[0]* chEGain, rangeDE[1] * chdEGain + rangeE[1]* chEGain, bin, rangeDE[0] * chdEGain, rangeDE[1] * chdEGain);  
   
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", bin, 0, rangeTime);
   

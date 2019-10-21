@@ -48,6 +48,7 @@ public:
   int * GetInputDynamicRange() { return inputDynamicRange;}
   float * GetChannelGain() {return chGain;}
   float GetChannelGain(int ch) { return chGain[ch];}
+  int GetChannelToNanoSec() {return ch2ns;};
   uint32_t GetChannelThreshold(int ch) {  
     uint32_t * value = new uint32_t[MaxNChannels];
     CAEN_DGTZ_ReadRegister(boardID, 0x106C + (ch << 8), value); 
@@ -182,7 +183,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   ch2ns = 2; // 1 channel = 2 ns
 
-  CoincidentTimeWindow = 200; // nano-sec
+  CoincidentTimeWindow = 100; // nano-sec
   
   Nb = 0;
   
