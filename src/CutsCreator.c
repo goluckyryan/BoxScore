@@ -92,7 +92,8 @@ int main(int argc, char* argv[] ){
   gSystem->ProcessEvents();
   
   // make cuts
-  cutFile = new TFile("cutsFile.root", "recreate");
+  TString cutFileName = "cutsFile.root";
+  cutFile = new TFile(cutFileName, "recreate");
   cutList = new TObjArray();
 
   int count = 1;
@@ -121,7 +122,7 @@ int main(int argc, char* argv[] ){
 
   cutList->Write("cutList", TObject::kSingleKey);
 
-  printf("====> saved %d cuts into rdtCuts.root\n", count);
+  printf("====> saved %d cuts into %s\n", count, cutFileName.Data());
 
   gROOT->ProcessLine(".q");
 

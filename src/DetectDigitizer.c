@@ -131,6 +131,7 @@ int main(int argc, char* argv[])
         ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);
         printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
         printf("\tBoard Model Familty %d\n", BoardInfo.FamilyCode);
+        printf("\tSerialNumber : %d\n", BoardInfo.SerialNumber);
         printf("\tR0C (Read-out-Controller) FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
         printf("\tAMC (ADC & Memory Controller) FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
         

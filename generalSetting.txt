@@ -1,6 +1,5 @@
-0.5   // DCOFFSET
-true   // Pulse parity
 4096  // Num of samples of the waveforms (only for waveform mode)
+100    // nano-sec (int), coincident time for event building 
 2000   // Pre trigger size;
 1000   // Table, tree, Plots update period in mili-sec.
 90 // nano-sec, coincident time for event building 
