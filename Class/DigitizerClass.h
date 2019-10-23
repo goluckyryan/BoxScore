@@ -72,6 +72,7 @@ public:
   
   void GetBoardConfiguration();
   void GetChannelSetting(int ch);
+  int  GetSerialNumber() {return serialNumber;}
   
   //======== Get Raw Data
   int               GetNumRawEvent()       {return rawEvCount;}
@@ -123,6 +124,8 @@ private:
   bool isConnected; /// can get digitizer info
   bool isGood;      /// can open digitizer
   bool AcqRun;      /// is digitizer taking data
+  
+  int serialNumber;
 
   int boardID;      /// board identity
   int handle;       /// i don't know why, but better separete the handle from handle
@@ -227,8 +230,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   CalNOpenChannel(ChannelMask);
   EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout
 
-  LoadGeneralSetting("generalSetting.txt");
-  
   //===================== end of initization
 
   /* *********************************************** */
@@ -256,7 +257,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d with handle %d\n", BoardInfo.ModelName, boardID, handle);
       NChannel = BoardInfo.Channels;
       printf("Number of Channels : %d\n", NChannel);
-      printf("SerialNumber :\e[1m\e[33m %d\e[0m\n", BoardInfo.SerialNumber);
+      serialNumber = BoardInfo.SerialNumber;
+      printf("SerialNumber :\e[1m\e[33m %d\e[0m\n", serialNumber);
       printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
       printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
       
@@ -268,6 +270,10 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     }
   }
   
+  
+  LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
+  
+  
   /* *********************************************** */
   /* Get Channel Setting and Set Digitizer           */
   /* *********************************************** */
@@ -275,7 +281,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     printf("=================== reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
-        LoadChannelSetting(ch, "setting_" + to_string(ch) + ".txt");
+        LoadChannelSetting(ch, to_string(serialNumber) +"/setting_" + to_string(ch) + ".txt");
       }
     }
     printf("====================================== \n");
@@ -725,7 +731,6 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
 };
 
 void Digitizer::LoadGeneralSetting(string fileName){
-  const int numPara = 17;
   
   ifstream file_in;
   file_in.open(fileName.c_str(), ios::in);

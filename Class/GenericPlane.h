@@ -55,15 +55,16 @@ public:
   void         LoadCuts(TString cutFileName);
   void         CutCreator();
 
-  string GetLocation()    {return location;}
-  string GetClassName()   {return className;}
-  int    GetClassID()     {return classID;}
-  int    GetMode()        {return mode;}
-  uint   GetChannelMask() {return ChannelMask;}
-  int*   GetERange()      {return rangeE;}
-  int*   GetdERange()     {return rangeDE;}
-  int    GetEChannel()    {return chE;}
-  int    GetdEChannel()   {return chdE;}
+  string GetLocation()             {return location;}
+  string GetClassName()            {return className;}
+  int    GetClassID()              {return classID;}
+  int    GetMode()                 {return mode;}
+  uint   GetChannelMask()          {return ChannelMask;}
+  int*   GetERange()               {return rangeE;}
+  int*   GetdERange()              {return rangeDE;}
+  int    GetEChannel()             {return chE;}
+  int    GetdEChannel()            {return chdE;}
+  int    GetNChannelForRealEvent() {return NChannelForRealEvent;}
   
   TH1F * GetTH1F(TString name) {return (TH1F*)gROOT->FindObjectAny(name);};
   TH1F * GethE()               {return hE;}
@@ -92,6 +93,8 @@ protected:
   string location;  //this is for database tag
 
   uint ChannelMask;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  
+  int NChannelForRealEvent;
   
   int rangeDE[2]; // range for dE
   int rangeE[2];  // range for E
@@ -173,7 +176,8 @@ GenericPlane::GenericPlane(){
   rangeE[0] =      0; /// min range for E
   rangeE[1] =  60000; /// max range for E
   rangeTime =    500; /// range for Tdiff, nano-sec
-
+  
+  NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
   fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
   gStyle->SetOptStat("neiou");

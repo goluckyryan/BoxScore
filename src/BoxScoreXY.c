@@ -206,11 +206,12 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
   
+  string folder = to_string(dig.GetSerialNumber());
   FileIO file(rootFileName);
-  file.WriteMacro("generalSetting.txt");
+  file.WriteMacro(folder + "/generalSetting.txt");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-      file.WriteMacro(Form("setting_%i.txt", i));
+      file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), i));
     }
   }
   file.SetTree("tree", MaxNChannels);
@@ -287,7 +288,7 @@ int main(int argc, char *argv[]){
           printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
           dig.SetChannelThreshold(channel, threshold);
           file.Append();
-          file.WriteMacro(Form("setting_%i.txt", channel));
+          file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
         }
         PrintCommands();
@@ -307,7 +308,7 @@ int main(int argc, char *argv[]){
           int dyRange = (dig.GetChannelDynamicRange(channel) == 0 ? 1 : 0);        
           dig.SetChannelDynamicRange(channel, dyRange);
           file.Append();
-          file.WriteMacro(Form("setting_%i.txt", channel));
+          file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
         }
         PrintCommands();
@@ -417,7 +418,8 @@ int main(int argc, char *argv[]){
       dig.PrintEventBuildingStat(updatePeriod);
       
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      double totalRate = dig.GetNChannelEventCount(5)*1.0/timeRangeSec; /// get the event count for 5-channels
+      int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+      double totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec; 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0. ) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       

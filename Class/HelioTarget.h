@@ -53,6 +53,8 @@ HeliosTarget::HeliosTarget(){
   //chE = 7;   chEGain = 0;
   //mode = 1; ///default channel Gain is equal
   
+  NChannelForRealEvent = 5;
+  
   //=========== custom histograms for HelioTarget
   hX = NULL;
   hY = NULL;
