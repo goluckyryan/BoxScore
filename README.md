@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/176655556.svg)](https://zenodo.org/badge/latestdoi/176655556)
+
 # BoxScore
 The latest development is focus on Objectization of the program.
 The result is BoxScoreXY. 
