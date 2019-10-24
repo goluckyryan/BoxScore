@@ -42,6 +42,7 @@ public:
   virtual void SetCanvasDivision();
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
+  void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
   
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(vector<UInt_t> energy);
@@ -85,6 +86,16 @@ public:
   
   //=========== empty method for adding back from derivative Class
   virtual void SetOthersHistograms(){} /// this can be overwrite by derived class
+  virtual int  GetChG1() {}
+  virtual int  GetChG2() {}
+  virtual int  GetChG3() {}
+  virtual int  GetChG4() {}
+  virtual int GetG1Count()  {}
+  virtual int GetG2Count()  {}
+  virtual int GetG3Count()  {}
+  virtual int GetG4Count()  {}
+  virtual int GetdEECount() {}
+  virtual void SetCountZero() {}
 
 protected:
 
@@ -379,8 +390,8 @@ void GenericPlane::Fill(vector<UInt_t> energy){
   
   if ( !isHistogramSet ) return;
   
-  int E = energy[chE] + gRandom->Gaus(0, 500);
-  int dE = energy[chdE] + gRandom->Gaus(0, 500);
+  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
+  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
   
   hE->Fill(E);
   hdE->Fill(dE);

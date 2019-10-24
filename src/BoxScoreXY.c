@@ -157,14 +157,17 @@ int main(int argc, char *argv[]){
     gp = new GenericPlane();
     gp->SetChannelMask(0,0,0,0,1,0,0,1);
     gp->SetdEEChannels(0, 3);
+    gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
     gp->SetChannelMask(0,0,0,1,0,0,1,0);
     gp->SetdEEChannels(1, 4);
+    gp->SetNChannelForRealEvent(2);
   }else if ( location == "ZD" ) {
     gp = new GenericPlane();
     gp->SetChannelMask(0,0,1,0,0,1,0,0);
     gp->SetdEEChannels(2, 5);
+    gp->SetNChannelForRealEvent(2);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
@@ -286,7 +289,7 @@ int main(int argc, char *argv[]){
           int threshold;
           temp = scanf("%d", &threshold);
           printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
-          dig.SetChannelThreshold(channel, threshold);
+          dig.SetChannelThreshold(channel, folder, threshold);
           file.Append();
           file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
@@ -306,7 +309,7 @@ int main(int argc, char *argv[]){
           printf(" !!!!!!! Channel is closed. \n");
         }else{
           int dyRange = (dig.GetChannelDynamicRange(channel) == 0 ? 1 : 0);        
-          dig.SetChannelDynamicRange(channel, dyRange);
+          dig.SetChannelDynamicRange(channel, folder, dyRange);
           file.Append();
           file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
@@ -414,17 +417,34 @@ int main(int argc, char *argv[]){
       printf("Database             : %s\n", databaseName.Data());
       
       printf("\n");
+      
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
       
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
-      double totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec; 
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;      
+      string tag = "tag=" + location;
+     
+      double totalRate = 0; 
+      
+      if( gp->GetClassID() == 2 ){
+        totalRate = gp->GetdEECount()/timeRangeSec;
+      }else{
+         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;       
+      }
+      
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0. ) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      
-      string tag = "tag=" + location;
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
+      
+      /// for isomer
+      if( gp->GetClassID() == 2 ) {
+        WriteToDataBase( databaseName, "G1", tag, gp->GetG1Count()/timeRangeSec);
+        WriteToDataBase( databaseName, "G2", tag, gp->GetG2Count()/timeRangeSec);
+        ///WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
+        WriteToDataBase( databaseName, "G4", tag, gp->GetG4Count()/timeRangeSec);
+        gp->SetCountZero();
+      }
       
       if(gp->IsCutFileOpen()){
         for( int i = 0 ; i < gp->GetNumCut(); i++ ){

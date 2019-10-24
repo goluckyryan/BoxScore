@@ -18,6 +18,19 @@ public:
   void Draw();
 
   void ClearHistograms();
+  
+  int GetChG1() {return chG1;}
+  int GetChG2() {return chG2;}
+  int GetChG3() {return chG3;}
+  int GetChG4() {return chG4;}
+  
+  int GetG1Count()  {return countG[0];}
+  int GetG2Count()  {return countG[1];}
+  int GetG3Count()  {return countG[2];}
+  int GetG4Count()  {return countG[3];}
+  int GetdEECount() {return countG[4];}
+  
+  void SetCountZero();
 
 private:
   
@@ -28,6 +41,8 @@ private:
   TH1F * hG4;
   
   int chG1, chG2, chG3, chG4; 
+  
+  int countG[5]; // count for G1, G2, G3, G4, and dE-E; 
   
 };
 
@@ -48,7 +63,7 @@ IsoDetect::IsoDetect(){
   rangeTime =    500; /// range for Tdiff, nano-sec
   
   chdE = 0;  chdEGain = 0; 
-  chE  = 2;   chEGain = 0;
+  chE  = 1;   chEGain = 0;
   mode = 1; ///default channel Gain is equal
   
   //=========== custom histograms for HelioTarget
@@ -57,14 +72,14 @@ IsoDetect::IsoDetect(){
   hG3 = NULL;
   hG4 = NULL;
   
-  chG1 = 4;
-  chG2 = 5;
-  chG3 = 6;
-  chG4 = 7;
+  chG1 = 2;
+  chG2 = 3;
+  chG3 = 4;
+  chG4 = 5;
   
-  NChannelForRealEvent = 4;
+  NChannelForRealEvent = 1;
   
-  GenericPlane::SetChannelMask(1,1,1,1, 0,1,0,1);
+  GenericPlane::SetChannelMask(0,0,1,1,1,1,1,1);
   
   isHistogramSet = false;
   
@@ -81,16 +96,16 @@ IsoDetect::~IsoDetect(){
 
 void IsoDetect::SetOthersHistograms(){
   
-  int bin = 200;
+  int bin = 7990/2;
   float labelSize = 0.08;
   
-  float xMin = 0;
-  float xMax = 160000;
+  float xMin = 10;
+  float xMax = 8000;
   
-  hG1 = new TH1F("hG1", "G1; [ch]; count", bin, xMin, xMax);
-  hG2 = new TH1F("hG2", "G2; [ch]; count", bin, xMin, xMax);
-  hG3 = new TH1F("hG3", "G3; [ch]; count", bin, xMin, xMax);
-  hG4 = new TH1F("hG4", "G4; [ch]; count", bin, xMin, xMax);
+  hG1 = new TH1F("hG1", Form("G1 (ch=%d); [keV]; count / 2 keV", chG1), bin, xMin, xMax);
+  hG2 = new TH1F("hG2", Form("G2 (ch=%d); [keV]; count / 2 keV", chG2), bin, xMin, xMax);
+  hG3 = new TH1F("hG3", Form("G3 (ch=%d); [keV]; count / 2 keV", chG3), bin, xMin, xMax);
+  hG4 = new TH1F("hG4", Form("G4 (ch=%d); [keV]; count / 2 keV", chG4), bin, xMin, xMax);
   
   hG1->GetXaxis()->SetLabelSize(labelSize);
   hG1->GetYaxis()->SetLabelSize(labelSize);
@@ -158,11 +173,21 @@ void IsoDetect::Fill(vector<UInt_t> energy){
   if ( !isHistogramSet ) return;
   
   GenericPlane::Fill(energy);
-   
-  hG1->Fill(energy[chG1]);
-  hG2->Fill(energy[chG2]);
-  hG3->Fill(energy[chG3]);
-  hG4->Fill(energy[chG4]);
+  
+  double en;
+  
+  ///Dynamic Range = 0.5
+  ///if( energy[chG1] > 100 ) en1 = (double)energy[chG1] * (0.146805) - 0.338782; hG1->Fill(en1);
+  ///if( energy[chG2] > 100 ) en2 = (double)energy[chG2] * (0.176429) + 0.312143; hG2->Fill(en2);
+  ///if( energy[chG3] > 100 ) hG3->Fill(energy[chG3]);
+  ///if( energy[chG4] > 100 ) en4 = (double)energy[chG4] * (0.172727) + 0.518182; hG4->Fill(en4);
+  
+  /// Dynamic Rnage = 2.0
+  if( energy[chG1] > 10 ) {en = (double)energy[chG1] * (0.593607) + 3.22374; hG1->Fill(en); countG[0] ++ ;}
+  if( energy[chG2] > 10 ) {en = (double)energy[chG2] * (0.711816) + 1.25937; hG2->Fill(en); countG[1] ++ ;}
+  if( energy[chG4] > 10 ) {en = (double)energy[chG4] * (0.700709) - 1.07801; hG4->Fill(en); countG[3] ++ ;}
+  
+  if( energy[chdE] > 100 && energy[chE] > 100 ) countG[4] ++;
   
 }
 
@@ -175,6 +200,10 @@ void IsoDetect::ClearHistograms(){
   hG3->Reset();
   hG4->Reset();
   
+}
+
+void IsoDetect::SetCountZero(){
+  for( int i = 0 ; i < 5 ; i ++ ) countG[i] = 0;
 }
 
 #endif

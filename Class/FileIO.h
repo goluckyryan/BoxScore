@@ -90,6 +90,7 @@ FileIO::~FileIO(){
 }
 
 void FileIO::WriteMacro(TString file){
+  //printf("writing file %s \n", file.Data());
   TMacro macro(file);
   TString writeName = file;
   int finddot = file.Last('.');

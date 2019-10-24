@@ -46,8 +46,8 @@ public:
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
   int  SetChannelParity(int ch, bool isPositive);
-  int  SetChannelThreshold(int ch, int threshold);
-  int  SetChannelDynamicRange(int ch, int dyRange);
+  int  SetChannelThreshold(int ch, string folder, int threshold);
+  int  SetChannelDynamicRange(int ch, string folder, int dyRange);
   
   //void SetRegister(uin32_t address, int ch, float value); 
   //void SetRegister(DigiReg regName, int ch, float value); 
@@ -356,7 +356,7 @@ Digitizer::~Digitizer(){
   delete buffer;
 }
 
-int Digitizer::SetChannelThreshold(int ch, int threshold){
+int Digitizer::SetChannelThreshold(int ch, string folder, int threshold){
   
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x106C +  (ch<<8), threshold);
   
@@ -365,7 +365,7 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
   if( ret == 0 ) {
     
     TString command;
-    command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' setting_%d.txt", threshold, ch);
+    command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' %s/setting_%d.txt", threshold, folder.c_str(), ch);
     system(command.Data());
     printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
     
@@ -375,7 +375,7 @@ int Digitizer::SetChannelThreshold(int ch, int threshold){
   return ret;
 }
 
-int Digitizer::SetChannelDynamicRange(int ch, int dyRange){
+int Digitizer::SetChannelDynamicRange(int ch, string folder, int dyRange){
   
   if( dyRange != 0 && dyRange != 1 ) {
     printf(" Dynamic Range can be either 0.5 Vpp (use 1) or 2.0 Vpp (use 0). \n");
@@ -387,7 +387,7 @@ int Digitizer::SetChannelDynamicRange(int ch, int dyRange){
   
   if( ret == 0 ) {
     TString command;
-    command.Form("sed -i '15s/.*/%d     \\/\\/input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp/' setting_%d.txt", dyRange, ch);
+    command.Form("sed -i '15s/.*/%d     \\/\\/input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp/' %s/setting_%d.txt", dyRange, folder.c_str(), ch);
     system(command.Data());
     printf("Done. Dynamic Range of ch-%d is %3.1f Vpp now.\n", ch, dyRange == 0 ? 2.0 : 0.5);
   }else{
