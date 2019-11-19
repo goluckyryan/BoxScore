@@ -90,11 +90,12 @@ FileIO::~FileIO(){
 }
 
 void FileIO::WriteMacro(TString file){
+  //printf("writing file %s \n", file.Data());
   TMacro macro(file);
   TString writeName = file;
   int finddot = file.Last('.');
   writeName.Remove(finddot);
-  macro.Write(writeName);
+  macro.Write(writeName,  TObject::kOverwrite);
 }
 
 void FileIO::SetTree(TString treeName, int NumChannel){

@@ -10,11 +10,10 @@ public:
   HeliosTarget();
   ~HeliosTarget();
   
-  void SetXYHistogram(float xMin, float xMax, float yMin, float yMax);
+  void SetOthersHistograms();
   void SetCanvasDivision();
   
   void Fill(vector<UInt_t> energy);
-  void FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void Draw();
 
@@ -25,8 +24,7 @@ private:
   TH1F * hX;
   TH1F * hY;
   TH2F * hXY;
-  
-  TH1F * hHit;
+
   
   TH1F * hX1, * hX2, * hY1, * hY2;
   
@@ -36,7 +34,28 @@ private:
 };
 
 HeliosTarget::HeliosTarget(){
+    
+  //=========== ClassName and ClassID is for class identification in BoxScoreXY
+  className = "HeliosTarget";
+  classID = 1;
+  location = "target";  //this is for database tag
   
+  //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
+  ChannelMask = 0xb6; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  
+  rangeDE[0] =     0; /// min range for dE
+  rangeDE[1] = 60000; /// max range for dE
+  rangeE[0] =      0; /// min range for E
+  rangeE[1] =  60000; /// max range for E
+  rangeTime =    500; /// range for Tdiff, nano-sec
+  
+  //chdE = 1;  chdEGain = 0; 
+  //chE = 7;   chEGain = 0;
+  //mode = 1; ///default channel Gain is equal
+  
+  NChannelForRealEvent = 5;
+  
+  //=========== custom histograms for HelioTarget
   hX = NULL;
   hY = NULL;
   hXY = NULL;
@@ -53,6 +72,8 @@ HeliosTarget::HeliosTarget(){
   
   chY1 = 2;
   chY2 = 4;
+  
+  GenericPlane::SetChannelMask(1,0,1,1, 0,1,1,0);
   
 }
 
@@ -71,10 +92,15 @@ HeliosTarget::~HeliosTarget(){
   
 }
 
-void HeliosTarget::SetXYHistogram(float xMin, float xMax, float yMin, float yMax){
+void HeliosTarget::SetOthersHistograms(){
   
   int bin = 200;
   float labelSize = 0.08;
+  
+  float xMin = -0.9;
+  float xMax =  0.9;
+  float yMin = -0.9;
+  float yMax =  0.9;
   
   hX = new TH1F("hX", "X; X[ch]; count", bin, xMin, xMax);
   hY = new TH1F("hY", "Y; Y[ch]; count", bin, yMin, yMax);
@@ -91,8 +117,6 @@ void HeliosTarget::SetXYHistogram(float xMin, float xMax, float yMin, float yMax
   hXY->GetYaxis()->SetLabelSize(labelSize);
   
   hXY->SetMinimum(1);
-  
-  hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
   
   hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 1000, 26000);
   hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 1000, 26000);
@@ -118,23 +142,12 @@ void HeliosTarget::SetCanvasDivision(){
   fCanvas->cd(2)->Divide(2,1); 
   fCanvas->cd(2)->cd(1)->Divide(2,2);
   fCanvas->cd(2)->cd(2)->Divide(2,2);
-  
-  /*
-  fCanvas->cd(2)->SetGridy();
-  fCanvas->cd(2)->SetTicky();
-  fCanvas->cd(2)->SetTickx();
-  
-  fCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
-  fCanvas->cd(1)->cd(2)->cd(3)->SetTickx(); 
-  fCanvas->cd(1)->cd(2)->cd(4)->SetLogy(); 
-  */
+
 }
 
 void HeliosTarget::Draw(){
   
   if ( !isHistogramSet ) return;
-  //GenericPlane::Draw();
   
   //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   fCanvas->cd(1)->cd(1); hdEE->Draw("colz");

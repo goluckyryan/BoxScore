@@ -54,8 +54,8 @@ using namespace std;
 //TODO 2) change the tree structure to be like HELIOS
 
 //========== General setting;
+float DCOffset[MaxNChannels] = { 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
 unsigned long long int ch2ns = 2.;
-float DCOffset = 0.2;
 bool PositivePulse = true;
 uint RecordLength = 20000;   // Num of samples of the waveforms (only for waveform mode)
 uint PreTriggerSize = 2000;
@@ -145,39 +145,29 @@ void ReadGeneralSetting(string fileName){
       if( pos > 1 ){
         if( count > numPara - 1) break;
         
-        if( count == 0 )  DCOffset = atof(line.substr(0, pos).c_str());
-        if( count == 1 )  {
-          if( line.substr(0, 4) == "true" ) {
-            PositivePulse = true;
-          }else{
-            PositivePulse = false;
-          }
-        }
-        if( count == 2  )   RecordLength = atoi(line.substr(0, pos).c_str());
-        if( count == 3  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
-        if( count == 4  )   updatePeriod = atoi(line.substr(0, pos).c_str());
-        if( count == 5  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
-        if( count == 6  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
-        if( count == 7 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
-        if( count == 8 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
-        if( count == 9 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
-        if( count == 10 )  rangeTime = atof(line.substr(0, pos).c_str());
-        if( count == 11 )  RateWindow = atof(line.substr(0, pos).c_str());
-        if( count == 12 )  {
+        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
+        if( count == 1  ) CoincidentWindow = atof(line.substr(0, pos).c_str());
+        if( count == 2  ) PreTriggerSize = atoi(line.substr(0, pos).c_str());
+        if( count == 3  )   updatePeriod = atoi(line.substr(0, pos).c_str());
+        if( count == 4  )  rangeE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 5 )  rangeE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 6 ) rangeDE[0] = atoi(line.substr(0, pos).c_str());
+        if( count == 7 ) rangeDE[1] = atoi(line.substr(0, pos).c_str());
+        if( count == 8 )  rangeTime = atof(line.substr(0, pos).c_str());
+        if( count == 9 )  RateWindow = atof(line.substr(0, pos).c_str());
+        if( count == 10 )  {
           if( line.substr(0, 4) == "true" ) {
             isSaveRaw = true;
           }else{
             isSaveRaw = false;
           }
         }
-        if( count == 13 )  databaseName = line.substr(0, pos).c_str();
+        if( count == 11 )  databaseName = line.substr(0, pos).c_str();
         count ++;
       }
     }
     
     //print setting
-    printf(" %-20s  %.3f (0x%04x)\n", "DC offset", DCOffset, uint( 0xffff * DCOffset ));
-    printf(" %-20s  %s\n", "Positive Pulse", PositivePulse ? "true" : "false" );
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf(" %-20s  %d ch\n", "Pre-Trigger Size", PreTriggerSize);
     printf(" %-20s  %d msec\n", "Update period", updatePeriod);
@@ -194,7 +184,7 @@ void ReadGeneralSetting(string fileName){
 
 float* ReadChannelSetting(int ch, string fileName){
 
-  const int numPara = 20;
+  const int numPara = 23;
   float * para = new float[numPara];
   
   ifstream file_in;
@@ -217,15 +207,15 @@ float* ReadChannelSetting(int ch, string fileName){
     para[10] = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
     para[11] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 
-    para[12] = 10;      // Energy Fine gain
-    para[13] = 500;     // Baseline holdoff (ns)        
-    para[14] = 1.0;     // Energy Normalization Factor
-    para[15] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
-    para[16] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
-    para[17] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
-    para[18] = 100;     // Rise Time Validation Window (ns)
+    para[15] = 10;      // Energy Fine gain
+    para[16] = 500;     // Baseline holdoff (ns)        
+    para[17] = 1.0;     // Energy Normalization Factor
+    para[18] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
+    para[19] = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
+    para[20] = 0;       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
+    para[21] = 100;     // Rise Time Validation Window (ns)
     
-    para[19] = -1.0;      // gain of the channel; if -1, default based on input-dynamic range;
+    para[22] = -1.0;      // gain of the channel; if -1, default based on input-dynamic range;
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
     string line;
@@ -236,6 +226,7 @@ float* ReadChannelSetting(int ch, string fileName){
       if( pos > 1 ){
         if( count > numPara - 1) break;
         para[count] = atof(line.substr(0, pos).c_str());
+        if( count == 12 ) DCOffset[ch] = atof(line.substr(0, pos).c_str());;
         //printf("%d | %d \n", count, para[count]);
         count ++;
       }
@@ -360,7 +351,7 @@ int ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PHA_Par
         if (Params.ChannelMask & (1<<i)) {
             // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
             //ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
-            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, uint( 0xffff * DCOffset ));
+            ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, uint( 0xffff * DCOffset[i] ));
             
             // Set the Pre-Trigger size (in samples)
             ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, PreTriggerSize);
@@ -641,13 +632,13 @@ int main(int argc, char *argv[]){
     DPPParams.nsbl[ch]    = (int) para[10];            // Ns baseline, number of samples for baseline average calculation. Opti
     InputDynamicRange[ch] = (int) para[11];
     
-    EnergyFinegain[ch]       = (int) para[12];            // Energy Fine Gain
-    DPPParams.blho[ch]       = (int) para[13];            // Baseline holdoff (ns)
-    DPPParams.enf[ch]        = para[14];             // Energy Normalization Factor, it is float, but please us
-    DPPParams.decimation[ch] = (int) para[15];      // decimation (the input signal samples are averaged within
-    DPPParams.dgain[ch]      = (int) para[16];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
-    DPPParams.trgwin[ch]     = (int) para[17];          // Enable Rise time Discrimination. Options: 0->disabled; 1
-    DPPParams.twwdt[ch]      = (int) para[18];           // Rise Time Validation Window (ns)
+    EnergyFinegain[ch]       = (int) para[15];            // Energy Fine Gain
+    DPPParams.blho[ch]       = (int) para[16];            // Baseline holdoff (ns)
+    DPPParams.enf[ch]        = para[17];             // Energy Normalization Factor, it is float, but please us
+    DPPParams.decimation[ch] = (int) para[18];      // decimation (the input signal samples are averaged within
+    DPPParams.dgain[ch]      = (int) para[19];           // digital gain. Options: 0->DigitalGain=1; 1->DigitalGa
+    DPPParams.trgwin[ch]     = (int) para[20];          // Enable Rise time Discrimination. Options: 0->disabled; 1
+    DPPParams.twwdt[ch]      = (int) para[21];           // Rise Time Validation Window (ns)
     
     chGain[ch] = para[19];
 
@@ -669,7 +660,7 @@ int main(int argc, char *argv[]){
     printf("Can't read board info\n");
     return 0;
   }
-  printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, boardID);
+  printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d, handle : %d\n", BoardInfo.ModelName, boardID, handle);
   printf("Number of Channels : %d\n", BoardInfo.Channels);
   printf("SerialNumber : %d\n", BoardInfo.SerialNumber);
   printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);

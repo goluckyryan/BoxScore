@@ -47,29 +47,14 @@
 #include "../Class/FileIO.h"
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
+#include "../Class/IsoDetect.h"
 
 using namespace std;
 
 #define MaxNChannels 8
 
-//TODO 1) change DCoffset, pulseParity to channel
-//TODO 2) change the tree structure to be like HELIOS
-
-//========== General setting;
-unsigned long long int ch2ns = 2.;
-
-uint ChannelMask = 0xb6;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
-
+//========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
-
-int chE = 7;   //channel ID for E
-int chDE = 1;  //channel ID for dE
-
-int rangeDE[2] = {0, 60000}; // range for dE
-int rangeE[2] = { 0, 60000};  // range for E
-double rangeTime = 500;  // range for Tdiff, nano-sec
-
-float RateWindow = 10.; // sec
 
 bool isSaveRaw = false; // saving Raw data
 
@@ -88,39 +73,31 @@ bool  QuitFlag = false;
 
 long get_time();
 static struct termios g_old_kbd_mode;
-static void cooked(void);
+static void cooked(void);  ///set keyboard behaviour as normal
+static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
 int keyboardhit();
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
 
 void PrintCommands(){
   printf("\n");
-  printf("s ) Start acquisition\n");
-  printf("a ) Stop acquisition\n");
-  printf("z ) Change Threhsold\n");
-  printf("c ) Cuts Creator\n");
-  printf("y ) Clear histograms\n");
-  printf("p ) Read Channel setting\n");
-  printf("q ) Quit\n");
-}
-
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
-  if( value >= 0 ){
-    TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
-    //printf("%s \n", databaseStr.Data());
-    system(databaseStr.Data());
-  }
+  printf("\e[96m=============  Command List  ===================\e[0m\n");
+  printf("s ) Start acquisition   z ) Change Threhsold\n");
+  printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
+  printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
+  printf("q ) Quit                y ) Clear histograms\n");
+  printf("                        p ) Print Channel setting\n");
+  printf("                        o ) Print Channel threshold and DynamicRange\n");
 }
 
 void paintCanvas(){
-  //This function is running in a parrellel thread.
-  //This continously update the Root system with user input
-  //avoid frozen
+  ///This function is running in a parrellel thread.
+  ///This continously update the Root system with user input
+  ///avoid frozen
   do{
-    //cCanvas->Modified();
     gSystem->ProcessEvents();
-    sleep(0.01); // 10 mili-sec
+    sleep(0.01); /// 10 mili-sec
   }while(!QuitFlag);
 }
 
@@ -129,62 +106,115 @@ void paintCanvas(){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
-  if( argc != 2 && argc != 3 ) {
-    printf("Please input boardID ! (optional root file name)\n");
+  if( argc != 3 && argc != 4 ) {
     printf("usage:\n");
-    printf("$./BoxScoreXY boardID (tree.root)\n");
+    printf("$./BoxScoreXY boardID location (tree.root) \n");
+    printf("                         | \n");
+    printf("                         +-- testing \n");
+    printf("                         +-- exit \n");
+    printf("                         +-- cross \n");
+    printf("                         +-- ZD (zero-degree) \n");
+    printf("                         +-- XY (Helios target XY) \n");
+    printf("                         +-- iso (isomer with Glover Ge detector) \n");
     return -1;
   }
   
+  const int nInput = argc;
   const int boardID = atoi(argv[1]);
-  location = "Target";
-    
+  string location = argv[2];
+  TString rootFileName;
+  if( argc == 4 ) rootFileName = argv[3];
+  
   char hostname[100];
   gethostname(hostname, 100);
   
   time_t now = time(0);
-  tm *ltm = localtime(&now);
-  
+  tm *ltm = localtime(&now);  
   int year = 1900 + ltm->tm_year;
   int month = 1 + ltm->tm_mon;
   int day = ltm->tm_mday;
   int hour = ltm->tm_hour;
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
-
-  TString rootFileName;
-  rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
-  if( argc == 3 ) rootFileName = argv[2];
+  
+  //==== default root file name based on datetime and plane
+  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  
+  TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
+   
+  //############ The Class Selection should be the only thing change 
+  GenericPlane * gp = NULL ;  
+  
+  ///------Initialize the ChannelMask and histogram setting
+  if( location == "testing") {
+    gp = new GenericPlane();
+    gp->SetChannelMask(1,1,1,1,1,1,1,1);
+    printf(" testing ### dE = ch-0, E = ch-4 \n");
+    printf(" testing ### output file is test.root \n");
+    gp->SetdEEChannels(0, 4);
+    rootFileName = "test.root";
+  }else if( location == "exit") {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0,0,0,0,1,0,0,1);
+    gp->SetdEEChannels(0, 3);
+    gp->SetNChannelForRealEvent(2);
+  }else if ( location == "cross" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0,0,0,1,0,0,1,0);
+    gp->SetdEEChannels(1, 4);
+    gp->SetNChannelForRealEvent(2);
+  }else if ( location == "ZD" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(0,0,1,0,0,1,0,0);
+    gp->SetdEEChannels(2, 5);
+    gp->SetNChannelForRealEvent(2);
+  }else if ( location == "XY" ) {
+    gp = new HeliosTarget();
+  }else if ( location == "iso" ) {
+    gp = new IsoDetect();
+  }
   
   printf("******************************************** \n");
-  printf("****         Real Time PID              **** \n");
+  printf("****          BoxScoreXY                **** \n");
   printf("******************************************** \n");
   printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
   printf("******************************************** \n");
   printf("   board ID : %d \n", boardID );
-  printf("   Location : %s \n", location.c_str() );
+  printf("   Location :\e[33m %s \e[0m\n", location.c_str() );
+  printf("      Class :\e[33m %s \e[0m\n", gp->GetClassName().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
   
-  TApplication app ("app", &argc, argv);
+  /* *************************************************************************************** */
+  /* Canvas and Digitzer                                                                               */
+  /* *************************************************************************************** */
   
+  uint ChannelMask = gp->GetChannelMask();
   Digitizer dig(boardID, ChannelMask);
-  dig.SetChannelParity(1, true); // move this into setting file
-  dig.SetChannelParity(2, false);
-  dig.SetChannelParity(4, false);
-  dig.SetChannelParity(5, true);
-  dig.SetCoincidentTimeWindow(100000); // move this to general setting
   if( !dig.IsConnected() ) return -1;
+
+  gp->SetCanvasDivision();  
+  gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
+  gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
+  gp->SetGenericHistograms(); ///must be after SetChannelGain  
+  
+  ///things for derivative of GenericPlane
+  if( gp->GetClassID() != 0  ) gp->SetOthersHistograms(); 
+  
+  //====== load cut and Draw
+  gp->LoadCuts("cutsFile.root");
+  gp->Draw();
   
   /* *************************************************************************************** */
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
   
+  string folder = to_string(dig.GetSerialNumber());
   FileIO file(rootFileName);
-  file.WriteMacro("generalSetting.txt");
+  file.WriteMacro(folder + "/generalSetting.txt");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-      file.WriteMacro(Form("setting_%i.txt", i));
+      file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), i));
     }
   }
   file.SetTree("tree", MaxNChannels);
@@ -192,21 +222,11 @@ int main(int argc, char *argv[]){
   
   FileIO * rawFile = NULL ;
   if( isSaveRaw ) {
-    rawFile = new FileIO("raw.root");
-    rawFile->SetTree("rawTree", 1);
+    ///rawFile = new FileIO("raw.root");
+    ///rawFile->SetTree("rawTree", 1);
   }
   
-  HeliosTarget gp;
-  gp.SetCanvasDivision();
-  gp.SetdEEChannels(chDE, chE);
-  gp.SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
-  gp.SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
-  gp.SetHistograms(rangeDE[0], rangeDE[1], rangeE[0], rangeE[1], rangeTime);
-  gp.SetXYHistogram(-0.9, 0.9, -0.9, 0.9);
-  gp.LoadCuts("cutsFile.root");
-  gp.Draw();
-  
-  thread paintCanvasThread(paintCanvas); // using loop keep root responding
+  thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -215,28 +235,26 @@ int main(int argc, char *argv[]){
   uint32_t PreviousTime = get_time();
   uint32_t StartTime = 0, StopTime, CurrentTime, ElapsedTime;
   PrintCommands();
+
+  const unsigned long long int ch2ns = dig.GetChannelToNanoSec();
   
   //##################################################################     
   while(!QuitFlag) {
     
     if(keyboardhit()) {
       char c = getch();
-      
       if (c == 'q') { //========== quit
         QuitFlag = true;
-        
-        if( gp.IsCutFileOpen() ) {          
+        if( gp->IsCutFileOpen() ) {          
           file.Append();
-          file.WriteObjArray(gp.GetCutList());
+          file.WriteObjArray(gp->GetCutList());
           file.Close();
         }
-        
       }
-      
       if ( c == 'y'){ //========== reset histograms
-        gp.ClearHistograms();
+        gp->ClearHistograms();
+        gp->Draw();
       }
-      
       if (c == 'p') { //==========read channel setting form digitizer
         dig.StopACQ();
         for( int id = 0 ; id < MaxNChannels ; id++ ) {
@@ -254,26 +272,81 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
-        
+        PrintCommands();
       }
-      if (c == 'z')  { //========== Change threhold
+      if (c == 'z')  { //========== Change threshold
         dig.StopACQ();
         dig.ClearRawData();
+        cooked(); ///set keyboard need enter to responds
         int channel;
-        printf("Please tell me which channel (type and press enter)?");
+        printf("Please tell me which channel ? ");
         int temp = scanf("%d", &channel);
-        printf("\nOK, you want to chanhe the threshold of ch=%d, to what?", channel);
-        int threshold;
-        temp = scanf("%d", &threshold);
-        printf("\nNow, I will change the threshold of ch=%d to %d. \n", channel, threshold);
-        dig.SetChannelThreshold(channel, threshold);
+        if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ){
+          printf(" !!!!!! Channel is closed. \n");
+        }else{
+          uint32_t present_threshold = dig.GetChannelThreshold(channel); 
+          printf("The threshold of ch-\e[33m%d\e[0m, From \e[33m%d\e[0m to what ? ", channel, present_threshold);
+          int threshold;
+          temp = scanf("%d", &threshold);
+          printf("OK, the threshold of ch-\e[33m%d\e[0m change to \e[33m%d\e[0m. \n", channel, threshold);
+          dig.SetChannelThreshold(channel, folder, threshold);
+          file.Append();
+          file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
+          file.Close();
+        }
+        PrintCommands();
+        uncooked();
+      }
+      if (c == 'k')  { //========== Change Dynamic Range
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked(); ///set keyboard need enter to responds
+        dig.PrintDynamicRange();
+        int channel;
+        printf("Please tell me which channel to switch ( 2.0 Vpp <-> 0.5 Vpp ) ? ");
+        int temp = scanf("%d", &channel);
+        if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ) {
+          printf(" !!!!!!! Channel is closed. \n");
+        }else{
+          int dyRange = (dig.GetChannelDynamicRange(channel) == 0 ? 1 : 0);        
+          dig.SetChannelDynamicRange(channel, folder, dyRange);
+          file.Append();
+          file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
+          file.Close();
+        }
+        PrintCommands();
+        uncooked();
+      }
+      if (c == 'o')  { //========== Print threshold and Dynamic Range
+        dig.StopACQ();
+        dig.ClearRawData();
+        dig.PrintThresholdAndDynamicRange();
+        PrintCommands();
+      }
+      if( c == 'x' ){ //========== Change coincident time window
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        int coinTime;
+        printf("Change coincident time window from \e[33m%d\e[0m ns to ? ", dig.GetCoincidentTimeWindow());
+        int temp = scanf("%d", &coinTime);
+        dig.SetCoincidentTimeWindow(coinTime);
+        gp->SetCoincidentTimeWindow(coinTime);
+        printf("Done, the coincident time window is now \e[33m%d\e[0m.\n", dig.GetCoincidentTimeWindow());
+        gp->Draw();
+        PrintCommands();
+        uncooked();
       }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
         dig.ClearRawData();
         
-        int mode = gp.GetMode();
+        int mode = gp->GetMode();
         float * chGain = dig.GetChannelGain(); 
+        int * rangeE = gp->GetERange();
+        int * rangeDE = gp->GetdERange();
+        int chE = gp->GetEChannel();
+        int chDE = gp->GetdEChannel();
         
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + to_string(chDE) + " ";
@@ -288,49 +361,51 @@ int main(int argc, char *argv[]){
         printf("%s\n", expression.c_str());
         system(expression.c_str());
         
-        gp.LoadCuts("cutsFile.root");
+        gp->LoadCuts("cutsFile.root");
         PrintCommands();
-        
       }
-    }
+    }//------------ End of keyboardHit
     
     if (!dig.IsRunning()) {
-      sleep(0.01); // 10 mili-sec
+      sleep(0.01); /// pause 10 mili-sec
       continue;
     }
     
-    dig.ReadData(); //the digitizer will output a channel after a channel., so data should be read as fast as possible, that the digitizer will not store any data.
+    ///the digitizer will output a channel after a channel., 
+    ///so data should be read as fast as possible, that the digitizer will not store any data.
+    dig.ReadData(); 
     
     if( isSaveRaw ) {
-      //for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
-        //rawFile.FillTree();
-      //}
+      ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
+      ///  rawFile.FillTree();
+      ///}
     }
     
     //##################################################################
     CurrentTime = get_time();
-    ElapsedTime = CurrentTime - PreviousTime; /* milliseconds */
+    ElapsedTime = CurrentTime - PreviousTime; /// milliseconds
 
     if (ElapsedTime > updatePeriod) {
       
-      // Fill TDiff
+      //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
-        gp.FillTimeDiff((float)timeDiff * ch2ns);
+        gp->FillTimeDiff((float)timeDiff * ch2ns);
       }
       
       file.Append();
       double fileSize = file.GetFileSize() ;
 
       int buildID = dig.BuildEvent(isDebug); 
-      gp.ZeroCountOfCut();
+      gp->ZeroCountOfCut();
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){          
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp.Fill(dig.GetEnergy(i));
+          gp->Fill(dig.GetEnergy(i));
         }
       }
-      gp.FillHit(dig.GetNChannelEvent());
+      
+      gp->FillHit(dig.GetNChannelEventCount()); 
       
       //=========================== Display
       if( !isDebug) system("clear");
@@ -342,38 +417,56 @@ int main(int argc, char *argv[]){
       printf("Database             : %s\n", databaseName.Data());
       
       printf("\n");
+      
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
       
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      //double totalRate = dig.GetEventBuiltCount()*1.0/timeRangeSec;
-      double totalRate = dig.GetNChannelEvent(5)*1.0/timeRangeSec;
-      printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0. ) gp.FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;      
       string tag = "tag=" + location;
+     
+      double totalRate = 0; 
+      
+      if( gp->GetClassID() == 2 ){
+        totalRate = gp->GetdEECount()/timeRangeSec;
+      }else{
+         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;       
+      }
+      
+      printf(" Rate( all) :%7.2f pps\n", totalRate);
+      if( totalRate >= 0. ) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
       
-      if(gp.IsCutFileOpen()){
-        for( int i = 0 ; i < gp.GetNumCut(); i++ ){
-          double count = gp.GetCountOfCut(i)*1.0/timeRangeSec;
-          printf(" Rate(%4s) :%7.2f pps\n", gp.GetCutName(i).Data(), count);
-          //============= write to database 
-          WriteToDataBase(databaseName, gp.GetCutName(i).Data(), tag, count);
+      /// for isomer
+      if( gp->GetClassID() == 2 ) {
+        WriteToDataBase( databaseName, "G1", tag, gp->GetG1Count()/timeRangeSec);
+        WriteToDataBase( databaseName, "G2", tag, gp->GetG2Count()/timeRangeSec);
+        ///WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
+        WriteToDataBase( databaseName, "G4", tag, gp->GetG4Count()/timeRangeSec);
+        gp->SetCountZero();
+      }
+      
+      if(gp->IsCutFileOpen()){
+        for( int i = 0 ; i < gp->GetNumCut(); i++ ){
+          double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
+          printf(" Rate(%4s) :%7.2f pps\n", gp->GetCutName(i).Data(), count);
+          //----------------- write to database 
+          WriteToDataBase(databaseName, gp->GetCutName(i).Data(), tag, count);
         }
       }
       
-      //Draw histogram 
-      gp.Draw();
+      //============ Draw histogram 
+      gp->Draw();
       
-      // wirte histogram into tree
-      file.WriteHistogram(gp.GethdEtotE());
-      file.WriteHistogram(gp.GethE());
-      file.WriteHistogram(gp.GethdE());
-      file.WriteHistogram(gp.GethtotE());
-      file.WriteHistogram(gp.GethdEE());
-      file.WriteHistogram(gp.GethTDiff());
-      file.WriteHistogram(gp.GetRateGraph(), "rateGraph");
+      //============ wirte histogram into tree
+      // TODO, a generic method for saving all histogram even in derivative class
+      file.WriteHistogram(gp->GethdEtotE());
+      file.WriteHistogram(gp->GethE());
+      file.WriteHistogram(gp->GethdE());
+      file.WriteHistogram(gp->GethtotE());
+      file.WriteHistogram(gp->GethdEE());
+      file.WriteHistogram(gp->GethTDiff());
+      file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
       
       file.Close();
       
@@ -383,10 +476,10 @@ int main(int argc, char *argv[]){
       
     }
 
-  } // End of readout loop
+  } //============== End of readout loop
   
   if( isSaveRaw ) {
-    rawFile->Close();
+    ///rawFile->Close();
   }
   
   paintCanvasThread.detach();
@@ -414,11 +507,8 @@ static void cooked(void){
   tcsetattr(0, TCSANOW, &g_old_kbd_mode);
 }
 
-static void raw(void){
-  static char init;
+static void uncooked(void){
   struct termios new_kbd_mode;
-
-  if(init) return;
   /* put keyboard (stdin, actually) in raw, unbuffered mode */
   tcgetattr(0, &g_old_kbd_mode);
   memcpy(&new_kbd_mode, &g_old_kbd_mode, sizeof(struct termios));
@@ -426,6 +516,13 @@ static void raw(void){
   new_kbd_mode.c_cc[VTIME] = 0;
   new_kbd_mode.c_cc[VMIN] = 1;
   tcsetattr(0, TCSANOW, &new_kbd_mode);
+}
+
+static void raw(void){
+  static char init;
+  if(init) return;
+  /* put keyboard (stdin, actually) in raw, unbuffered mode */
+  uncooked();
   /* when we exit, go back to normal, "cooked" mode */
   atexit(cooked);
 
@@ -436,8 +533,8 @@ int getch(void){
   unsigned char temp;
   raw();
   /* stdin = fd 0 */
-  if(read(0, &temp, 1) != 1)
-  return 0;
+  if(read(0, &temp, 1) != 1) return 0;
+  //printf("%s", &temp);
   return temp;
 }
 
@@ -454,8 +551,16 @@ int keyboardhit(){
   timeout.tv_sec = timeout.tv_usec = 0;
   status = select(0 + 1, &read_handles, NULL, NULL, &timeout);
   if(status < 0){
-    printf("select() failed in kbhit()\n");
+    printf("select() failed in keyboardhit()\n");
     exit(1);
   }
   return (status);
+}
+
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+  if( value >= 0 ){
+    TString databaseStr;
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    system(databaseStr.Data());
+  }
 }
