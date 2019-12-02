@@ -14,6 +14,7 @@ public:
   void SetOthersHistograms();
   
   void Fill(vector<UInt_t> energy);
+  void Fill(vector<vector<UInt_t>> energy);
   
   void Draw();
 
@@ -83,6 +84,7 @@ IsoDetect::IsoDetect(){
   
   isHistogramSet = false;
   
+  SetCountZero();
 }
 
 IsoDetect::~IsoDetect(){
@@ -96,28 +98,34 @@ IsoDetect::~IsoDetect(){
 
 void IsoDetect::SetOthersHistograms(){
   
-  int bin = 7990/2;
+  //int bin = 0/2;
   float labelSize = 0.08;
   
   float xMin = 10;
   float xMax = 8000;
+  int resol = 2; //keV
+  int bin = (xMax - xMin)/resol;
   
-  hG1 = new TH1F("hG1", Form("G1 (ch=%d); [keV]; count / 2 keV", chG1), bin, xMin, xMax);
-  hG2 = new TH1F("hG2", Form("G2 (ch=%d); [keV]; count / 2 keV", chG2), bin, xMin, xMax);
-  hG3 = new TH1F("hG3", Form("G3 (ch=%d); [keV]; count / 2 keV", chG3), bin, xMin, xMax);
-  hG4 = new TH1F("hG4", Form("G4 (ch=%d); [keV]; count / 2 keV", chG4), bin, xMin, xMax);
+  hG1 = new TH1F("hG1", Form("G1 (ch=%d); [keV]; count / %d keV", chG1, resol), bin, xMin, xMax);
+  hG2 = new TH1F("hG2", Form("G2 (ch=%d); [keV]; count / %d keV", chG2, resol), bin, xMin, xMax);
+  hG3 = new TH1F("hG3", Form("G3 (ch=%d); [keV]; count / %d keV", chG3, resol), bin, xMin, xMax);
+  hG4 = new TH1F("hG4", Form("G4 (ch=%d); [keV]; count / %d keV", chG4, resol), bin, xMin, xMax);
   
-  hG1->GetXaxis()->SetLabelSize(labelSize);
-  hG1->GetYaxis()->SetLabelSize(labelSize);
+  //hG1->GetXaxis()->SetLabelSize(labelSize);
+  //hG1->GetYaxis()->SetLabelSize(labelSize);
+  //
+  //hG2->GetXaxis()->SetLabelSize(labelSize);
+  //hG2->GetYaxis()->SetLabelSize(labelSize);
+  //
+  //hG3->GetXaxis()->SetLabelSize(labelSize);
+  //hG3->GetYaxis()->SetLabelSize(labelSize);
+  //
+  //hG4->GetXaxis()->SetLabelSize(labelSize);
+  //hG4->GetYaxis()->SetLabelSize(labelSize);
   
-  hG2->GetXaxis()->SetLabelSize(labelSize);
-  hG2->GetYaxis()->SetLabelSize(labelSize);
-  
-  hG3->GetXaxis()->SetLabelSize(labelSize);
-  hG3->GetYaxis()->SetLabelSize(labelSize);
-  
-  hG4->GetXaxis()->SetLabelSize(labelSize);
-  hG4->GetYaxis()->SetLabelSize(labelSize);
+  hG1->SetLineColor(2);
+  hG2->SetLineColor(4);
+  hG4->SetLineColor(6);
   
 }
 
@@ -139,14 +147,23 @@ void IsoDetect::Draw(){
   if ( !isHistogramSet ) return;
   
   //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
-  fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
+  
+  //int maxY1 = hG1->GetMaximum();
+  //int maxY2 = hG2->GetMaximum();
+  //int maxY4 = hG4->GetMaximum();
+  //
+  //int  maxY = TMath::Max(TMath::Max(maxY1, maxY2), maxY4)*1.2;
+  //
+  //hG2->SetAxisRange(0, maxY, "Y");
+  
+  fCanvas->cd(1)->cd(1); hG4->Draw(); hG2->Draw("same"); hG1->Draw("same");// hdEE->Draw("colz");
 
-  if( numCut > 0 ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      cutG->Draw("same");
-    }
-  }
+  //if( numCut > 0 ){
+  //  for( int i = 0; i < numCut; i++){
+  //    cutG = (TCutG *) cutList->At(i);
+  //    cutG->Draw("same");
+  //  }
+  //}
 
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
@@ -182,12 +199,26 @@ void IsoDetect::Fill(vector<UInt_t> energy){
   ///if( energy[chG3] > 100 ) hG3->Fill(energy[chG3]);
   ///if( energy[chG4] > 100 ) en4 = (double)energy[chG4] * (0.172727) + 0.518182; hG4->Fill(en4);
   
-  /// Dynamic Rnage = 2.0
-  if( energy[chG1] > 10 ) {en = (double)energy[chG1] * (0.593607) + 3.22374; hG1->Fill(en); countG[0] ++ ;}
-  if( energy[chG2] > 10 ) {en = (double)energy[chG2] * (0.711816) + 1.25937; hG2->Fill(en); countG[1] ++ ;}
-  if( energy[chG4] > 10 ) {en = (double)energy[chG4] * (0.700709) - 1.07801; hG4->Fill(en); countG[3] ++ ;}
+  /// Dynamic Range = 2.0
+  if( energy[chG1] > 10 ) {en = (double)energy[chG1] * (0.593607) + 3.22374; hG1->Fill(en);}
+  if( energy[chG2] > 10 ) {en = (double)energy[chG2] * (0.711816) + 1.25937; hG2->Fill(en);}
+  if( energy[chG4] > 10 ) {en = (double)energy[chG4] * (0.700709) - 1.07801; hG4->Fill(en);}
+  
+  
+  if( 210 > energy[chG1] && energy[chG1] > 200 ) countG[0]++;
+  if( 175 > energy[chG2] && energy[chG2] > 166 ) countG[1]++;
+  if( 175 > energy[chG4] && energy[chG4] > 169 ) countG[3]++;
   
   if( energy[chdE] > 100 && energy[chE] > 100 ) countG[4] ++;
+  
+}
+
+void IsoDetect::Fill(vector<vector<UInt_t>> Energy){
+  
+  for( int i = 0; i < Energy.size() ; i++){
+    vector<UInt_t> energy = Energy[i];
+    Fill(energy);
+  }
   
 }
 

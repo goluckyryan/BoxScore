@@ -1,8 +1,8 @@
 /******************************************************************************
-*  This program is build upon the sample from CAEN. The use of CERN/ROOT 
-*  Library is wrote by myself.
+*  This program is built upon the sample from CAEN. The use of CERN/ROOT 
+*  Library is written by myself.
 * 
-*  User can change the general setting from line 50 to line 67
+*  Users can change the general settings from line 50 to line 67
 * 
 *  Tsz Leung (Ryan) TANG, Feb 23rd, 2019
 *  ttang@anl.gov

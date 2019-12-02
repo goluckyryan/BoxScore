@@ -44,7 +44,17 @@ public:
   void SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
   void SetChannelMask(uint32_t mask);
   void SetDCOffset(int ch , float offset);
-  void SetCoincidentTimeWindow(int nanoSec) { CoincidentTimeWindow = nanoSec;}
+  void SetCoincidentTimeWindow(int nanoSec) { 
+    CoincidentTimeWindow = nanoSec;
+    
+    //TODO save 
+    //TString command;    
+    //command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
+    //system(command.Data());
+    //printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
+    
+  }
+    
   int  SetChannelParity(int ch, bool isPositive);
   int  SetChannelThreshold(int ch, string folder, int threshold);
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
@@ -94,7 +104,13 @@ public:
   int * GetNChannelEventCount()         {return countNChannelEvent;}
   int   GetTotalNChannelEvent(int Nch)  {return totNChannelEvent[Nch-1];}
   
+  
+  void EventGenerator(int numEvent);
+  
   //======== Get built event
+  vector<vector<ULong64_t>> GetTimeStamp()        {return TimeStamp;}
+  vector<vector<UInt_t>>    GetEnergy()           {return Energy;}
+  vector<vector<int>>       GetChannel()          {return Channel;}
   vector<ULong64_t> GetTimeStamp(int ev)        {return TimeStamp[ev];}
   vector<UInt_t>    GetEnergy(int ev)           {return Energy[ev];}
   vector<int>       GetChannel(int ev)          {return Channel[ev];}
@@ -363,7 +379,7 @@ int Digitizer::SetChannelThreshold(int ch, string folder, int threshold){
   DPPParams.thr[ch] = threshold;
   
   if( ret == 0 ) {
-    
+    //TODO use serial number
     TString command;
     command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' %s/setting_%d.txt", threshold, folder.c_str(), ch);
     system(command.Data());
@@ -452,6 +468,7 @@ void Digitizer::ClearData(){
   for( int k = 0; k < MaxNChannels ; k++)  countNChannelEvent[k] = 0;
 
   countEventBuilt = 0;
+  rawEvCount = 0;
 }
 
 void Digitizer::SetChannelMask(uint32_t mask){ 
@@ -542,7 +559,7 @@ void Digitizer::GetChannelSetting(int ch){
   printf("==========----- discriminator \n");
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
   CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off *",  value[0] * 8); //Trigger Hold off
-  CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] *2 ); //Fast Discriminator smoothing
+  CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] ); //Fast Discriminator smoothing
   CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time *",  value[0] * 8); //Input rise time
   
   printf("==========----- Trapezoid \n");
@@ -722,7 +739,7 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
         if( count == 19 ) DPPParams.dgain[ch]      = atoi(line.substr(0, pos).c_str());
         if( count == 20 ) DPPParams.trgwin[ch]     = atoi(line.substr(0, pos).c_str());
         if( count == 21 ) DPPParams.twwdt[ch]      = atoi(line.substr(0, pos).c_str());
-        if( count == 22 ) chGain[ch]               = atof(line.substr(0, pos).c_str());             
+        if( count == 22 ) chGain[ch]               = atof(line.substr(0, pos).c_str());
         count++;
       }
     }
@@ -803,7 +820,7 @@ void Digitizer::ReadData(){
   }
   
   /* Analyze data */
-  rawEvCount = 0;
+  //rawEvCount = 0;
   for (int ch = 0; ch < MaxNChannels; ch++) {    
     if (!(ChannelMask & (1<<ch))) continue;
     //printf("------------------------ %d \n", ch);
@@ -824,7 +841,7 @@ void Digitizer::ReadData(){
         rawEnergy.push_back(Events[ch][ev].Energy);
         rawTimeStamp.push_back(timetag);
         
-        rawEvCount = rawChannel.size();
+        rawEvCount ++;
         
       } else { /* PileUp */
           PurCnt[ch]++;
@@ -1083,7 +1100,7 @@ int Digitizer::BuildEvent(bool debug = false){
   rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
   rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
   rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
- 
+
   rawEvLeftCount = rawChannel.size();
   
   return 1; // for sucessful
@@ -1100,6 +1117,33 @@ int Digitizer::CalNOpenChannel(uint32_t mask){
   }
   
   return nChannelOpen;
+}
+
+
+void Digitizer::EventGenerator(int numEvent){
+  
+  for( int ev = 0; ev < numEvent; ev++){
+    
+    for( int ch = 0; ch < MaxNChannels; ch++) {    
+      if (!(ChannelMask & (1<<ch))) continue;
+
+      TrgCnt[ch] ++ ;
+      ECnt[ch] ++;
+      
+      rawChannel.push_back(ch);
+      rawEnergy.push_back(4000 + gRandom->Integer(1000));
+      
+      ULong64_t timetag = 0;
+      if( rawTimeStamp.size() > 0 ) {
+        timetag = rawTimeStamp.back() + gRandom->Integer(30);
+      }
+      rawTimeStamp.push_back(timetag);
+      
+    }
+    
+    
+  }
+  
 }
 
 #endif

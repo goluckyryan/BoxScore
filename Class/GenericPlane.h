@@ -43,9 +43,11 @@ public:
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
+  void         SetHistogramsRange();
   
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(vector<UInt_t> energy);
+  virtual void Fill(vector<vector<UInt_t>> Energy);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
@@ -65,6 +67,8 @@ public:
   int*   GetdERange()              {return rangeDE;}
   int    GetEChannel()             {return chE;}
   int    GetdEChannel()            {return chdE;}
+  float  GetEChannelGain()         {return chEGain;}
+  float  GetdEChannelGain()        {return chdEGain;}
   int    GetNChannelForRealEvent() {return NChannelForRealEvent;}
   
   TH1F * GetTH1F(TString name) {return (TH1F*)gROOT->FindObjectAny(name);};
@@ -182,15 +186,15 @@ GenericPlane::GenericPlane(){
   //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
   ChannelMask = 0xff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
   
-  rangeDE[0] =     0; /// min range for dE
-  rangeDE[1] = 60000; /// max range for dE
+  rangeDE[0] =     1000; /// min range for dE
+  rangeDE[1] = 3500; /// max range for dE
   rangeE[0] =      0; /// min range for E
-  rangeE[1] =  60000; /// max range for E
-  rangeTime =    500; /// range for Tdiff, nano-sec
+  rangeE[1] =  5000; /// max range for E
+  rangeTime =    1500; /// range for Tdiff, nano-sec
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1000, 1000);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -272,24 +276,29 @@ void GenericPlane::ClearHistograms(){
 
 void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChannel){
   
-  //printf(" dE : %d , E: %d \n", chdE, chE);
+  // if either of the chGain from the setting is not 1, use that as chGain.
+  // e.g. chE = 1, chdE = 0.4 ==> not using dynamic Range
   
-  if( chdE == -1 || chE == -1 ){
-    chdEGain = 1.;
-    chEGain = 1.;
-    return;
-  }
+  // only use dynmaic range to decide the chGain if both chGain are 1.0
+  
+  ///printf(" dE : %d , E: %d \n", chdE, chE);
+  
+  ///if( chdE == -1 || chE == -1 ){
+  ///  chdEGain = 1.;
+  ///  chEGain = 1.;
+  ///  return;
+  ///}
   
   if( chGain[chE] == 1.0 && chGain[chdE] == 1.0 ){
-    mode = 4;
+    mode = 0;
     if( dynamicRange[chE] == dynamicRange[chdE] ) {
       chdEGain = 1.0;
       chEGain = 1.0;
-      mode = 1;
+      mode = 0;
     }else if (dynamicRange[chE] > dynamicRange[chdE]) { // E = 0.5Vpp, dE = 2 Vpp
       chdEGain = 1.;
       chEGain = 0.25;
-      mode = 2;
+      mode = 3; 
     }else if (dynamicRange[chE] < dynamicRange[chdE]) { // E = 2 Vpp, dE = 0.5 Vpp
       chdEGain = 0.25;
       chEGain = 1.;
@@ -300,6 +309,8 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
     chdEGain = chGain[chdE];
     chEGain = chGain[chE];
     
+    mode = 3;
+    
   }
 }
 
@@ -307,7 +318,7 @@ void GenericPlane::SetGenericHistograms(){
   
   //printf("Setting up histogram\n");
   
-  int bin = 200;
+  int bin = 1000;
   float labelSize = 0.08;
   
   hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),   bin,  rangeE[0],  rangeE[1]);
@@ -375,8 +386,8 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
   
   if ( !isHistogramSet ) return;
   
-  E = E + gRandom->Gaus(0, 50);
-  dE = dE + gRandom->Gaus(0, 50);
+  E = E    ;
+  dE = dE  ;
   
   hE->Fill(E);
   hdE->Fill(dE);
@@ -390,13 +401,13 @@ void GenericPlane::Fill(vector<UInt_t> energy){
   
   if ( !isHistogramSet ) return;
   
-  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
-  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
+  int E = chEGain * energy[chE] ;
+  int dE = chdEGain * energy[chdE] ;
   
   hE->Fill(E);
-  hdE->Fill(dE);
+  hdE->Fill(dE *1.0/ chdEGain);
   hdEE->Fill(E, dE);
-  float totalE = dE * chdEGain + E * chEGain;
+  float totalE = dE  + E ;
   hdEtotE->Fill(totalE, dE);
   
   if( numCut > 0  ){
@@ -409,10 +420,39 @@ void GenericPlane::Fill(vector<UInt_t> energy){
   }
 }
 
+void GenericPlane::Fill(vector<vector<UInt_t>> energyAll){
+  
+  if ( !isHistogramSet ) return;
+  
+  for( int i = 0 ; i < energyAll.size() ; i++){
+    vector<UInt_t> energy = energyAll[i];
+    
+    int E = chEGain * energy[chE] ;
+    int dE = chdEGain * energy[chdE] ;
+    
+    if( energy[chE] != 0 ) hE->Fill(E);
+    if( energy[chdE] != 0 )hdE->Fill(dE *1.0/ chdEGain);
+    if( energy[chdE] != 0 && energy[chE] !=0  ){
+      hdEE->Fill(E, dE);
+      hdEtotE->Fill(dE  + E, dE);
+    }
+    
+    if( numCut > 0  ){
+      for( int i = 0; i < numCut; i++){
+        cutG = (TCutG *) cutList->At(i);
+        if( cutG->IsInside(dE + E, dE)){
+          countOfCut[i] += 1;
+        }
+      }
+    }
+  }
+}
+
 void GenericPlane::FillRateGraph(float x, float y){
   graphRate->SetPoint(graphIndex, x, y);
   graphIndex++;
-  rateGraph->GetYaxis()->SetRangeUser(0, y*1.2);
+  graphRate->GetYaxis()->SetRangeUser(0, x*1.2);
+  rateGraph->GetYaxis()->SetRangeUser(0, x*1.2); //TODO fix that
   if( numCut > 0 ) {
     for( int i = 0; i < numCut ; i++){
       graphRateCut[i]->SetPoint(graphIndex, x, countOfCut[i]);
@@ -435,7 +475,7 @@ void GenericPlane::Draw(){
 
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
-  fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
+  fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();  
   fCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
   fCanvas->Modified();
   fCanvas->Update();
@@ -450,7 +490,22 @@ void GenericPlane::ZeroCountOfCut(){
   }
 }
 
-void GenericPlane::CutCreator(){
+void GenericPlane::SetHistogramsRange(){
+  
+  if( !isHistogramSet ) return;
+  
+  hE->SetAxisRange(rangeE[0], rangeE[1], "X");
+  hdE->SetAxisRange(rangeDE[0], rangeDE[1], "X");
+  
+  hdEE->SetAxisRange(chEGain * rangeE[0], chEGain * rangeE[1], "X");
+  hdEE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  
+  hdEtotE->SetAxisRange(chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], "X");
+  hdEtotE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  
+}
+
+void GenericPlane::CutCreator(){ // is bad, cannot be uses
   
   gStyle->SetOptStat("");  
   

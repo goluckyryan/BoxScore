@@ -35,6 +35,7 @@ public:
   void Append();
   
   void FillTree(vector<int> Channel, vector<UInt_t> Energy, vector<ULong64_t> TimeStamp);
+  void FillTree(vector<vector<int>> Channel, vector<vector<UInt_t>> Energy, vector<vector<ULong64_t>> TimeStamp);
   void WriteMacro(TString file);
   void WriteHistogram(TH1F * hist) { hist->Write("", TObject::kOverwrite); }
   void WriteHistogram(TH2F * hist) { hist->Write("", TObject::kOverwrite); }
@@ -141,6 +142,20 @@ void FileIO::FillTree(vector<int> Channel, vector<UInt_t> Energy, vector<ULong64
   tree->Fill();
 }
 
+void FileIO::FillTree(vector<vector<int>> Channel, vector<vector<UInt_t>> Energy, vector<vector<ULong64_t>> TimeStamp){
+  
+  for( int i = 0; i < Channel.size(); i++){
+  
+    for(int ch = 0; ch < NumChannel; ch++){
+      energy[ch] = Energy[i][ch];
+      timeStamp[ch] = TimeStamp[i][ch];
+      channel[ch] = Channel[i][ch];
+    }
+  
+    tree->Fill();
+  }
+  
+}
 
 
 #endif

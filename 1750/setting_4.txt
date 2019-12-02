@@ -16,7 +16,7 @@
 //============= Others
 0.5     // DC offset ( from 0 to 1 )
 2000    // pre trigger size [ch];
-false   // is pulse positive parity;
+true   // is pulse positive parity;
 1       // Energy fine gain , may be address is incorrect? seem no effect
 500     // Baseline holdoff (ns)
 1.00     // Energy Normalization Factor 

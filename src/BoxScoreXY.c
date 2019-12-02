@@ -83,12 +83,12 @@ void WriteToDataBase(TString databaseName, TString seriesName, TString tag, floa
 void PrintCommands(){
   printf("\n");
   printf("\e[96m=============  Command List  ===================\e[0m\n");
-  printf("s ) Start acquisition   z ) Change Threhsold\n");
-  printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
-  printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
-  printf("q ) Quit                y ) Clear histograms\n");
-  printf("                        p ) Print Channel setting\n");
-  printf("                        o ) Print Channel threshold and DynamicRange\n");
+  printf("s ) Start acquisition         z ) Change Threhsold\n");
+  printf("a ) Stop acquisition          k ) Change Dynamic Range\n");
+  printf("c ) Cuts Creator              x ) Change Coincident Time Window\n");
+  printf("q ) Quit                      y ) Clear histograms\n");
+  printf("p ) Print Channel setting     r ) Change dE E range\n");
+  printf("o ) Print Channel threshold and DynamicRange\n");
 }
 
 void paintCanvas(){
@@ -106,6 +106,7 @@ void paintCanvas(){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
     
+  //TODO a time limit
   if( argc != 3 && argc != 4 ) {
     printf("usage:\n");
     printf("$./BoxScoreXY boardID location (tree.root) \n");
@@ -116,6 +117,7 @@ int main(int argc, char *argv[]){
     printf("                         +-- ZD (zero-degree) \n");
     printf("                         +-- XY (Helios target XY) \n");
     printf("                         +-- iso (isomer with Glover Ge detector) \n");
+    printf("                         +-- IonCh (IonChamber) \n");
     return -1;
   }
   
@@ -172,6 +174,14 @@ int main(int argc, char *argv[]){
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
+  }else if ( location == "IonCh"){
+    gp = new GenericPlane();
+    gp->SetChannelMask(1,0,0,1,0,0,0,0);
+    gp->SetdEEChannels(4, 7);
+    gp->SetNChannelForRealEvent(2);
+  }else{
+    printf(" no such plane. exit. \n");
+    return 0;
   }
   
   printf("******************************************** \n");
@@ -279,6 +289,7 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         cooked(); ///set keyboard need enter to responds
         int channel;
+        printf("\e[32m=================== Change Threshold\e[0m\n");
         printf("Please tell me which channel ? ");
         int temp = scanf("%d", &channel);
         if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ){
@@ -301,6 +312,7 @@ int main(int argc, char *argv[]){
         dig.StopACQ();
         dig.ClearRawData();
         cooked(); ///set keyboard need enter to responds
+        printf("\e[32m=================== Change Dynamic Range\e[0m\n");
         dig.PrintDynamicRange();
         int channel;
         printf("Please tell me which channel to switch ( 2.0 Vpp <-> 0.5 Vpp ) ? ");
@@ -328,6 +340,7 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         cooked();
         int coinTime;
+        printf("\e[32m=================== Change coincident time window\e[0m\n");
         printf("Change coincident time window from \e[33m%d\e[0m ns to ? ", dig.GetCoincidentTimeWindow());
         int temp = scanf("%d", &coinTime);
         dig.SetCoincidentTimeWindow(coinTime);
@@ -337,12 +350,45 @@ int main(int argc, char *argv[]){
         PrintCommands();
         uncooked();
       }
+      if( c == 'r' ){ //========== Change dE E range
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        int option;
+        printf("\e[32m=================== Change dE or E Range\e[0m\n");
+        printf("Change dE or E range ? ( 1 for dE, 2 for E, other = cancel ) ");
+        int temp = scanf("%d", &option);
+        if( option == 1 ) {
+          int x1, x2;
+          int * rangedE = gp->GetdERange();
+          printf("--------- Change dE range. (%d, %d)\n", rangedE[0], rangedE[1]);
+          printf("min ? ");
+          temp = scanf("%d", &x1);
+          printf("max ? ");
+          temp = scanf("%d", &x2);
+          gp->SetdERange(x1, x2);
+        }else if (option == 2){
+          int x1, x2;
+          int * rangeE = gp->GetERange();
+          printf("--------- Change E range. (%d, %d)\n", rangeE[0], rangeE[1]);
+          printf("min ? ");
+          temp = scanf("%d", &x1);
+          printf("max ? ");
+          temp = scanf("%d", &x2);
+          gp->SetERange(x1, x2);
+        }
+        gp->SetHistogramsRange();
+        gp->Draw();
+        PrintCommands();
+        uncooked();
+      }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
         dig.ClearRawData();
         
-        int mode = gp->GetMode();
-        float * chGain = dig.GetChannelGain(); 
+        int mode = gp->GetMode();   
+        float chEGain = gp->GetEChannelGain();  /// cannot use dig.GetChannelGain(), this is only the reading from the setting file.
+        float chdEGain = gp->GetdEChannelGain();
         int * rangeE = gp->GetERange();
         int * rangeDE = gp->GetdERange();
         int chE = gp->GetEChannel();
@@ -356,8 +402,8 @@ int main(int argc, char *argv[]){
         expression = expression + to_string(rangeDE[0]+rangeE[0]) + " ";
         expression = expression + to_string(rangeDE[1]+rangeE[1]) + " ";
         expression = expression + to_string(mode) + " ";
-        expression = expression + to_string(chGain[chDE]) + " ";
-        expression = expression + to_string(chGain[chE]) + " ";
+        expression = expression + to_string(chdEGain) + " ";
+        expression = expression + to_string(chEGain) + " ";
         printf("%s\n", expression.c_str());
         system(expression.c_str());
         
@@ -397,12 +443,13 @@ int main(int argc, char *argv[]){
       double fileSize = file.GetFileSize() ;
 
       int buildID = dig.BuildEvent(isDebug); 
-      gp->ZeroCountOfCut();
-      if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
-        for( int i = 0; i < dig.GetEventBuiltCount(); i++){          
-          file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp->Fill(dig.GetEnergy(i));
-        }
+      
+      //if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
+      if( buildID == 1 ) {
+        gp->ZeroCountOfCut();
+        gp->Fill(dig.GetEnergy());
+        file.FillTree(dig.GetChannel(), dig.GetEnergy(), dig.GetTimeStamp());
+        
       }
       
       gp->FillHit(dig.GetNChannelEventCount()); 
@@ -421,6 +468,8 @@ int main(int argc, char *argv[]){
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
       
+      
+      //========================= Count rate and write databases
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;      
       string tag = "tag=" + location;
      
