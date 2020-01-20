@@ -32,7 +32,7 @@ ROOTLIBS = `root-config --cflags --glibs`
 
 #########################################################################
 
-all	:	$(OUT1) $(OUT2) CutsCreator BoxScoreXY
+all	:	$(OUT1) $(OUT2) CutsCreator BoxScoreXY BoxScoreReader
 
 clean	:
 		/bin/rm -f $(OBJS) $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
@@ -59,5 +59,6 @@ CutsCreator:	$(OBJS3) src/CutsCreator.c
 BoxScoreXY	: src/BoxScoreXY.c Class/DigitizerClass.h Class/FileIO.h Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h
 		g++ -std=c++11 -pthread src/BoxScoreXY.c -o BoxScoreXY  $(DEPLIBS) $(ROOTLIBS)
 
-
+BoxScoreReader: src/BoxScoreReader.c Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h
+		g++ -std=c++11 src/BoxScoreReader.c -o BoxScoreReader $(ROOTLIBS)
 

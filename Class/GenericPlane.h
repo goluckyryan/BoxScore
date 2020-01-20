@@ -46,6 +46,7 @@ public:
   
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(vector<UInt_t> energy);
+  virtual void Fill(UInt_t * energy);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
@@ -409,10 +410,35 @@ void GenericPlane::Fill(vector<UInt_t> energy){
   }
 }
 
+void GenericPlane::Fill(UInt_t * energy){
+  
+  if ( !isHistogramSet ) return;
+
+  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
+  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
+  
+  hE->Fill(E);
+  hdE->Fill(dE);
+  hdEE->Fill(E, dE);
+  float totalE = dE * chdEGain + E * chEGain;
+  hdEtotE->Fill(totalE, dE);
+  
+  if( numCut > 0  ){
+    for( int i = 0; i < numCut; i++){
+      cutG = (TCutG *) cutList->At(i);
+      if( cutG->IsInside(totalE, dE)){
+        countOfCut[i] += 1;
+      }
+    }
+  }  
+
+}
+
 void GenericPlane::FillRateGraph(float x, float y){
   graphRate->SetPoint(graphIndex, x, y);
   graphIndex++;
-  rateGraph->GetYaxis()->SetRangeUser(0, y*1.2);
+  // if rateGraph not Draw, not Yaxis();
+  //rateGraph->GetYaxis()->SetRangeUser(0, y*1.2);
   if( numCut > 0 ) {
     for( int i = 0; i < numCut ; i++){
       graphRateCut[i]->SetPoint(graphIndex, x, countOfCut[i]);

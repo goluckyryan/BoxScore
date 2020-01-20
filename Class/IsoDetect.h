@@ -14,6 +14,7 @@ public:
   void SetOthersHistograms();
   
   void Fill(vector<UInt_t> energy);
+  void Fill(UInt_t * energy);
   
   void Draw();
 
@@ -169,6 +170,29 @@ void IsoDetect::Draw(){
 
 
 void IsoDetect::Fill(vector<UInt_t> energy){
+  
+  if ( !isHistogramSet ) return;
+  
+  GenericPlane::Fill(energy);
+  
+  double en;
+  
+  ///Dynamic Range = 0.5
+  ///if( energy[chG1] > 100 ) en1 = (double)energy[chG1] * (0.146805) - 0.338782; hG1->Fill(en1);
+  ///if( energy[chG2] > 100 ) en2 = (double)energy[chG2] * (0.176429) + 0.312143; hG2->Fill(en2);
+  ///if( energy[chG3] > 100 ) hG3->Fill(energy[chG3]);
+  ///if( energy[chG4] > 100 ) en4 = (double)energy[chG4] * (0.172727) + 0.518182; hG4->Fill(en4);
+  
+  /// Dynamic Rnage = 2.0
+  if( energy[chG1] > 10 ) {en = (double)energy[chG1] * (0.593607) + 3.22374; hG1->Fill(en); countG[0] ++ ;}
+  if( energy[chG2] > 10 ) {en = (double)energy[chG2] * (0.711816) + 1.25937; hG2->Fill(en); countG[1] ++ ;}
+  if( energy[chG4] > 10 ) {en = (double)energy[chG4] * (0.700709) - 1.07801; hG4->Fill(en); countG[3] ++ ;}
+  
+  if( energy[chdE] > 100 && energy[chE] > 100 ) countG[4] ++;
+  
+}
+
+void IsoDetect::Fill(UInt_t * energy){
   
   if ( !isHistogramSet ) return;
   
