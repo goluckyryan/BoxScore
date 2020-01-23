@@ -34,7 +34,7 @@ public:
   void SetTree(TString treeName, int NumChannel);
   void Append();
   
-  void FillTree(vector<int> Channel, vector<UInt_t> Energy, vector<ULong64_t> TimeStamp);
+  void FillTree(int * Channel, UInt_t * Energy, ULong64_t* TimeStamp);
   void WriteMacro(TString file);
   void WriteHistogram(TH1F * hist) { hist->Write("", TObject::kOverwrite); }
   void WriteHistogram(TH2F * hist) { hist->Write("", TObject::kOverwrite); }
@@ -130,7 +130,7 @@ void FileIO::Append(){
      
 }
 
-void FileIO::FillTree(vector<int> Channel, vector<UInt_t> Energy, vector<ULong64_t> TimeStamp){
+void FileIO::FillTree(int * Channel, UInt_t * Energy, ULong64_t * TimeStamp){
   
   for(int ch = 0; ch < NumChannel; ch++){
     energy[ch] = Energy[ch];

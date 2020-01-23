@@ -45,7 +45,6 @@ public:
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
   
   void         Fill(UInt_t  dE, UInt_t E);
-  virtual void Fill(vector<UInt_t> energy);
   virtual void Fill(UInt_t * energy);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
@@ -191,7 +190,7 @@ GenericPlane::GenericPlane(){
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 800);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -385,29 +384,6 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
   float totalE = dE * chdEGain + E * chEGain;
   hdEtotE->Fill(totalE, dE);
   
-}
-
-void GenericPlane::Fill(vector<UInt_t> energy){
-  
-  if ( !isHistogramSet ) return;
-  
-  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
-  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-  
-  hE->Fill(E);
-  hdE->Fill(dE);
-  hdEE->Fill(E, dE);
-  float totalE = dE * chdEGain + E * chEGain;
-  hdEtotE->Fill(totalE, dE);
-  
-  if( numCut > 0  ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(totalE, dE)){
-        countOfCut[i] += 1;
-      }
-    }
-  }
 }
 
 void GenericPlane::Fill(UInt_t * energy){

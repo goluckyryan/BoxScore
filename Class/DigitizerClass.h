@@ -23,6 +23,7 @@
 #include "TMath.h"
 
 #define MaxNChannels 8
+#define MaxDataAShot 50000
 
 using namespace std;
 
@@ -75,14 +76,14 @@ public:
   int  GetSerialNumber() {return serialNumber;}
   
   //======== Get Raw Data
-  int               GetNumRawEvent()       {return rawEvCount;}
-  vector<ULong64_t> GetRawTimeStamp()      {return rawTimeStamp;}
-  vector<UInt_t>    GetRawEnergy()         {return rawEnergy;}
-  vector<int>       GetRawChannel()        {return rawChannel;}
-  uint32_t          GetRawTimeRange()      {return rawTimeRange;}     // in ch
-  ULong64_t         GetRawTimeStamp(int i) {return rawTimeStamp[i];}
-  UInt_t            GetRawEnergy(int i)    {return rawEnergy[i];}
-  int               GetRawChannel(int i)   {return rawChannel[i];}
+  int          GetNumRawEvent()       {return rawEvCount + rawEvLeftCount;}
+  ULong64_t *  GetRawTimeStamp()      {return rawTimeStamp;}
+  UInt_t*      GetRawEnergy()         {return rawEnergy;}
+  int *        GetRawChannel()        {return rawChannel;}
+  uint32_t     GetRawTimeRange()      {return rawTimeRange;}     // in ch
+  ULong64_t    GetRawTimeStamp(int i) {return rawTimeStamp[i];}
+  UInt_t       GetRawEnergy(int i)    {return rawEnergy[i];}
+  int          GetRawChannel(int i)   {return rawChannel[i];}
   
   void ClearRawData(); /// clear Raw Data and set rawEvCount = 0;
   void ClearData();    /// clear built event vectors, and set countEventBuild =  0;
@@ -95,12 +96,12 @@ public:
   int   GetTotalNChannelEvent(int Nch)  {return totNChannelEvent[Nch-1];}
   
   //======== Get built event
-  vector<ULong64_t> GetTimeStamp(int ev)        {return TimeStamp[ev];}
-  vector<UInt_t>    GetEnergy(int ev)           {return Energy[ev];}
-  vector<int>       GetChannel(int ev)          {return Channel[ev];}
-  ULong64_t         GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
-  UInt_t            GetEnergy(int ev, int ch)   {return Energy[ev][ch];}
-  int               GetChannel(int ev, int ch)  {return Channel[ev][ch];}
+  ULong64_t * GetTimeStamp(int ev)        {return TimeStamp[ev];}
+  UInt_t *    GetEnergy(int ev)           {return Energy[ev];}
+  int *       GetChannel(int ev)          {return Channel[ev];}
+  ULong64_t   GetTimeStamp(int ev, int ch){return TimeStamp[ev][ch];}
+  UInt_t      GetEnergy(int ev, int ch)   {return Energy[ev][ch];}
+  int         GetChannel(int ev, int ch)  {return Channel[ev][ch];}
   
   //========= Digitizer Control
   int  ProgramDigitizer();
@@ -110,7 +111,7 @@ public:
   void StopACQ();
   void StartACQ();
   
-  void ReadData();
+  void ReadData(bool debug);
   int  BuildEvent(bool debug);
   
   void PrintReadStatistic();
@@ -170,9 +171,9 @@ private:
   uint64_t rawTimeRange;
   
   //===== unsorted data
-  vector<ULong64_t> rawTimeStamp;   
-  vector<UInt_t> rawEnergy;
-  vector<int> rawChannel;
+  ULong64_t* rawTimeStamp;
+  UInt_t* rawEnergy;
+  int* rawChannel;
   
   //===== builded event
   int countEventBuilt;
@@ -180,13 +181,15 @@ private:
   int countNChannelEvent[MaxNChannels];
   int totNChannelEvent[MaxNChannels];
   
-  vector<ULong64_t> singleTimeStamp;   
-  vector<UInt_t> singleEnergy;
-  vector<int> singleChannel;
+  //==== data for single event
+  ULong64_t * singleTimeStamp;   
+  UInt_t * singleEnergy;
+  int * singleChannel;
   
-  vector<vector<int>> Channel;
-  vector<vector<UInt_t>> Energy;
-  vector<vector<ULong64_t>> TimeStamp;
+  //==== data for a shot
+  int ** Channel;
+  UInt_t ** Energy;
+  ULong64_t ** TimeStamp;
   
   void ZeroSingleEvent();
   
@@ -322,9 +325,25 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   rawTimeRange = 999999999999999;
   
-  singleEnergy.clear();
-  singleChannel.clear();
-  singleTimeStamp.clear();
+  singleEnergy = new UInt_t[MaxNChannels];
+  singleChannel = new int[MaxNChannels];
+  singleTimeStamp = new ULong64_t [MaxNChannels];
+  
+  rawTimeStamp = new ULong64_t [MaxDataAShot];
+  rawEnergy    = new UInt_t [MaxDataAShot];
+  rawChannel   = new int [MaxDataAShot];
+  
+  TimeStamp = new ULong64_t * [MaxDataAShot];
+  Energy    = new UInt_t * [MaxDataAShot];
+  Channel   = new int * [MaxDataAShot];
+  
+  for( int i = 0; i < MaxDataAShot ; i++){
+    TimeStamp[i] = new ULong64_t [MaxNChannels];
+    Energy[i]    = new UInt_t [MaxDataAShot];
+    Channel[i]   = new int [MaxDataAShot];
+  }
+  
+  ClearRawData();
   ClearData();
   ZeroSingleEvent();
 
@@ -352,6 +371,14 @@ Digitizer::~Digitizer(){
   for(int ch = 0; ch < MaxNChannels; ch++){
     delete Events[ch];
   }
+  
+  delete[] singleChannel;
+  delete[] singleEnergy;
+  delete[] singleTimeStamp;
+ 
+  delete[] rawChannel;
+  delete[] rawEnergy;
+  delete[] rawTimeStamp; 
   
   delete buffer;
 }
@@ -438,16 +465,20 @@ int Digitizer::SetChannelParity(int ch, bool isPositive){
 }
 
 void Digitizer::ClearRawData(){
-  rawEnergy.clear();
-  rawChannel.clear();
-  rawTimeStamp.clear();
+  std::fill_n(rawEnergy, 5000, 0);
+  std::fill_n(rawChannel, 5000, -1);
+  std::fill_n(rawTimeStamp, 5000, 0);
   rawEvCount = 0;
 }
   
 void Digitizer::ClearData(){
-  Energy.clear();
-  Channel.clear();
-  TimeStamp.clear();
+  for( int i = 0 ; i < MaxDataAShot ; i++){
+    for( int j = 0; j < MaxNChannels; j++){
+      Energy[i][j] = 0;
+      Channel[i][j] = -1;
+      TimeStamp[i][j] = 0;
+    }
+  }
   
   for( int k = 0; k < MaxNChannels ; k++)  countNChannelEvent[k] = 0;
 
@@ -765,13 +796,10 @@ void Digitizer::LoadGeneralSetting(string fileName){
 
 void Digitizer::ZeroSingleEvent(){
   if( NChannel != 0 ) {
-    singleChannel.clear();
-    singleEnergy.clear();
-    singleTimeStamp.clear();
     for( int i = 0; i < NChannel ; i++){
-      singleEnergy.push_back(0);
-      singleChannel.push_back(-1);
-      singleTimeStamp.push_back(0);
+      singleEnergy[i] = 0;
+      singleChannel[i] = -1;
+      singleTimeStamp[i] = 0;
     }
   }
 }
@@ -785,7 +813,7 @@ void Digitizer::StartACQ(){
   
 }
 
-void Digitizer::ReadData(){
+void Digitizer::ReadData(bool debug){
   /* Read data from the board */
   ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
   if (BufferSize == 0) return;
@@ -803,7 +831,8 @@ void Digitizer::ReadData(){
   }
   
   /* Analyze data */
-  rawEvCount = 0;
+  //if( debug ) printf("----------- read data\n");
+  //rawEvCount = 0;
   for (int ch = 0; ch < MaxNChannels; ch++) {    
     if (!(ChannelMask & (1<<ch))) continue;
     //printf("------------------------ %d \n", ch);
@@ -820,11 +849,15 @@ void Digitizer::ReadData(){
         
         //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
         
-        rawChannel.push_back(ch);
-        rawEnergy.push_back(Events[ch][ev].Energy);
-        rawTimeStamp.push_back(timetag);
+        rawChannel[rawEvCount + rawEvLeftCount] = ch;
+        rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
+        rawTimeStamp[rawEvCount + rawEvLeftCount] = timetag;
         
-        rawEvCount = rawChannel.size();
+        if( debug) printf("read: %3d, %2d| %d, %d, %llu\n", rawEvCount, rawEvLeftCount, ch, Events[ch][ev].Energy, timetag);
+        
+        rawEvCount ++;
+        
+        if( rawEvCount > MaxDataAShot ) printf(" More than %d data read from Digitizer in a shot! \n", MaxDataAShot);
         
       } else { /* PileUp */
           PurCnt[ch]++;
@@ -871,6 +904,7 @@ void Digitizer::PrintReadStatistic(){
     ECnt[ch] = 0;
     PurCnt[ch] = 0;
   }
+  rawEvCount = 0;
 
 }
 
@@ -888,6 +922,7 @@ void Digitizer::PrintEventBuildingStat(int updatePeriod){
   printf("-----------------------------------\n");
   printf(" %5s| %5d| %5d| %5d\n", "total", countEventBuilt, totEventBuilt, rawEvLeftCount);
   printf("===============================================\n");
+  
 }
 
 void Digitizer::PrintDynamicRange(){
@@ -929,7 +964,7 @@ int Digitizer::BuildEvent(bool debug = false){
   //################################################################
   //  Sorrting raw event timeStamp
   //################################################################
-  int nRawData = rawChannel.size();
+  int nRawData = rawEvCount + rawEvLeftCount;
   if( nRawData < 2 ) return 0; // too few event to build;
   
   countEventBuilt = 0;
@@ -955,7 +990,7 @@ int Digitizer::BuildEvent(bool debug = false){
     rawChannel[i] = channelT[sortIndex[i]];
     rawTimeStamp[i] = timeStampT[sortIndex[i]];
     rawEnergy[i] = energyT[sortIndex[i]];
-    if( debug) printf("%d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+    if( debug) printf("Sorted: %d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
   }
   
   if( nRawData > 0 ) {
@@ -967,9 +1002,10 @@ int Digitizer::BuildEvent(bool debug = false){
   // build event base on coincident window
   //################################################################
 
-  if (debug) printf("=========================\n");
+  if (debug) printf("=============Build event============\n");
   for( int k = 0; k < MaxNChannels ; k++) countNChannelEvent[k] = 0;
   int endID = 0;
+  //ClearData();
   for( int i = 0; i < nRawData-1; i++){
     ULong64_t timeToEnd = (rawTimeStamp[nRawData-1] - rawTimeStamp[i]) * ch2ns ; // in nano-sec
     endID = i;
@@ -1008,8 +1044,7 @@ int Digitizer::BuildEvent(bool debug = false){
     
     int numRawEventGrouped = 0;
 
-    
-    if( debug) printf("%3d | %d | %d, %llu, %d, %d \n", digitID, rawChannel[i], 0, rawTimeStamp[i], 0, rawEnergy[i]); 
+    if( debug) printf("build: %3d | %d | %d, %llu, %d, %d \n", digitID, rawChannel[i], 0, rawTimeStamp[i], 0, rawEnergy[i]); 
     for( int j = i+1; j < nRawData; j++){
       
       //check is channel[j] is taken or not
@@ -1030,12 +1065,12 @@ int Digitizer::BuildEvent(bool debug = false){
         numRawEventGrouped ++;
       
       }else{
-        if( debug) printf("---- %d/ %d,  num in Group : %d | %d\n", i, nRawData,  numRawEventGrouped, CoincidentTimeWindow);
+        if( debug) printf("---- %d/ %d,  num in Group : %d | %d\n", i+1, nRawData,  numRawEventGrouped+1, CoincidentTimeWindow);
         // normal exit when next event outside coincident window
         break;
       }
       
-      if(debug) printf("%3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
+      if(debug) printf("       %3d | %d | %d, %llu, %llu, %d\n", digitID, rawChannel[j], z, rawTimeStamp[j], timeDiff, rawEnergy[j]); 
       
     }
     
@@ -1058,7 +1093,6 @@ int Digitizer::BuildEvent(bool debug = false){
       for( int k = 0; k < MaxNChannels ; k++) printf(" %d, ", countNChannelEvent[k]);
       printf("\n");
     } 
-    countEventBuilt ++;
     
     //fill in an event
     ZeroSingleEvent();
@@ -1068,24 +1102,46 @@ int Digitizer::BuildEvent(bool debug = false){
       singleTimeStamp[rawChannel[j]] = rawTimeStamp[j];
     }
     
+    for(int pp = 0; pp < MaxNChannels; pp++) {
+      Channel[countEventBuilt][pp] = singleChannel[pp];
+      Energy[countEventBuilt][pp] = singleEnergy[pp];
+      TimeStamp[countEventBuilt][pp] = singleTimeStamp[pp];
+    }
+    
+    countEventBuilt ++;
     totEventBuilt++;
-    
-    Channel.push_back(singleChannel);
-    Energy.push_back(singleEnergy);
-    TimeStamp.push_back(singleTimeStamp);
-    
+        
     i += numRawEventGrouped ; 
     
   }/**/// end of event building
   //################################################################
   
   //clear vectors but keep from endID
-  rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
-  rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
-  rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
- 
-  rawEvLeftCount = rawChannel.size();
+  ///rawChannel.erase(rawChannel.begin(), rawChannel.begin() + endID  );
+  ///rawEnergy.erase(rawEnergy.begin(), rawEnergy.begin() + endID );
+  ///rawTimeStamp.erase(rawTimeStamp.begin(), rawTimeStamp.begin() + endID );
+
+  rawEvLeftCount = nRawData - endID;
+  for( int i = 0 ; i < rawEvLeftCount; i++){
+    rawChannel[i] = rawChannel[i + endID];
+    rawEnergy[i] = rawEnergy[i + endID];
+    rawTimeStamp[i] = rawTimeStamp[i + endID];
+  }
   
+  for( int i = rawEvLeftCount ; i < MaxDataAShot ; i++){
+    rawChannel[i] = -1;
+    rawEnergy[i] = 0;
+    rawTimeStamp[i] = 0;
+  }
+  
+  if( debug) {
+    printf("======= show left over data (%d), endID = %d ====\n", rawEvLeftCount, endID );
+    for( int i = 0; i < rawEvLeftCount+2 ; i ++){
+      printf(" %d | %d, %d, %llu \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
+    }
+    
+  }
+ 
   return 1; // for sucessful
  
 }

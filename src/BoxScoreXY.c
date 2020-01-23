@@ -377,7 +377,7 @@ int main(int argc, char *argv[]){
     
     ///the digitizer will output a channel after a channel., 
     ///so data should be read as fast as possible, that the digitizer will not store any data.
-    dig.ReadData(); 
+    dig.ReadData(isDebug); 
     
     if( isSaveRaw ) {
       ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){

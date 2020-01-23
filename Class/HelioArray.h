@@ -20,8 +20,7 @@ public:
   
   void SetCanvasDivision();
   void SetOthersHistograms();
-  
-  void Fill(vector<UInt_t> energy); /// slow
+
   void Fill(UInt_t * energy);  /// fast
   
   void Draw();
@@ -47,6 +46,8 @@ private:
   TH1F * hXF;
   TH1F * hXN;
   TH1F * hRing;
+  TH2F * hXFXN;
+  TH2F * hEX;
   
   int chEnergy, chXF, chXN, chRing; 
   
@@ -63,7 +64,7 @@ HelioArray::HelioArray(){
   
   //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
   ///ChannelMask = 0xff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
-  GenericPlane::SetChannelMask(1,1,1,1,1,1,1,1);
+  GenericPlane::SetChannelMask(0,0,0,0,1,1,1,1);
     
   /// dE and E is kind of XF and XN, we have to sum it up
   rangeDE[0] =     0; /// min range for dE
@@ -91,6 +92,9 @@ HelioArray::HelioArray(){
   hXN = NULL;
   hRing = NULL;
   
+  hXFXN = NULL;
+  hEX   = NULL;
+  
 }
 
 HelioArray::~HelioArray(){
@@ -100,6 +104,9 @@ HelioArray::~HelioArray(){
   delete hXN;
   delete hRing;
   
+  delete hXFXN;
+  delete hEX;
+  
 }
 
 void HelioArray::SetOthersHistograms(){
@@ -108,7 +115,7 @@ void HelioArray::SetOthersHistograms(){
   float labelSize = 0.08;
   
   float xMin = 0;
-  float xMax = 8000;
+  float xMax = 20000;
   
   hEnergy = new TH1F("hEnegry", Form("Energy (ch=%d); [keV]; count / 2 keV", chEnergy), bin, xMin, xMax);
   hXF     = new TH1F("hXF",     Form("XF (ch=%d); [keV]; count / 2 keV",     chXF),     bin, xMin, xMax);
@@ -127,6 +134,9 @@ void HelioArray::SetOthersHistograms(){
   hRing->GetXaxis()->SetLabelSize(labelSize);
   hRing->GetYaxis()->SetLabelSize(labelSize);
   
+  hXFXN = new TH2F("hXFXN", "XF - XN", bin, xMin, xMax, bin, xMin, xMax);
+  hEX   = new TH2F("hEX",   " E vs X = (XF-XN)/(XF+XN)", bin, -1.4, 1.4, bin, xMin, xMax);
+  
 }
 
 void HelioArray::SetCanvasDivision(){
@@ -140,12 +150,15 @@ void HelioArray::Draw(){
   
   if ( !isHistogramSet ) return;
   
-  fCanvas->cd(5); hTDiff->Draw(); line->Draw();
+  //fCanvas->cd(5); hTDiff->Draw(); line->Draw();
   
   fCanvas->cd(1); hEnergy->Draw("");
   fCanvas->cd(2); hXF->Draw("");
   fCanvas->cd(3); hXN->Draw("");
   fCanvas->cd(4); hRing->Draw("");
+  
+  fCanvas->cd(5); hXFXN->Draw("same");
+  fCanvas->cd(6); hEX->Draw("same");
   
   fCanvas->Modified();
   fCanvas->Update();
@@ -153,31 +166,22 @@ void HelioArray::Draw(){
   
 }
 
-
-void HelioArray::Fill(vector<UInt_t> energy){
-  
-  if ( !isHistogramSet ) return;
-  
-  GenericPlane::Fill(energy);
-  
-  hEnergy->Fill(energy[chEnergy]);
-  hXN->Fill(energy[chXN]);
-  hXF->Fill(energy[chXF]);
-  hRing->Fill(energy[chRing]);
-  
-}
-
 void HelioArray::Fill(UInt_t * energy){
   
   if ( !isHistogramSet ) return;
   
-  GenericPlane::Fill(energy);
+  //GenericPlane::Fill(energy);
 
-  hEnergy->Fill(energy[chEnergy]);
-  hXN->Fill(energy[chXN]);
-  hXF->Fill(energy[chXF]);
-  hRing->Fill(energy[chRing]);
-    
+  if( energy[chEnergy] > 0) hEnergy->Fill(energy[chEnergy]);
+  if( energy[chXN] > 0) hXN->Fill(energy[chXN]);
+  if( energy[chXF] > 0) hXF->Fill(energy[chXF]);
+  if( energy[chRing] > 0) hRing->Fill(energy[chRing]);
+  
+  if( energy[chXN] > 0 && energy[chXF] > 0 ) {
+    hXFXN->Fill( energy[chXN], energy[chXF]);
+    double x = (energy[chXF] - energy[chXN]) * 1.0 / (energy[chXN] + energy[chXF]);
+    if(energy[chEnergy] > 0) hXFXN->Fill( x, energy[chEnergy]);
+  }  
 }
 
 void HelioArray::ClearHistograms(){
