@@ -18,7 +18,7 @@ public:
   HelioArray();
   ~HelioArray();
   
-  void SetCanvasDivision();
+  void SetCanvasTitleDivision(TString titleExtra);
   void SetOthersHistograms();
 
   void Fill(UInt_t * energy);  /// fast
@@ -48,6 +48,7 @@ private:
   TH1F * hRing;
   TH2F * hXFXN;
   TH2F * hEX;
+  TH1F * hXS;
   
   int chEnergy, chXF, chXN, chRing; 
   
@@ -94,6 +95,7 @@ HelioArray::HelioArray(){
   
   hXFXN = NULL;
   hEX   = NULL;
+  hXS   = NULL;
   
 }
 
@@ -106,6 +108,7 @@ HelioArray::~HelioArray(){
   
   delete hXFXN;
   delete hEX;
+  delete hXS;
   
 }
 
@@ -136,13 +139,14 @@ void HelioArray::SetOthersHistograms(){
   
   hXFXN = new TH2F("hXFXN", "XF - XN", bin, xMin, xMax, bin, xMin, xMax);
   hEX   = new TH2F("hEX",   " E vs X = (XF-XN)/(XF+XN)", bin, -1.4, 1.4, bin, xMin, xMax);
+  hXS   = new TH1F("hXS",   " XS = XF+XN", bin, xMin, xMax);
   
 }
 
-void HelioArray::SetCanvasDivision(){
+void HelioArray::SetCanvasTitleDivision(TString titleExtra = ""){
   
-  fCanvas->SetTitle("HELIOS array testing");
-  fCanvas->Divide(3,2);
+  fCanvas->SetTitle("HELIOS array testing | " + titleExtra);
+  fCanvas->Divide(4,2);
   
 }
 
@@ -150,15 +154,17 @@ void HelioArray::Draw(){
   
   if ( !isHistogramSet ) return;
   
-  //fCanvas->cd(5); hTDiff->Draw(); line->Draw();
   
   fCanvas->cd(1); hEnergy->Draw("");
   fCanvas->cd(2); hXF->Draw("");
   fCanvas->cd(3); hXN->Draw("");
   fCanvas->cd(4); hRing->Draw("");
   
-  fCanvas->cd(5); hXFXN->Draw("same");
-  fCanvas->cd(6); hEX->Draw("same");
+  fCanvas->cd(5); hTDiff->Draw(); line->Draw();
+  
+  fCanvas->cd(6); hXFXN->Draw("colz");
+  fCanvas->cd(7); hEX->Draw("colz");
+  fCanvas->cd(8); hXS->Draw("");
   
   fCanvas->Modified();
   fCanvas->Update();
@@ -179,8 +185,10 @@ void HelioArray::Fill(UInt_t * energy){
   
   if( energy[chXN] > 0 && energy[chXF] > 0 ) {
     hXFXN->Fill( energy[chXN], energy[chXF]);
-    double x = (energy[chXF] - energy[chXN]) * 1.0 / (energy[chXN] + energy[chXF]);
-    if(energy[chEnergy] > 0) hXFXN->Fill( x, energy[chEnergy]);
+    hXS->Fill(energy[chXN] + energy[chXF]);
+    double x = ((double)energy[chXF] - (double)energy[chXN]) * 1.0 / ((double)energy[chXN] + (double)energy[chXF]);
+    //printf("%d, %d, %f | %d\n", energy[chXN], energy[chXF], x, energy[chEnergy]);
+    if(energy[chEnergy] > 0) hEX->Fill(x, energy[chEnergy]);
   }  
 }
 

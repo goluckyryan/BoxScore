@@ -44,6 +44,7 @@
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
 #include "../Class/IsoDetect.h"
+#include "../Class/HelioArray.h"
 
 using namespace std;
 
@@ -72,6 +73,7 @@ int main(int argc, char *argv[]){
     printf("                                  +-- ZD (zero-degree) \n");
     printf("                                  +-- XY (Helios target XY) \n");
     printf("                                  +-- iso (isomer with Glover Ge detector) \n");
+    printf("                                  +-- array (Helios array) \n");
     return -1;
   }
   
@@ -109,7 +111,11 @@ int main(int argc, char *argv[]){
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
+  }else if ( location == "array"){
+    gp = new HelioArray();
   }
+  
+  
   
   printf("******************************************** \n");
   printf("****          BoxScore Reader           **** \n");
@@ -124,7 +130,7 @@ int main(int argc, char *argv[]){
   
   uint ChannelMask = gp->GetChannelMask();
 
-  gp->SetCanvasDivision();  
+  gp->SetCanvasTitleDivision(rootFile);  
   gp->SetGenericHistograms(); ///must be after SetChannelGain  
   
   ///things for derivative of GenericPlane

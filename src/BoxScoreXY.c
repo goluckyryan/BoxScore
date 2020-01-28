@@ -61,7 +61,7 @@ bool isSaveRaw = false; // saving Raw data
 
 string location;
 
-bool isDebug= false;
+bool isDebug= true;
 
 //database
 TString databaseName="RAISOR_exit";
@@ -197,7 +197,7 @@ int main(int argc, char *argv[]){
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
 
-  gp->SetCanvasDivision();  
+  gp->SetCanvasTitleDivision(rootFileName);  
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp->SetGenericHistograms(); ///must be after SetChannelGain  

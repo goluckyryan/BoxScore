@@ -39,7 +39,7 @@ public:
   void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void         SetCoincidentTimeWindow(int nanoSec);  
   void         SetGenericHistograms();
-  virtual void SetCanvasDivision();
+  virtual void SetCanvasTitleDivision(TString titleExtra);
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
@@ -186,7 +186,7 @@ GenericPlane::GenericPlane(){
   rangeDE[1] = 60000; /// max range for dE
   rangeE[0] =      0; /// min range for E
   rangeE[1] =  60000; /// max range for E
-  rangeTime =    500; /// range for Tdiff, nano-sec
+  rangeTime =  50000; /// range for Tdiff, nano-sec
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
@@ -357,7 +357,7 @@ void GenericPlane::SetGenericHistograms(){
   
 }
 
-void GenericPlane::SetCanvasDivision(){
+void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();

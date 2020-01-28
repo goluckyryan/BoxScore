@@ -1128,11 +1128,11 @@ int Digitizer::BuildEvent(bool debug = false){
     rawTimeStamp[i] = rawTimeStamp[i + endID];
   }
   
-  for( int i = rawEvLeftCount ; i < MaxDataAShot ; i++){
-    rawChannel[i] = -1;
-    rawEnergy[i] = 0;
-    rawTimeStamp[i] = 0;
-  }
+  //for( int i = rawEvLeftCount ; i < MaxDataAShot ; i++){
+  //  rawChannel[i] = -1;
+  //  rawEnergy[i] = 0;
+  //  rawTimeStamp[i] = 0;
+  //}
   
   if( debug) {
     printf("======= show left over data (%d), endID = %d ====\n", rawEvLeftCount, endID );
