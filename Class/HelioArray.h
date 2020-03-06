@@ -50,6 +50,8 @@ private:
   TH2F * hEX;
   TH1F * hXS;
   
+  TH1F * hE2; // without ring
+  
   int chEnergy, chXF, chXN, chRing; 
   
   int countG[5]; // count for Energy, XF, XN, and Ring; 
@@ -97,6 +99,8 @@ HelioArray::HelioArray(){
   hEX   = NULL;
   hXS   = NULL;
   
+  hE2 = NULL; 
+  
 }
 
 HelioArray::~HelioArray(){
@@ -110,6 +114,8 @@ HelioArray::~HelioArray(){
   delete hEX;
   delete hXS;
   
+  delete hE2;
+  
 }
 
 void HelioArray::SetOthersHistograms(){
@@ -117,7 +123,7 @@ void HelioArray::SetOthersHistograms(){
   int bin = 800;
   float labelSize = 0.08;
   
-  float xMin = 0;
+  float xMin = 4000;
   float xMax = 20000;
   
   hEnergy = new TH1F("hEnegry", Form("Energy (ch=%d); [keV]; count / 2 keV", chEnergy), bin, xMin, xMax);
@@ -141,12 +147,15 @@ void HelioArray::SetOthersHistograms(){
   hEX   = new TH2F("hEX",   " E vs X = (XF-XN)/(XF+XN)", bin, -1.4, 1.4, bin, xMin, xMax);
   hXS   = new TH1F("hXS",   " XS = XF+XN", bin, xMin, xMax);
   
+  hE2 = new TH1F("hE3", Form("Energy w/o Ring (ch=%d); [keV]; count / 2 keV", chEnergy), bin, xMin, xMax);
+  
 }
 
 void HelioArray::SetCanvasTitleDivision(TString titleExtra = ""){
   
   fCanvas->SetTitle("HELIOS array testing | " + titleExtra);
-  fCanvas->Divide(4,2);
+  fCanvas->Divide(4,3);
+  fCanvas->SetWindowSize(1200, 900);
   
 }
 
@@ -166,6 +175,10 @@ void HelioArray::Draw(){
   fCanvas->cd(7); hEX->Draw("colz");
   fCanvas->cd(8); hXS->Draw("");
   
+  fCanvas->cd(9); hHit->Draw("");
+  fCanvas->cd(10); hDetIDHit->Draw("colz");
+  fCanvas->cd(11); hE2->Draw("");
+  
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
@@ -178,10 +191,24 @@ void HelioArray::Fill(UInt_t * energy){
   
   //GenericPlane::Fill(energy);
 
-  if( energy[chEnergy] > 0) hEnergy->Fill(energy[chEnergy]);
-  if( energy[chXN] > 0) hXN->Fill(energy[chXN]);
-  if( energy[chXF] > 0) hXF->Fill(energy[chXF]);
-  if( energy[chRing] > 0) hRing->Fill(energy[chRing]);
+  int nHit = 0;
+
+  if( energy[chEnergy] > 0) {
+    hEnergy->Fill(energy[chEnergy]);
+    nHit++;
+  }
+  if( energy[chXN] > 0) {
+    hXN->Fill(energy[chXN]);
+    nHit++;
+  }
+  if( energy[chXF] > 0) {
+    hXF->Fill(energy[chXF]);
+    nHit++;
+  }
+  if( energy[chRing] > 0) {
+    hRing->Fill(energy[chRing]);
+    nHit++;
+  }
   
   if( energy[chXN] > 0 && energy[chXF] > 0 ) {
     hXFXN->Fill( energy[chXN], energy[chXF]);
@@ -189,7 +216,18 @@ void HelioArray::Fill(UInt_t * energy){
     double x = ((double)energy[chXF] - (double)energy[chXN]) * 1.0 / ((double)energy[chXN] + (double)energy[chXF]);
     //printf("%d, %d, %f | %d\n", energy[chXN], energy[chXF], x, energy[chEnergy]);
     if(energy[chEnergy] > 0) hEX->Fill(x, energy[chEnergy]);
+    if( energy[chEnergy] > 0 && energy[chRing] == 0) {
+      hE2->Fill(energy[chEnergy]);
+    }
   }  
+  
+  hHit->Fill(nHit);
+  
+  if( energy[chEnergy] > 0) hDetIDHit->Fill( nHit, chEnergy);
+  if( energy[chXN] > 0) hDetIDHit->Fill( nHit, chXN);
+  if( energy[chXF] > 0) hDetIDHit->Fill( nHit, chXF);
+  if( energy[chRing] > 0) hDetIDHit->Fill( nHit, chRing);
+
 }
 
 void HelioArray::ClearHistograms(){
@@ -200,6 +238,12 @@ void HelioArray::ClearHistograms(){
   hXF->Reset();
   hXN->Reset();
   hRing->Reset();
+  
+  hXFXN->Reset();
+  hEX->Reset();
+  hXS->Reset();
+  hE2->Reset();
+  
   
 }
 

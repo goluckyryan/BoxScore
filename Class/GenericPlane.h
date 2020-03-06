@@ -119,6 +119,7 @@ protected:
   TH2F * hdEtotE;
   
   TH1F * hHit;
+  TH2F * hDetIDHit;
   
   TH1F * htotE;
   TH1F * hTDiff;
@@ -159,6 +160,7 @@ GenericPlane::~GenericPlane(){
   delete htotE;
   delete hTDiff;
   delete hHit;
+  delete hDetIDHit;
   
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
@@ -190,7 +192,7 @@ GenericPlane::GenericPlane(){
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 800);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 900);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -208,6 +210,7 @@ GenericPlane::GenericPlane(){
   hTDiff  = NULL;
   
   hHit = NULL;
+  hDetIDHit = NULL;
   
   rateGraph    = NULL;
   graphRate    = NULL;
@@ -267,6 +270,7 @@ void GenericPlane::ClearHistograms(){
   hTDiff->Reset();
   
   hHit->Reset();
+  hDetIDHit->Reset();
   
 }
 
@@ -332,6 +336,7 @@ void GenericPlane::SetGenericHistograms(){
   hdEtotE->SetMinimum(1);
   
   hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
+  hDetIDHit = new TH2F("hDetIDHit", "ch vs hit; hit; ch", 8, -0.5, 7.5, 8, -0.5, 7.5);
   
   rateGraph = new TMultiGraph();
   rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");

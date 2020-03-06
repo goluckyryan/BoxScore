@@ -23,7 +23,7 @@
 #include "TMath.h"
 
 #define MaxNChannels 8
-#define MaxDataAShot 50000
+#define MaxDataAShot 500000
 
 using namespace std;
 

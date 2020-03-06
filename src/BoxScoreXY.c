@@ -7,6 +7,10 @@
 *  ttang@anl.gov
 ******************************************************************************/
 
+//TODO check all vector was replaced
+//TODO loading setting for detector (save as some files?)
+//TODO clean up MakeFile ( remove BoxScore, only BoxScoreXY  )
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -61,7 +65,7 @@ bool isSaveRaw = false; // saving Raw data
 
 string location;
 
-bool isDebug= true;
+bool isDebug= false;
 
 //database
 TString databaseName="RAISOR_exit";

@@ -167,11 +167,29 @@ int main(int argc, char *argv[]){
   Double_t timeDiff;
   Int_t count = 0;
   
+  ULong64_t initTimeStamp = 0;
+  ULong64_t finalTimeStamp = 0;
+  
   for(int ev = 0; ev < totalEvent; ev++){
     tree->GetEntry(ev);
     
     gp->Fill(e);
     
+    //Get inital TimeStamp
+    if( ev == 0 ){
+      for( int j = 0; j < MaxNChannels; j++){
+        if( t[j] > 0 ) initTimeStamp = t[j];
+      }
+    }
+    
+    //Get final TimeStamp
+    if( ev == totalEvent-1 ){
+      for( int j = 0; j < MaxNChannels; j++){
+        if( t[j] > 0 ) finalTimeStamp = t[j];
+      }
+    }
+    
+    //Recalculate rate graph
     for( int j = 0; j < MaxNChannels; j++){
       if( t[j] == 0 ) continue;
       count ++;
@@ -192,13 +210,17 @@ int main(int argc, char *argv[]){
       }   
     }
     
-
-    
     //if( ev%10000 == 0 ) {
     //  for( int j = 0; j < MaxNChannels; j++){printf("%u, ", e[j]);};
     //  printf("----- %d \n", ev);
     //}
   }
+  
+  double timeSpan = (finalTimeStamp - initTimeStamp) * 2e-9;
+  printf("Total time span : %f sec \n", timeSpan);
+  printf("                : %f min \n", timeSpan/60.);
+  printf("                : %f hour \n", timeSpan/60./60.);
+  printf("============================== Ctrl+C to exit.\n");
   
   gp->Draw();
   

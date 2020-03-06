@@ -99,11 +99,11 @@ double*  fitSlopeIntercept(vector<double> dataX, vector<double> dataY){
 void Cali_gamma(TTree * tree, float threshold = 0.1){
   /**///======================================================== initial input
 
-  const int numDet = 4;
+  const int numDet = 1;
 
-  int detID[numDet] = {2,3,4,5}; 
+  int detID[numDet] = {0}; 
 
-  int energyRange[3] = {12000, 0, 12000}; // bin, min, max
+  int energyRange[3] = {1000, 4000, 12000}; // bin, min, max
 
   /**///========================================================  load tree
 
@@ -160,7 +160,7 @@ void Cali_gamma(TTree * tree, float threshold = 0.1){
     //gate[i].Form("ring[%d]==0 && !TMath::IsNaN(xf[%d]) && !TMath::IsNaN(xn[%d])", i, i, i);
     //gate[i].Form("!TMath::IsNaN(xf[%d]) && !TMath::IsNaN(xn[%d])", i, i);
     //gate[i].Form("e[%d] > 0", id);
-    gate[i].Form("ch == %d", id);
+    gate[i].Form("ch == %d && e[3] == 0", id);
 
     cAlpha->cd(i+1);
     tree->Draw(expression, gate[i] , "");
@@ -363,6 +363,8 @@ void Cali_gamma(TTree * tree, float threshold = 0.1){
       refEnergy = output[maxID];
       printf(" R^2 : %.20f\n", optRSquared);   
     
+    }else{
+      fitEnergy = energy[i];
     }
     
     for( int k = 0; k < min(n,nPeaks) ; k++){ printf("%.1f, ", fitEnergy[k]); }; printf("\n");
@@ -383,9 +385,16 @@ void Cali_gamma(TTree * tree, float threshold = 0.1){
 
   }
   
+  printf("--------- plot calibrated histogram \n");
   //====== Plot adjusted spectrum
   TCanvas * cAux = new TCanvas ("cAux", "cAux", 600, 400);
   TH1F ** p = new TH1F*[numDet];
+  
+  if( option == -2 ){
+    energyRange[1] = 4;
+    energyRange[2] = 10;
+  }
+  
   for ( int i = 0; i < numDet; i ++){
     TString name;
     name.Form("p%d", detID[i]);
@@ -396,7 +405,7 @@ void Cali_gamma(TTree * tree, float threshold = 0.1){
 
     TString expression;
     expression.Form("e[%d] * %.8f + %.8f >> p%d", detID[i], a1[i], a0[i], detID[i]);
-    gate[i].Form("ch == %d", detID[i]);
+    gate[i].Form("ch == %d && e[3] == 0", detID[i]);
     tree->Draw(expression, gate[i] , "");
     cAux->Update();
     gSystem->ProcessEvents();
