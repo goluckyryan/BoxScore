@@ -10,6 +10,7 @@
 //TODO check all vector was replaced
 //TODO loading setting for detector (save as some files?)
 //TODO clean up MakeFile ( remove BoxScore, only BoxScoreXY  )
+//TDOD the TCUTG save with the same directory of the data, add load TCUTG
 
 #include <stdio.h>
 #include <stdlib.h>
