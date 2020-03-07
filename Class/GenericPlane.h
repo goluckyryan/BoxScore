@@ -39,7 +39,7 @@ public:
   void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void         SetCoincidentTimeWindow(int nanoSec);  
   void         SetGenericHistograms();
-  virtual void SetCanvasDivision();
+  virtual void SetCanvasDivision(TString fileName);
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
@@ -138,14 +138,14 @@ protected:
   int mode;
   
   bool isHistogramSet;
-
-private:
-
+  
   TGraph * graphRate;
   TGraph ** graphRateCut; 
   
   TGraph * rangeGraph;
   
+private:
+
   int graphIndex;
   
 };
@@ -340,7 +340,7 @@ void GenericPlane::SetGenericHistograms(){
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
   
   graphRate = new TGraph();
-  graphRate->SetTitle("Total Rate [pps]");
+  graphRate->SetTitle("Total Rate [pps] 10 sec average");
   graphRate->SetMarkerColor(4);
   graphRate->SetMarkerStyle(20);
   graphRate->SetMarkerSize(1);
@@ -358,7 +358,7 @@ void GenericPlane::SetGenericHistograms(){
   
 }
 
-void GenericPlane::SetCanvasDivision(){
+void GenericPlane::SetCanvasDivision(TString fileName){
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
