@@ -44,6 +44,7 @@
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
 #include "../Class/IsoDetect.h"
+#include "../Class/HelioArray.h"
 
 using namespace std;
 
@@ -72,6 +73,7 @@ int main(int argc, char *argv[]){
     printf("                                  +-- ZD (zero-degree) \n");
     printf("                                  +-- XY (Helios target XY) \n");
     printf("                                  +-- iso (isomer with Glover Ge detector) \n");
+    printf("                                  +-- array (Helios array) \n");
     return -1;
   }
   
@@ -109,7 +111,11 @@ int main(int argc, char *argv[]){
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
+  }else if ( location == "array"){
+    gp = new HelioArray();
   }
+  
+  
   
   printf("******************************************** \n");
   printf("****          BoxScore Reader           **** \n");
@@ -125,6 +131,7 @@ int main(int argc, char *argv[]){
   uint ChannelMask = gp->GetChannelMask();
 
   gp->SetCanvasDivision(rootFile);  
+  gp->SetCanvasTitleDivision(rootFile);  
   gp->SetGenericHistograms(); ///must be after SetChannelGain  
   
   ///things for derivative of GenericPlane
@@ -162,11 +169,29 @@ int main(int argc, char *argv[]){
   Double_t timeDiff;
   Int_t count = 0;
   
+  ULong64_t initTimeStamp = 0;
+  ULong64_t finalTimeStamp = 0;
+  
   for(int ev = 0; ev < totalEvent; ev++){
     tree->GetEntry(ev);
     
     gp->Fill(e);
     
+    //Get inital TimeStamp
+    if( ev == 0 ){
+      for( int j = 0; j < MaxNChannels; j++){
+        if( t[j] > 0 ) initTimeStamp = t[j];
+      }
+    }
+    
+    //Get final TimeStamp
+    if( ev == totalEvent-1 ){
+      for( int j = 0; j < MaxNChannels; j++){
+        if( t[j] > 0 ) finalTimeStamp = t[j];
+      }
+    }
+    
+    //Recalculate rate graph
     for( int j = 0; j < MaxNChannels; j++){
       if( t[j] == 0 ) continue;
       count ++;
@@ -202,9 +227,11 @@ int main(int argc, char *argv[]){
     //}
   }
   
-  printf("time start : %16llu\n", timeZero);
-  printf("time stop  : %16llu\n", timeEnd);
-  printf("time span  : %16llu = %8.2f sec\n", timeEnd-timeZero, (timeEnd-timeZero)*2e-9);
+  double timeSpan = (finalTimeStamp - initTimeStamp) * 2e-9;
+  printf("Total time span : %f sec \n", timeSpan);
+  printf("                : %f min \n", timeSpan/60.);
+  printf("                : %f hour \n", timeSpan/60./60.);
+  printf("============================== Ctrl+C to exit.\n");
   
   gp->Draw();
   

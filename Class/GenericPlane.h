@@ -39,13 +39,12 @@ public:
   void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);  
   void         SetCoincidentTimeWindow(int nanoSec);  
   void         SetGenericHistograms();
-  virtual void SetCanvasDivision(TString fileName);
+  virtual void SetCanvasTitleDivision(TString titleExtra);
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
   
   void         Fill(UInt_t  dE, UInt_t E);
-  virtual void Fill(vector<UInt_t> energy);
   virtual void Fill(UInt_t * energy);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
@@ -120,6 +119,7 @@ protected:
   TH2F * hdEtotE;
   
   TH1F * hHit;
+  TH2F * hDetIDHit;
   
   TH1F * htotE;
   TH1F * hTDiff;
@@ -160,6 +160,7 @@ GenericPlane::~GenericPlane(){
   delete htotE;
   delete hTDiff;
   delete hHit;
+  delete hDetIDHit;
   
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
@@ -187,11 +188,11 @@ GenericPlane::GenericPlane(){
   rangeDE[1] = 60000; /// max range for dE
   rangeE[0] =      0; /// min range for E
   rangeE[1] =  60000; /// max range for E
-  rangeTime =    500; /// range for Tdiff, nano-sec
+  rangeTime =  50000; /// range for Tdiff, nano-sec
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1400, 1000);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 900);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -209,6 +210,7 @@ GenericPlane::GenericPlane(){
   hTDiff  = NULL;
   
   hHit = NULL;
+  hDetIDHit = NULL;
   
   rateGraph    = NULL;
   graphRate    = NULL;
@@ -268,6 +270,7 @@ void GenericPlane::ClearHistograms(){
   hTDiff->Reset();
   
   hHit->Reset();
+  hDetIDHit->Reset();
   
 }
 
@@ -333,6 +336,7 @@ void GenericPlane::SetGenericHistograms(){
   hdEtotE->SetMinimum(1);
   
   hHit = new TH1F("hHit", "number of hit", 8, -0.5, 7.5);
+  hDetIDHit = new TH2F("hDetIDHit", "ch vs hit; hit; ch", 8, -0.5, 7.5, 8, -0.5, 7.5);
   
   rateGraph = new TMultiGraph();
   rateGraph->SetTitle("Beam rate [pps]; Time [sec]; Rate [pps]");
@@ -358,7 +362,7 @@ void GenericPlane::SetGenericHistograms(){
   
 }
 
-void GenericPlane::SetCanvasDivision(TString fileName){
+void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
@@ -385,29 +389,6 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
   float totalE = dE * chdEGain + E * chEGain;
   hdEtotE->Fill(totalE, dE);
   
-}
-
-void GenericPlane::Fill(vector<UInt_t> energy){
-  
-  if ( !isHistogramSet ) return;
-  
-  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
-  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-  
-  hE->Fill(E);
-  hdE->Fill(dE);
-  hdEE->Fill(E, dE);
-  float totalE = dE * chdEGain + E * chEGain;
-  hdEtotE->Fill(totalE, dE);
-  
-  if( numCut > 0  ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(totalE, dE)){
-        countOfCut[i] += 1;
-      }
-    }
-  }
 }
 
 void GenericPlane::Fill(UInt_t * energy){

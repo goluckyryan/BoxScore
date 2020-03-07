@@ -13,7 +13,6 @@ public:
   void SetCanvasDivision(TString fileName);
   void SetOthersHistograms();
   
-  void Fill(vector<UInt_t> energy);
   void Fill(UInt_t * energy);
   
   void Draw();
@@ -210,35 +209,6 @@ void IsoDetect::Draw(){
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
-  
-}
-
-
-void IsoDetect::Fill(vector<UInt_t> energy){
-  
-  if ( !isHistogramSet ) return;
-  
-  ///GenericPlane::Fill(energy);
-  
-  ///Dynamic Range = 0.5
-  ///if( energy[chG1] > 100 ) en1 = (double)energy[chG1] * (0.146805) - 0.338782; hG1->Fill(en1);
-  ///if( energy[chG2] > 100 ) en2 = (double)energy[chG2] * (0.176429) + 0.312143; hG2->Fill(en2);
-  ///if( energy[chG3] > 100 ) hG3->Fill(energy[chG3]);
-  ///if( energy[chG4] > 100 ) en4 = (double)energy[chG4] * (0.172727) + 0.518182; hG4->Fill(en4);
-  
-  /// Dynamic Rnage = 2.0
-  
-  double e1 = 0, e2 = 0, e4 = 0, eAll = 0;
-  
-  if( energy[chG1] > 10 ) {e1 = (double)energy[chG1] * (0.59429305) + 1.04210866; hG1->Fill(e1); countG[0] ++ ;}
-  if( energy[chG2] > 10 ) {e2 = (double)energy[chG2] * (0.71157101) + 0.43638774; hG2->Fill(e2); countG[1] ++ ;}
-  if( energy[chG4] > 10 ) {e4 = (double)energy[chG4] * (0.70121498) - 1.16795688; hG4->Fill(e4); countG[3] ++ ;}
-  
-  if( energy[chG1] > 10 || energy[chG2] > 10 || energy[chG4] > 10 ) {
-    printf("%f, %f, %f = %f\n", e1, e2, e4, e1+e2+e4);
-    hG->Fill(e1+e2+e4);
-  }
-  ///if( energy[chdE] > 100 && energy[chE] > 100 ) countG[4] ++;
   
 }
 

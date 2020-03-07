@@ -7,6 +7,10 @@
 *  ttang@anl.gov
 ******************************************************************************/
 
+//TODO check all vector was replaced
+//TODO loading setting for detector (save as some files?)
+//TODO clean up MakeFile ( remove BoxScore, only BoxScoreXY  )
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -48,6 +52,7 @@
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
 #include "../Class/IsoDetect.h"
+#include "../Class/HelioArray.h"
 
 using namespace std;
 
@@ -116,6 +121,7 @@ int main(int argc, char *argv[]){
     printf("                         +-- ZD (zero-degree) \n");
     printf("                         +-- XY (Helios target XY) \n");
     printf("                         +-- iso (isomer with Glover Ge detector) \n");
+    printf("                         +-- array (single Helios array) \n");
     return -1;
   }
   
@@ -172,6 +178,8 @@ int main(int argc, char *argv[]){
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
+  }else if ( location == "array" ){
+    gp = new HelioArray();
   }
   
   printf("******************************************** \n");
@@ -193,7 +201,7 @@ int main(int argc, char *argv[]){
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
 
-  gp->SetCanvasDivision();  
+  gp->SetCanvasTitleDivision(rootFileName);  
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp->SetGenericHistograms(); ///must be after SetChannelGain  
@@ -373,7 +381,7 @@ int main(int argc, char *argv[]){
     
     ///the digitizer will output a channel after a channel., 
     ///so data should be read as fast as possible, that the digitizer will not store any data.
-    dig.ReadData(); 
+    dig.ReadData(isDebug); 
     
     if( isSaveRaw ) {
       ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
