@@ -130,6 +130,7 @@ int main(int argc, char *argv[]){
   
   uint ChannelMask = gp->GetChannelMask();
 
+  gp->SetCanvasDivision(rootFile);  
   gp->SetCanvasTitleDivision(rootFile);  
   gp->SetGenericHistograms(); ///must be after SetChannelGain  
   
@@ -163,6 +164,7 @@ int main(int argc, char *argv[]){
   
   ULong64_t timeZero = 0;
   ULong64_t oldTime = 0;
+  ULong64_t timeEnd = 0;
   
   Double_t timeDiff;
   Int_t count = 0;
@@ -198,18 +200,27 @@ int main(int argc, char *argv[]){
       
       if( timeZero == 0 ) timeZero = t[j];
       
+      if( ev == totalEvent -1 ) timeEnd = t[j];
+      
       if( oldTime == 0 ) {
         oldTime = t[j];
       }else{
-        timeDiff = (t[j] - oldTime) * 2e-9; // 1ch = 2 ns; ns to sec;
-        if ( timeDiff > 1.00 ){
-          gp->FillRateGraph( (t[j] - timeZero) * 2e-9, count/timeDiff);
+        if( t[j] > oldTime ) timeDiff = (t[j] - oldTime) * 2e-9; // 1ch = 2 ns; ns to sec;
+        if( t[j] < oldTime ) timeDiff = (oldTime - t[j]) * 2e-9; // 1ch = 2 ns; ns to sec;
+        if ( timeDiff > 1.00 && t[j] > timeZero){
+          
+          //printf("%16llu, %16llu, %f, %f, %d \n", t[j], oldTime, timeDiff, timeSet, count);
+          
+          double timeSet = (t[j] - timeZero) * 2e-9;
+          gp->FillRateGraph( timeSet, count/timeDiff);
           oldTime = t[j];
           count = 0;
+          
         } 
       }   
     }
     
+
     //if( ev%10000 == 0 ) {
     //  for( int j = 0; j < MaxNChannels; j++){printf("%u, ", e[j]);};
     //  printf("----- %d \n", ev);

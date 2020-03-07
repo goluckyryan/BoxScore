@@ -138,14 +138,14 @@ protected:
   int mode;
   
   bool isHistogramSet;
-
-private:
-
+  
   TGraph * graphRate;
   TGraph ** graphRateCut; 
   
   TGraph * rangeGraph;
   
+private:
+
   int graphIndex;
   
 };
@@ -344,7 +344,7 @@ void GenericPlane::SetGenericHistograms(){
   legend = new TLegend( 0.9, 0.2, 0.99, 0.8); 
   
   graphRate = new TGraph();
-  graphRate->SetTitle("Total Rate [pps]");
+  graphRate->SetTitle("Total Rate [pps] 10 sec average");
   graphRate->SetMarkerColor(4);
   graphRate->SetMarkerStyle(20);
   graphRate->SetMarkerSize(1);
