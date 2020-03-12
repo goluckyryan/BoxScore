@@ -76,6 +76,9 @@ public:
   int16_t* GetWaveForm(int ch)          { return WaveLine[ch];}
   uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];}
   
+  int*      GetWaveFormLengths()        { return waveformLength;}
+  int16_t** GetWaveForms()              { return WaveLine;}
+  
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
   uint32_t GetChannelMask() const       {return ChannelMask;}
@@ -397,9 +400,6 @@ Digitizer::~Digitizer(){
   delete[] rawChannel;
   delete[] rawEnergy;
   delete[] rawTimeStamp; 
-  
-  delete [] WaveLine;
-  delete [] DigitalWaveLine;
   
   delete buffer;
 }
@@ -879,15 +879,16 @@ void Digitizer::ReadData(bool debug){
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   //ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
   
+  /* ignore the error
   if (ret) {
     printf("Error when reading data %d\n", ret);
-    CAEN_DGTZ_SWStopAcquisition(handle);
+    //CAEN_DGTZ_SWStopAcquisition(handle);
     //CAEN_DGTZ_CloseDigitizer(handle);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
     for(int i = 0 ; i < MaxNChannels; i++ ) waveformLength[i] = 0;
     return;
-  }
+  }*/
   
   /* Analyze data */
   //if( debug ) printf("----------- read data\n");
@@ -912,7 +913,7 @@ void Digitizer::ReadData(bool debug){
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
         rawTimeStamp[rawEvCount + rawEvLeftCount] = timetag;
         
-        if( debug) printf("read: %3d, %2d| %2d, %5d, %10llu | %10llu \n", rawEvCount, rawEvLeftCount, ch, Events[ch][ev].Energy, timetag, rollOver);
+        if( debug) printf("read: %3d, %2d| %2d, %5d, %10llu | %10llu | ret: %d \n", rawEvCount, rawEvLeftCount, ch, Events[ch][ev].Energy, timetag, rollOver, ret);
         
         rawEvCount ++;
         
@@ -922,7 +923,7 @@ void Digitizer::ReadData(bool debug){
           PurCnt[ch]++;
       }
       
-      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0 ) {
+      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
       if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
          
          // only get the 0th event

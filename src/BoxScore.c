@@ -9,7 +9,7 @@
 
 //TODO loading setting for detector (save as some files?)
 //TODO the TCUTG save with the same directory of the data, add load TCUTG
-//RODO read waveform
+//TODO write waveForm into File
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,8 +90,8 @@ void PrintCommands(){
   printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
   printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
   printf("q ) Quit                y ) Clear histograms\n");
-  printf("                        p ) Print Channel setting\n");
-  printf("                        o ) Print Channel threshold and DynamicRange\n");
+  printf("d ) List Mode           p ) Print Channel setting\n");
+  printf("w ) Wave Mode           o ) Print Channel threshold and DynamicRange\n");
 }
 
 void paintCanvas(){
@@ -202,7 +202,7 @@ int main(int argc, char *argv[]){
   
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-  int ret = dig.SetAcqMode("mixed", 2000); // list or mixed, not fully impletmented.
+  int ret = dig.SetAcqMode("list", 2000); // list or mixed, not fully impletmented.
   if( ret != 0 ){
      printf(" something wrong when setting acq mode. \n");
   }
@@ -351,6 +351,27 @@ int main(int argc, char *argv[]){
         PrintCommands();
         uncooked();
       }
+      if( c == 'w' ){ //========== Change coincident time window
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        int length;
+        printf("Change to read Wave Form, Set Record Length [ns]? ");
+        int temp = scanf("%d", &length);
+        dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
+        gp->SetWaveCanvas();
+        PrintCommands();
+        uncooked();
+      }
+      if( c == 'd' ){ //========== Change coincident time window
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("Change to List mode.\n");
+        dig.SetAcqMode("list", 2000);
+        gp->SetCanvasTitleDivision(rootFileName);
+        gp->Draw();
+        PrintCommands();
+      }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
         dig.ClearRawData();
@@ -389,8 +410,8 @@ int main(int argc, char *argv[]){
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
-       int ch = 0;
-       gp->FillWave(dig.GetWaveFormLength(ch), ch, dig.GetWaveForm(ch));
+       //gp->FillWave(dig.GetWaveFormLength(3), 3, dig.GetWaveForm(3), 1);
+       gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
     } 
     
     if( isSaveRaw ) {
@@ -403,7 +424,8 @@ int main(int argc, char *argv[]){
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PreviousTime; /// milliseconds
     
-    if (ElapsedTime > updatePeriod  && dig.GetAcqMode() == "list") {
+    if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
+    //if (ElapsedTime > updatePeriod ) {
       
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){

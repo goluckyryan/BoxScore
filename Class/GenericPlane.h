@@ -50,7 +50,9 @@ public:
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
-  void         FillWave(int length, int ch, int16_t * wave);
+  void         SetWaveCanvas();
+  void         FillWave(int length, int ch, int16_t * wave, int padID);
+  void         FillWaves(int* length, int16_t ** wave);
     
   virtual void Draw();
   virtual void ClearHistograms();
@@ -133,8 +135,8 @@ protected:
   TMultiGraph * rateGraph;
   TLegend * legend; 
   
-  TGraph * waveForm;
-  TGraph * waveFormDiff;
+  TGraph * waveForm[8];
+  TGraph * waveFormDiff[8];
   
   TObjArray * cutList; 
   int numCut;
@@ -174,8 +176,8 @@ GenericPlane::~GenericPlane(){
   //delete graphRateCut; need to know how to delete pointer of pointer
   delete rateGraph;
   
-  delete waveForm;
-  delete waveFormDiff;
+  //delete waveForm;
+  //delete waveFormDiff;
   
   delete legend; 
   //delete rangeGraph;
@@ -228,9 +230,6 @@ GenericPlane::GenericPlane(){
   graphRateCut = NULL; 
   legend       = NULL; 
   rangeGraph   = NULL;
-  
-  waveForm = NULL;
-  waveFormDiff = NULL;
   
   line = new TLine();
   line->SetLineColor(2);
@@ -373,16 +372,21 @@ void GenericPlane::SetGenericHistograms(){
   rateGraph->Add(rangeGraph);
   rateGraph->Add(graphRate);
   
-  waveForm = new TGraph();
-  waveForm->GetXaxis()->SetTitle("time [ns]");
+
+  for( int i = 0; i < 8; i++){
+   waveForm[i] = new TGraph();
+   waveForm[i]->GetXaxis()->SetTitle("time [ns]");
+
+   waveFormDiff[i] = new TGraph();
+   waveFormDiff[i]->SetLineColor(2);
+  }
   
-  waveFormDiff = new TGraph();
-  waveFormDiff->SetLineColor(2);
   isHistogramSet = true;
   
 }
 
 void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
+  fCanvas->Clear();
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
@@ -570,26 +574,81 @@ void GenericPlane::LoadCuts(TString cutFileName){
   
 }
 
-void GenericPlane::FillWave(int length, int ch,  int16_t * wave){
+void GenericPlane::FillWave(int length, int ch,  int16_t * wave, int padID){
    
    if( length > 0 && ch >= 0) {
       //printf(" ----------- %d \n", length);
       
+      waveForm[ch]->Clear();
+      waveFormDiff[ch]->Clear();
+      
       for(int i = 0; i < length; i++){
-         waveForm->SetPoint(i, i*2, wave[i]);
-         if( i < length - 1) waveFormDiff->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
-         //printf("%i | %d\n", i, wave[i]);
+         waveForm[ch]->SetPoint(i, i*2, wave[i]);
+         //if( i < length - 1) waveFormDiff[ch]->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
       }
-      waveForm->SetTitle(Form("channel = %d", ch));
 
-      fCanvas->cd(1)->cd(2)->cd(3); 
-      //fCanvas->cd(2); 
-      waveForm->Draw("AP");
-      waveFormDiff->Draw("PL same");
-      fCanvas->Modified();
-      fCanvas->Update();
-      gSystem->ProcessEvents();
+      waveForm[ch]->SetTitle(Form("channel = %d", ch));
+
+      if( waveForm[ch]->GetN() >0 ){
+         fCanvas->cd(padID); 
+         waveForm[ch]->Draw("AP");
+         //waveFormDiff->Draw("PL same");
+         fCanvas->Modified();
+         fCanvas->Update();
+         gSystem->ProcessEvents();
+      }
    }
 }
+
+void GenericPlane::SetWaveCanvas(){
+      
+   fCanvas->Clear();
+   fCanvas->Divide(1,2);
+   fCanvas->cd(1)->SetGridy();
+   fCanvas->cd(1)->SetGridx();
+   fCanvas->cd(2)->SetGridy();
+   fCanvas->cd(2)->SetGridx();
+   
+  fCanvas->Modified();
+  fCanvas->Update();
+  gSystem->ProcessEvents();
+   
+}
+
+void GenericPlane::FillWaves(int* length, int16_t ** wave){
+
+   for( int ch = 0 ; ch < 8; ch ++){
+      if (!(ChannelMask & (1<<ch))) continue;
+      
+   
+      if( length[ch] > 0 ) {
+         //printf(" ----------- %d \n", length);
+         
+         waveForm[ch]->Clear();
+         waveFormDiff[ch]->Clear();
+         
+         for(int i = 0; i < length[ch]; i++){
+            waveForm[ch]->SetPoint(i, i*2, wave[ch][i]);
+            //if( i < length - 1) waveFormDiff[ch]->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
+         }
+
+         waveForm[ch]->SetTitle(Form("channel = %d", ch));
+
+         if( ch == chdE) fCanvas->cd(1); 
+         if( ch == chE) fCanvas->cd(2); 
+         
+         waveForm[ch]->Draw("AP");
+         //waveFormDiff->Draw("PL same");
+      
+      }
+   
+   }
+   
+   fCanvas->Modified();
+   fCanvas->Update();
+   gSystem->ProcessEvents();
+
+}
+
 
 #endif
