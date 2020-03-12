@@ -202,10 +202,10 @@ int main(int argc, char *argv[]){
   
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-  int ret = dig.SetAcqMode("list", 2000); // list or mixed, not fully impletmented.
-  if( ret != 0 ){
-     printf(" something wrong when setting acq mode. \n");
-  }
+  //int ret = dig.SetAcqMode("list", 2000); // list or mixed, not fully impletmented.
+  //if( ret != 0 ){
+  //   printf(" something wrong when setting acq mode. \n");
+  //}
 
   gp->SetCanvasTitleDivision(rootFileName);  
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());

@@ -609,9 +609,9 @@ void GenericPlane::SetWaveCanvas(){
    fCanvas->cd(2)->SetGridy();
    fCanvas->cd(2)->SetGridx();
    
-  fCanvas->Modified();
-  fCanvas->Update();
-  gSystem->ProcessEvents();
+   fCanvas->Modified();
+   fCanvas->Update();
+   gSystem->ProcessEvents();
    
 }
 

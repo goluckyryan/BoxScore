@@ -420,7 +420,8 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
    if( isDetected ) {
 
       printf("Setting digitizer to %s mode with recordLenght = %d \n", mode.c_str(), RecordLength);
-
+      
+      //TODO take out the essential
       ret = ProgramDigitizer();
    }
    return ret;
@@ -838,8 +839,8 @@ void Digitizer::LoadGeneralSetting(string fileName){
     }
     
     //=============== print setting
-    printf(" %-20s  %d ch\n", "Coincident Time Window", CoincidentTimeWindow);
-    printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
+    printf(" %-30s  %d ch\n", "Coincident Time Window", CoincidentTimeWindow);
+    printf(" %-30s  %d ch\n", "Record Lenght", RecordLength);
     printf("====================================== \n");
     
   }
