@@ -273,17 +273,21 @@ int main(int argc, char* argv[])
             The following function returns the number of events in the buffer */
         ret = CAEN_DGTZ_GetNumEvents(handle[b],buffer,bsize,&numEvents);
   
-        printf(".");
+        //printf(".");
         count[b] +=numEvents;
         for (i=0;i<numEvents;i++) {
                 /* Get the Infos and pointer to the event */
           ret = CAEN_DGTZ_GetEventInfo(handle[b],buffer,bsize,i,&eventInfo,&evtptr);
+          
                 /* Decode the event to get the data */
           ret = CAEN_DGTZ_DecodeEvent(handle[b],evtptr,reinterpret_cast<void**>(Evt));
           //*************************************
           // Event Elaboration
           //*************************************
+          //printf("%5d \n", Evt[i].Energy);
+          
           ret = CAEN_DGTZ_FreeEvent(handle[b],reinterpret_cast<void**>(Evt));
+          
         }
         c = checkCommand();
         if (c == 1) goto Continue;

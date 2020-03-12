@@ -23,8 +23,8 @@
 #include "TMath.h"
 
 #define MaxNChannels 8
-#define MaxDataAShot 500000
-
+#define MaxDataAShot 100000 // also limited by Timing, channel, energy pointer initialization.
+                        
 using namespace std;
 
 enum DigiReg {
@@ -34,6 +34,8 @@ enum DigiReg {
   dynamicRange = 0x1028,
   threshold    = 0x106C,
   trigHoldOff  = 0x1074
+  
+  //TODO fill all register
 };
 
 class Digitizer{
@@ -49,12 +51,12 @@ public:
   int  SetChannelParity(int ch, bool isPositive);
   int  SetChannelThreshold(int ch, string folder, int threshold);
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
-  
+  int  SetAcqMode(string mode, int recordLength);
   //void SetRegister(uin32_t address, int ch, float value); 
   //void SetRegister(DigiReg regName, int ch, float value); 
   
   bool     IsConnected()                {return isConnected;} /// can connect and retrieve Digitizer Info.
-  bool     IsGood()                     {return isGood;}      /// can detect digitizer
+  bool     IsDetected()                 {return isDetected;}      /// can detect digitizer
   bool     IsRunning()                  {return AcqRun;}
   int      GetByteRetrived()            {return Nb;}
   int      GetInputDynamicRange(int ch) {return inputDynamicRange[ch];}
@@ -66,6 +68,8 @@ public:
   int      GetChannelToNanoSec()        {return ch2ns;};
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
+  
+  string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mode" ;}
   
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
@@ -112,6 +116,7 @@ public:
   void StartACQ();
   
   void ReadData(bool debug);
+  void ReadWaveForm();
   int  BuildEvent(bool debug);
   
   void PrintReadStatistic();
@@ -123,7 +128,7 @@ public:
 private:
 
   bool isConnected; /// can get digitizer info
-  bool isGood;      /// can open digitizer
+  bool isDetected;      /// can open digitizer
   bool AcqRun;      /// is digitizer taking data
   
   int serialNumber;
@@ -139,6 +144,8 @@ private:
   uint32_t NumEvents[MaxNChannels];
   uint32_t AllocatedSize, BufferSize; 
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
+  CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform;     /// waveforms buffer
+
 
   //====================== Channel Setting
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
@@ -205,7 +212,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   AcqRun   = false;
   ch2ns    = 2; // 1 channel = 2 ns
   Nb       = 0;
-  CoincidentTimeWindow = 100; // nano-sec
+  CoincidentTimeWindow = 200; // nano-sec
   
   //----------------- default channel setting
   for ( int i = 0; i < MaxNChannels ; i++ ) {
@@ -226,12 +233,12 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   IOlev = CAEN_DGTZ_IOLevel_NIM;
   
   //--------------Acquisition parameters 
-  //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
-  AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+  AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;  // default 
   RecordLength = 20000;
+
   this->ChannelMask = ChannelMask;
   CalNOpenChannel(ChannelMask);
-  EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout
+  EventAggr = 1;       // Set how many events to accumulate in the board memory before being available for readout, 0 for auto
 
   //===================== end of initization
 
@@ -242,19 +249,19 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   printf("============= Opening Digitizer at Board %d \n", boardID);
   
   isConnected = false;
-  isGood = true;
+  isDetected = true;
   
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
   if (ret != 0) {
     printf("Can't open digitizer\n");
-    isGood = false;
+    isDetected = false;
   }else{
     //----- Getting Board Info
     CAEN_DGTZ_BoardInfo_t BoardInfo;
     ret = (int) CAEN_DGTZ_GetInfo(handle, &BoardInfo);
     if (ret != 0) {
       printf("Can't read board info\n");
-      isGood = false;
+      isDetected = false;
     }else{
       isConnected = true;
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d with handle %d\n", BoardInfo.ModelName, boardID, handle);
@@ -273,14 +280,12 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     }
   }
   
-  
   LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
-  
   
   /* *********************************************** */
   /* Get Channel Setting and Set Digitizer           */
   /* *********************************************** */
-  if( isGood ){
+  if( isDetected ){
     printf("=================== reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
@@ -290,14 +295,15 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     printf("====================================== \n");
   
     //============= Program the digitizer (see function ProgramDigitizer) 
+    
     ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer();
     if (ret != 0) {
       printf("Failed to program the digitizer\n");
-      isGood = false;
+      isDetected = false;
     }
   }
   
-  if( isGood ) {
+  if( isDetected ) {
     /* WARNING: The mallocs MUST be done after the digitizer programming,
     because the following functions needs to know the digitizer configuration
     to allocate the right memory amount */
@@ -305,7 +311,10 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
     // Allocate memory for the events
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
+    // Allocate memory for the waveforms
+    ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform), &AllocatedSize); 
     
+
     if (ret != 0) {
       printf("Can't allocate memory buffers\n");
       CAEN_DGTZ_SWStopAcquisition(handle);
@@ -339,8 +348,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   for( int i = 0; i < MaxDataAShot ; i++){
     TimeStamp[i] = new ULong64_t [MaxNChannels];
-    Energy[i]    = new UInt_t [MaxDataAShot];
-    Channel[i]   = new int [MaxDataAShot];
+    Energy[i]    = new UInt_t [MaxNChannels];
+    Channel[i]   = new int [MaxNChannels];
   }
   
   ClearRawData();
@@ -354,6 +363,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     countNChannelEvent[k] = 0;
     totNChannelEvent[k] = 0;
   }
+
 }
 
 
@@ -381,6 +391,28 @@ Digitizer::~Digitizer(){
   delete[] rawTimeStamp; 
   
   delete buffer;
+}
+
+int Digitizer::SetAcqMode(string mode, int recordLength){
+   
+   this->RecordLength = recordLength;
+
+   if( mode == "list"){
+      AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // enables the acquisition of time stamps and energy value 
+   }else if ( mode == "mixed"){
+      AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;          // enables the acquisition of both waveforms, energies, and timestamps.
+   }else{
+      printf("############ AcqMode must be either list or mixed\n");
+   }
+   
+   int ret = 0;
+   if( isDetected ) {
+
+      printf("Setting digitizer to %s mode with recordLenght = %d \n", mode.c_str(), RecordLength);
+
+      ret = ProgramDigitizer();
+   }
+   return ret;
 }
 
 int Digitizer::SetChannelThreshold(int ch, string folder, int threshold){
@@ -609,20 +641,20 @@ int Digitizer::ProgramDigitizer(){
     
     ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000, 0x01000114);  // Channel Control Reg (indiv trg, seq readout) ??
 
-    /* Set the DPP acquisition mode
-    This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
-    CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
-    CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
-    CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
-    CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
+   /* Set the DPP acquisition mode
+   This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
+   CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
+   CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
+   CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
+   CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
     ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-    
-    // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
-    ret |= CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED);
-    
-    // Set the number of samples for each waveform
+
+   // Set the number of samples for each waveform
     ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
 
+    // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
+    ret |= CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED); // software command
+    
     // Set the I/O level (CAEN_DGTZ_IOLevel_NIM or CAEN_DGTZ_IOLevel_TTL)
     ret |= CAEN_DGTZ_SetIOLevel(handle, IOlev);
 
@@ -820,6 +852,7 @@ void Digitizer::ReadData(bool debug){
   
   Nb = BufferSize;
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
+  //ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
   
   if (ret) {
     printf("Data Error: %d\n", ret);
@@ -847,13 +880,13 @@ void Digitizer::ReadData(bool debug){
         rollOver = rollOver << 31;
         timetag  += rollOver ;
         
-        //printf("%llu | %llu | %llu \n", Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
         
         rawChannel[rawEvCount + rawEvLeftCount] = ch;
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
         rawTimeStamp[rawEvCount + rawEvLeftCount] = timetag;
         
-        if( debug) printf("read: %3d, %2d| %d, %d, %llu\n", rawEvCount, rawEvLeftCount, ch, Events[ch][ev].Energy, timetag);
+        if( debug) printf("read: %3d, %2d| %2d, %5d, %10llu | %10llu \n", rawEvCount, rawEvLeftCount, ch, Events[ch][ev].Energy, timetag, rollOver);
         
         rawEvCount ++;
         
@@ -990,7 +1023,7 @@ int Digitizer::BuildEvent(bool debug = false){
     rawChannel[i] = channelT[sortIndex[i]];
     rawTimeStamp[i] = timeStampT[sortIndex[i]];
     rawEnergy[i] = energyT[sortIndex[i]];
-    if( debug) printf("Sorted: %d| %d,  %llu, %d  \n", i, rawChannel[i], rawTimeStamp[i], rawEnergy[i]);
+    if( debug) printf("Sorted: %3d| %2d, %5d, %10llu  \n", i, rawChannel[i], rawEnergy[i], rawTimeStamp[i]);
   }
   
   if( nRawData > 0 ) {
@@ -1156,6 +1189,30 @@ int Digitizer::CalNOpenChannel(uint32_t mask){
   }
   
   return nChannelOpen;
+}
+
+void Digitizer::ReadWaveForm(){
+   //see
+   //~/Downloads/CAENDigitizer_2.12.0/samples/ReadoutTest_DPP_PHA_x725_x730
+   for( int ch = 0; ch < MaxNChannels; ch++) {    
+      if (!(ChannelMask & (1<<ch))) continue;
+      for( int ev = 0 ; ev < NumEvents[ch]; ev++){
+         int size;
+         int16_t *WaveLine;
+         uint8_t *DigitalWaveLine;
+         CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][0], Waveform);
+
+         // Use waveform data here...
+         size = (int)(Waveform->Ns); // Number of samples
+         WaveLine = Waveform->Trace1; // First trace (ANALOG_TRACE_1)
+
+         WaveLine = Waveform->Trace2; // Second Trace ANALOG_TRACE_2 (if single trace mode, it is a sequence of zeroes)
+
+         DigitalWaveLine = Waveform->DTrace1; // First Digital Trace (DIGITALPROBE1)
+
+         DigitalWaveLine = Waveform->DTrace2; // Second Digital Trace (for DPP-PHA it is ALWAYS Trigger)
+      }
+   }
 }
 
 #endif

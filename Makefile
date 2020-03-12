@@ -11,7 +11,6 @@
 #########################################################################
 ARCH	=	`uname -m`
 
-OUT1     =    BoxScore
 OUT2     =    DetectDigitizer
 
 CC	=	g++
@@ -22,7 +21,6 @@ DEPLIBS	=	-lCAENDigitizer
 
 INCLUDEDIR =	-I./include
 
-OBJS	=	src/BoxScore.o 
 OBJS1	=	src/keyb.o src/Functions.o 
 OBJS2   =   src/keyb.o src/DetectDigitizer.o 
 
@@ -32,21 +30,13 @@ ROOTLIBS = `root-config --cflags --glibs`
 
 #########################################################################
 
-all	:	$(OUT1) $(OUT2) CutsCreator BoxScoreXY BoxScoreReader
+all	:	$(OUT2) CutsCreator BoxScore BoxScoreReader
 
 clean	:
-		/bin/rm -f $(OBJS) $(OBJS1) $(OBJS2) $(OUT1) $(OUT2)
-
-$(OUT1)	:	$(OBJS) $(OBJS1)
-		$(CC) -o $(OUT1) $(OBJS) $(OBJS1) $(DEPLIBS) $(ROOTLIBS)
+		/bin/rm -f $(OBJS1) $(OBJS2) $(OUT2)
 
 $(OUT2)	:	$(OBJS2)
 		$(CC) -o $(OUT2) $(OBJS2) $(DEPLIBS)
-
-$(OBJS)	:	src/BoxScore.c
-		$(CC) $(FLAGS) $(INCLUDEDIR) -c -o $(OBJS) src/BoxScore.c $(ROOTLIBS)
-
-$(OBJS1)	:	$(INCLUDES) Makefile
 
 $(OBJS2)	:	$(INCLUDES) Makefile
 
@@ -56,8 +46,8 @@ $(OBJS2)	:	$(INCLUDES) Makefile
 CutsCreator:	$(OBJS3) src/CutsCreator.c
 		g++ -std=c++11 -pthread src/CutsCreator.c -o CutsCreator $(ROOTLIBS)
 
-BoxScoreXY	: src/BoxScoreXY.c Class/DigitizerClass.h Class/FileIO.h Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h Class/HelioArray.h
-		g++ -std=c++11 -pthread src/BoxScoreXY.c -o BoxScoreXY  $(DEPLIBS) $(ROOTLIBS)
+BoxScore	: src/BoxScore.c Class/DigitizerClass.h Class/FileIO.h Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h Class/HelioArray.h
+		g++ -std=c++11 -pthread src/BoxScore.c -o BoxScore  $(DEPLIBS) $(ROOTLIBS)
 
 BoxScoreReader: src/BoxScoreReader.c Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h Class/HelioArray.h
 		g++ -std=c++11 src/BoxScoreReader.c -o BoxScoreReader $(ROOTLIBS)

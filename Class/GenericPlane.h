@@ -123,6 +123,9 @@ protected:
   
   TH1F * htotE;
   TH1F * hTDiff;
+  
+  //TODO TH2F * hdETOF;
+  
   TLine * line; // line for coincident window
   
   TMultiGraph * rateGraph;
@@ -188,7 +191,7 @@ GenericPlane::GenericPlane(){
   rangeDE[1] = 60000; /// max range for dE
   rangeE[0] =      0; /// min range for E
   rangeE[1] =  60000; /// max range for E
-  rangeTime =  50000; /// range for Tdiff, nano-sec
+  rangeTime =  500; /// range for Tdiff, nano-sec
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
@@ -305,6 +308,7 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
     chEGain = chGain[chE];
     
   }
+  
 }
 
 void GenericPlane::SetGenericHistograms(){
@@ -314,8 +318,8 @@ void GenericPlane::SetGenericHistograms(){
   int bin = 200;
   float labelSize = 0.08;
   
-  hE    = new TH1F(   "hE", Form("raw E (ch=%d) ; E [ch] ;count ", chE),   bin,  rangeE[0],  rangeE[1]);
-  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d) ; dE [ch]; count", chdE), bin, rangeDE[0], rangeDE[1]);
+  hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ", chE, chEGain),   bin,  rangeE[0],  rangeE[1]);
+  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d, gain=%.2f) ; dE [ch]; count", chdE, chdEGain), bin, rangeDE[0], rangeDE[1]);
   htotE = new TH1F("htotE", "total E ; totR [ch]; count", bin, rangeE[0]+rangeDE[0], rangeE[1]+rangeDE[1]);
   
   hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ", bin, rangeE[0], rangeE[1], bin, rangeDE[0], rangeDE[1]);
