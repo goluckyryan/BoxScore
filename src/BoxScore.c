@@ -389,7 +389,8 @@ int main(int argc, char *argv[]){
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
-      if ( dig.GetWaveChannel() == 3 ) gp->FillWave(dig.GetWaveFormLength(), 0, dig.GetWaveForm());
+       int ch = 0;
+       gp->FillWave(dig.GetWaveFormLength(ch), ch, dig.GetWaveForm(ch));
     } 
     
     if( isSaveRaw ) {

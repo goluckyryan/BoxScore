@@ -580,9 +580,10 @@ void GenericPlane::FillWave(int length, int ch,  int16_t * wave){
          if( i < length - 1) waveFormDiff->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
          //printf("%i | %d\n", i, wave[i]);
       }
-      //waveForm->SetTitle(Form("channel = %d", ch));
+      waveForm->SetTitle(Form("channel = %d", ch));
 
-      fCanvas->cd(2); 
+      fCanvas->cd(1)->cd(2)->cd(3); 
+      //fCanvas->cd(2); 
       waveForm->Draw("AP");
       waveFormDiff->Draw("PL same");
       fCanvas->Modified();
