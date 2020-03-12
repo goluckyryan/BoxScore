@@ -1,5 +1,5 @@
 //============= Discriminator
-500     // Trigger Threshold (in LSB)
+1000     //Tigger Threshold (in LSB)
 496     // Trigger Hold Off
 32      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32, 64
 100     // Input Signal Rise time (ns) 
@@ -15,7 +15,7 @@
 0       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 //============= Others
 0.6     // DC offset ( from 0 to 1 )
-2000    // pre trigger size [ch];
+1000    // pre trigger size [ch];
 false   // is pulse positive parity;
 1       // Energy fine gain , may be address is incorrect? seem no effect
 500     // Baseline holdoff (ns)

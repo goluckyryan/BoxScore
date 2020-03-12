@@ -49,6 +49,8 @@ public:
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
+  
+  void         FillWave(int length, int ch, int16_t * wave);
     
   virtual void Draw();
   virtual void ClearHistograms();
@@ -131,6 +133,9 @@ protected:
   TMultiGraph * rateGraph;
   TLegend * legend; 
   
+  TGraph * waveForm;
+  TGraph * waveFormDiff;
+  
   TObjArray * cutList; 
   int numCut;
   TCutG * cutG;
@@ -168,6 +173,9 @@ GenericPlane::~GenericPlane(){
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
   delete rateGraph;
+  
+  delete waveForm;
+  delete waveFormDiff;
   
   delete legend; 
   //delete rangeGraph;
@@ -220,6 +228,9 @@ GenericPlane::GenericPlane(){
   graphRateCut = NULL; 
   legend       = NULL; 
   rangeGraph   = NULL;
+  
+  waveForm = NULL;
+  waveFormDiff = NULL;
   
   line = new TLine();
   line->SetLineColor(2);
@@ -362,6 +373,11 @@ void GenericPlane::SetGenericHistograms(){
   rateGraph->Add(rangeGraph);
   rateGraph->Add(graphRate);
   
+  waveForm = new TGraph();
+  waveForm->GetXaxis()->SetTitle("time [ns]");
+  
+  waveFormDiff = new TGraph();
+  waveFormDiff->SetLineColor(2);
   isHistogramSet = true;
   
 }
@@ -552,6 +568,27 @@ void GenericPlane::LoadCuts(TString cutFileName){
     printf("=========== Cannot find TCutG in %s, file might not exist. \n", cutFileName.Data());
   }
   
+}
+
+void GenericPlane::FillWave(int length, int ch,  int16_t * wave){
+   
+   if( length > 0 && ch >= 0) {
+      //printf(" ----------- %d \n", length);
+      
+      for(int i = 0; i < length; i++){
+         waveForm->SetPoint(i, i*2, wave[i]);
+         if( i < length - 1) waveFormDiff->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
+         //printf("%i | %d\n", i, wave[i]);
+      }
+      //waveForm->SetTitle(Form("channel = %d", ch));
+
+      fCanvas->cd(2); 
+      waveForm->Draw("AP");
+      waveFormDiff->Draw("PL same");
+      fCanvas->Modified();
+      fCanvas->Update();
+      gSystem->ProcessEvents();
+   }
 }
 
 #endif

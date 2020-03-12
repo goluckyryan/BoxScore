@@ -38,6 +38,7 @@ enum DigiReg {
   //TODO fill all register
 };
 
+
 class Digitizer{
   RQ_OBJECT("Digitizer") 
 public:
@@ -69,7 +70,12 @@ public:
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
   
-  string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mode" ;}
+  string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
+  uint32_t GetRecordLength()            { return RecordLength;}
+  int      GetWaveFormLength()          { return waveformLength;}
+  int      GetWaveChannel()             { return waveChannel;}
+  int16_t* GetWaveForm()                { return WaveLine;}
+  uint8_t* GetDigitalWaveLine()         { return DigitalWaveLine;}
   
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
@@ -116,7 +122,6 @@ public:
   void StartACQ();
   
   void ReadData(bool debug);
-  void ReadWaveForm();
   int  BuildEvent(bool debug);
   
   void PrintReadStatistic();
@@ -134,7 +139,7 @@ private:
   int serialNumber;
 
   int boardID;      /// board identity
-  int handle;       /// i don't know why, but better separete the handle from handle
+  int handle;       /// i don't know why, but better separete the handle from boardID
   int ret;          /// return value, refer to CAEN_DGTZ_ErrorCode
   int NChannel;     /// number of channel
   int nChannelOpen; /// number of open channel
@@ -146,6 +151,10 @@ private:
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
   CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform;     /// waveforms buffer
 
+  int16_t *WaveLine;
+  uint8_t *DigitalWaveLine;
+  int waveformLength;
+  int waveChannel;
 
   //====================== Channel Setting
   CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
@@ -213,6 +222,10 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   ch2ns    = 2; // 1 channel = 2 ns
   Nb       = 0;
   CoincidentTimeWindow = 200; // nano-sec
+  waveformLength = 0;
+  waveChannel = -1;
+  WaveLine = NULL;
+  DigitalWaveLine = NULL;
   
   //----------------- default channel setting
   for ( int i = 0; i < MaxNChannels ; i++ ) {
@@ -221,7 +234,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     chGain[i]            = 1.0;
     energyFineGain[i]    = 100;
     NumEvents[i]         = 0; 
-    PreTriggerSize[i]    = 2000;
+    PreTriggerSize[i]    = 1000;
     PulsePolarity[i]     = CAEN_DGTZ_PulsePolarityPositive; 
   }
   
@@ -234,7 +247,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
   //--------------Acquisition parameters 
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;  // default 
-  RecordLength = 20000;
+  RecordLength = 2000;
 
   this->ChannelMask = ChannelMask;
   CalNOpenChannel(ChannelMask);
@@ -389,6 +402,9 @@ Digitizer::~Digitizer(){
   delete[] rawChannel;
   delete[] rawEnergy;
   delete[] rawTimeStamp; 
+  
+  delete WaveLine;
+  delete DigitalWaveLine;
   
   delete buffer;
 }
@@ -647,9 +663,23 @@ int Digitizer::ProgramDigitizer(){
    CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
    CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
    CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
+   
+   //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+   
     ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
 
-   // Set the number of samples for each waveform
+    // Set Extras 2 to enable, this override Accusition mode, focring list mode
+    if( AcqMode == 1 ) {
+       uint32_t value = 0x10E0114;
+      ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
+    }else{
+       
+     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+    }
+    
+    // Set the number of samples for each waveform
     ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
 
     // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
@@ -680,10 +710,6 @@ int Digitizer::ProgramDigitizer(){
     
     // Set the DPP specific parameters for the channels in the given channelMask
     ret |= CAEN_DGTZ_SetDPPParameters(handle, ChannelMask, &DPPParams);
-    
-    // Set Extras 2 to enable, this override Accusition mode, focring list mode
-    uint32_t value = 0x10E0114;
-    ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
     
     for(int i=0; i<MaxNChannels; i++) {
         if (ChannelMask & (1<<i)) {
@@ -817,6 +843,7 @@ void Digitizer::LoadGeneralSetting(string fileName){
     }
     
     //=============== print setting
+    printf(" %-20s  %d ch\n", "Coincident Time Window", CoincidentTimeWindow);
     printf(" %-20s  %d ch\n", "Record Lenght", RecordLength);
     printf("====================================== \n");
     
@@ -848,18 +875,24 @@ void Digitizer::StartACQ(){
 void Digitizer::ReadData(bool debug){
   /* Read data from the board */
   ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-  if (BufferSize == 0) return;
+  if (BufferSize == 0) {
+     waveformLength = 0;
+     waveChannel = -1;
+     return;
+  }
   
   Nb = BufferSize;
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   //ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
   
   if (ret) {
-    printf("Data Error: %d\n", ret);
+    printf("Error when reading data %d\n", ret);
     CAEN_DGTZ_SWStopAcquisition(handle);
     CAEN_DGTZ_CloseDigitizer(handle);
     CAEN_DGTZ_FreeReadoutBuffer(&buffer);
     CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+    waveformLength = 0;
+    waveChannel = -1;
     return;
   }
   
@@ -894,6 +927,28 @@ void Digitizer::ReadData(bool debug){
         
       } else { /* PileUp */
           PurCnt[ch]++;
+      }
+      
+      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0 ) {
+      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
+         
+         // only get the 0th event
+         ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform);
+
+         // Use waveform data here...
+         waveformLength = (int)(Waveform->Ns); // Number of samples
+         waveChannel = ch;
+         WaveLine = Waveform->Trace1;                // First trace (ANALOG_TRACE_1)
+         //DigitalWaveLine = Waveform->DTrace1;        // First Digital Trace (DIGITALPROBE1)
+         //printf("============ ret : %d, ev : %d,  %d \n", ret, ev,  waveformLength);
+
+         //for( int p = 0; p < waveformLength; p ++){
+         //   if( p%10 == 0 ) printf(" %3d | %d \n", p, WaveLine[p]);
+         //}
+         
+      }else{
+         waveformLength = 0;
+         waveChannel = -1;
       }
         
     } // loop on events
@@ -1190,29 +1245,4 @@ int Digitizer::CalNOpenChannel(uint32_t mask){
   
   return nChannelOpen;
 }
-
-void Digitizer::ReadWaveForm(){
-   //see
-   //~/Downloads/CAENDigitizer_2.12.0/samples/ReadoutTest_DPP_PHA_x725_x730
-   for( int ch = 0; ch < MaxNChannels; ch++) {    
-      if (!(ChannelMask & (1<<ch))) continue;
-      for( int ev = 0 ; ev < NumEvents[ch]; ev++){
-         int size;
-         int16_t *WaveLine;
-         uint8_t *DigitalWaveLine;
-         CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][0], Waveform);
-
-         // Use waveform data here...
-         size = (int)(Waveform->Ns); // Number of samples
-         WaveLine = Waveform->Trace1; // First trace (ANALOG_TRACE_1)
-
-         WaveLine = Waveform->Trace2; // Second Trace ANALOG_TRACE_2 (if single trace mode, it is a sequence of zeroes)
-
-         DigitalWaveLine = Waveform->DTrace1; // First Digital Trace (DIGITALPROBE1)
-
-         DigitalWaveLine = Waveform->DTrace2; // Second Digital Trace (for DPP-PHA it is ALWAYS Trigger)
-      }
-   }
-}
-
 #endif

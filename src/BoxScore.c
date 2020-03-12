@@ -9,7 +9,6 @@
 
 //TODO loading setting for detector (save as some files?)
 //TODO the TCUTG save with the same directory of the data, add load TCUTG
-//TODO the default coincidentTimeWindow is 200 ns and cannot be change
 //RODO read waveform
 
 #include <stdio.h>
@@ -203,7 +202,7 @@ int main(int argc, char *argv[]){
   
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-  int ret = dig.SetAcqMode("list", 20000); // list or mixed, not fully impletmented.
+  int ret = dig.SetAcqMode("mixed", 2000); // list or mixed, not fully impletmented.
   if( ret != 0 ){
      printf(" something wrong when setting acq mode. \n");
   }
@@ -388,7 +387,10 @@ int main(int argc, char *argv[]){
     
     ///the digitizer will output a channel after a channel., 
     ///so data should be read as fast as possible, that the digitizer will not store any data.
-    if( dig.GetAcqMode() == "list" ) dig.ReadData(isDebug); 
+    dig.ReadData(isDebug);
+    if( dig.GetAcqMode() == "mixed" ) {
+      if ( dig.GetWaveChannel() == 3 ) gp->FillWave(dig.GetWaveFormLength(), 0, dig.GetWaveForm());
+    } 
     
     if( isSaveRaw ) {
       ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
@@ -399,8 +401,8 @@ int main(int argc, char *argv[]){
     //##################################################################
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PreviousTime; /// milliseconds
-
-    if (ElapsedTime > updatePeriod) {
+    
+    if (ElapsedTime > updatePeriod  && dig.GetAcqMode() == "list") {
       
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
@@ -449,7 +451,7 @@ int main(int argc, char *argv[]){
       }
       
       printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0. ) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
+      if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
       
       /// for isomer
