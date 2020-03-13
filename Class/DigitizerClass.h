@@ -53,6 +53,7 @@ public:
   int  SetChannelThreshold(int ch, string folder, int threshold);
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
   int  SetAcqMode(string mode, int recordLength);
+  //TODO
   //void SetRegister(uin32_t address, int ch, float value); 
   //void SetRegister(DigiReg regName, int ch, float value); 
   
@@ -70,11 +71,12 @@ public:
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
   
+  
   string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
   uint32_t GetRecordLength()            { return RecordLength;}
   int      GetWaveFormLength(int ch)    { return waveformLength[ch];}
   int16_t* GetWaveForm(int ch)          { return WaveLine[ch];}
-  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];}
+  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];} // not used
   
   int*      GetWaveFormLengths()        { return waveformLength;}
   int16_t** GetWaveForms()              { return WaveLine;}
@@ -82,6 +84,7 @@ public:
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
   uint32_t GetChannelMask() const       {return ChannelMask;}
+  string   GetChannelMaskString();
   
   void GetBoardConfiguration();
   void GetChannelSetting(int ch);
@@ -117,6 +120,7 @@ public:
   
   //========= Digitizer Control
   int  ProgramDigitizer();
+  int  ProgramChannels();
   void LoadChannelSetting (const int ch, string fileName);
   void LoadGeneralSetting(string fileName);
   
@@ -139,7 +143,7 @@ private:
   bool AcqRun;      /// is digitizer taking data
   
   int serialNumber;
-
+  
   int boardID;      /// board identity
   int handle;       /// i don't know why, but better separete the handle from boardID
   int ret;          /// return value, refer to CAEN_DGTZ_ErrorCode
@@ -291,12 +295,13 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     }
   }
   
-  LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
-  
   /* *********************************************** */
   /* Get Channel Setting and Set Digitizer           */
   /* *********************************************** */
   if( isDetected ){
+     
+    LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
+  
     printf("=================== reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
@@ -307,8 +312,9 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   
     //============= Program the digitizer (see function ProgramDigitizer) 
     
-    ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer();
+    ret  = ProgramDigitizer();
     ret |= SetAcqMode("list", RecordLength);
+    ret |= ProgramChannels();
     if (ret != 0) {
       printf("Failed to program the digitizer\n");
       isDetected = false;
@@ -555,6 +561,14 @@ void Digitizer::ClearData(){
   countEventBuilt = 0;
 }
 
+string Digitizer::GetChannelMaskString(){
+  string str = "";
+  for(int i = 0; i < MaxNChannels; i++){
+     if( ChannelMask & ( 1 << i ) ) {str += to_string(i); str += " ";}
+  }
+  return str;
+}
+
 void Digitizer::SetChannelMask(uint32_t mask){ 
   ChannelMask = mask;
   
@@ -710,8 +724,19 @@ int Digitizer::ProgramDigitizer(){
     In this example the sync is disabled */
     ret |= CAEN_DGTZ_SetRunSynchronizationMode(handle, CAEN_DGTZ_RUN_SYNC_Disabled);
     
+    if (ret) {
+        printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
+        return ret;
+    } else {
+        return 0;
+    }
+  
+}
+
+int Digitizer::ProgramChannels(){
+   
     // Set the DPP specific parameters for the channels in the given channelMask
-    ret |= CAEN_DGTZ_SetDPPParameters(handle, ChannelMask, &DPPParams);
+    int ret = CAEN_DGTZ_SetDPPParameters(handle, ChannelMask, &DPPParams);
     
     for(int i=0; i<MaxNChannels; i++) {
         if (ChannelMask & (1<<i)) {
@@ -737,18 +762,14 @@ int Digitizer::ProgramDigitizer(){
             ///printf(" InputDynamic Range (ch:%d): %d \n", i, value[0]);
         }
     }
-
-    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-    ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-
+    
     if (ret) {
-        printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
+        printf("Warning: errors found during the programming channels. \n");
         return ret;
     } else {
         return 0;
     }
-  
+   
 }
 
 void Digitizer::LoadChannelSetting (const int ch, string fileName) {
@@ -757,6 +778,7 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
   file_in.open(fileName.c_str(), ios::in);
 
   if( !file_in){
+    printf("Fail to open the file.\n");
     printf("channel: %d | default.\n", ch);
     DPPParams.thr[ch]   = 100;      // Trigger Threshold (in LSB)
     DPPParams.trgho[ch] = 1200;     // Trigger Hold Off
@@ -931,7 +953,7 @@ void Digitizer::ReadData(bool debug){
           PurCnt[ch]++;
       }
       
-      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
+      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) { // only for the first event for channel for one retreive. 
       //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
          
          ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);

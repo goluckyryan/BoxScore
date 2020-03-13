@@ -138,6 +138,7 @@ protected:
   
   TGraph * waveForm[8];
   TGraph * waveFormDiff[8];
+  TGraph * trapezoid[8];
   
   TObjArray * cutList; 
   int numCut;
@@ -664,10 +665,15 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
             waveForm[ch]->SetMarkerColor(ch+1);
          }
          waveFormDiff[ch]->Clear();
+         waveFormDiff[ch]->SetLineColor(2);
          
          for(int i = 0; i < length[ch]; i++){
             waveForm[ch]->SetPoint(i, i*2, wave[ch][i]);
          }
+         
+         //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
+         
+         //TODO Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
 
          waveForm[ch]->SetTitle(Form("channel = %d", ch));
          waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
@@ -680,8 +686,8 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
          }else{
             fCanvas->cd(padID);
             waveForm[ch]->Draw("AP");
+            //waveFormDiff[ch]->Draw("same");
          }
-         //waveFormDiff->Draw("PL same");
       
       }
    }

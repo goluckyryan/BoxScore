@@ -10,6 +10,9 @@
 //TODO loading setting for detector (save as some files?)
 //TODO the TCUTG save with the same directory of the data, add load TCUTG
 //TODO write waveForm into File
+//TODO digitizer output array of channel setting, feed to GenericPlan, trapezoidal filter
+//TODO more online control of the digitizer.
+//TODO FULL GUI? Qt? EPICS+EDM?
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,7 +79,7 @@ bool  QuitFlag = false;
 
 long get_time();
 static struct termios g_old_kbd_mode;
-static void cooked(void);  ///set keyboard behaviour as normal
+static void cooked(void);  ///set keyboard behaviour as wait-for-enter
 static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
@@ -90,6 +93,7 @@ void PrintCommands(){
   printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
   printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
   printf("q ) Quit                y ) Clear histograms\n");
+  printf("                        l ) Load setting of a channel\n");
   printf("d ) List Mode           p ) Print Channel setting\n");
   printf("w ) Wave Mode           o ) Print Channel threshold and DynamicRange\n");
 }
@@ -197,15 +201,10 @@ int main(int argc, char *argv[]){
   /* Canvas and Digitzer                                                                               */
   /* *************************************************************************************** */
 
-  
   uint ChannelMask = gp->GetChannelMask();
   
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-  //int ret = dig.SetAcqMode("list", 2000); // list or mixed, not fully impletmented.
-  //if( ret != 0 ){
-  //   printf(" something wrong when setting acq mode. \n");
-  //}
 
   gp->SetCanvasTitleDivision(rootFileName);  
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
@@ -274,7 +273,6 @@ int main(int argc, char *argv[]){
         for( int id = 0 ; id < MaxNChannels ; id++ ) {
           if (ChannelMask & (1<<id)) dig.GetChannelSetting(id);
         }
-        PrintCommands();
       }
       if (c == 's')  { //========== start acquisition
         gROOT->ProcessLine("gErrorIgnoreLevel = -1;");
@@ -286,7 +284,6 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
-        PrintCommands();
       }
       if (c == 'z')  { //========== Change threshold
         dig.StopACQ();
@@ -308,7 +305,6 @@ int main(int argc, char *argv[]){
           file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
         }
-        PrintCommands();
         uncooked();
       }
       if (c == 'k')  { //========== Change Dynamic Range
@@ -328,50 +324,76 @@ int main(int argc, char *argv[]){
           file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), channel));
           file.Close();
         }
-        PrintCommands();
         uncooked();
       }
       if (c == 'o')  { //========== Print threshold and Dynamic Range
         dig.StopACQ();
         dig.ClearRawData();
         dig.PrintThresholdAndDynamicRange();
-        PrintCommands();
+      }
+      if ( c == 'l'){ // load channel setting from a file
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        printf("============ Change channel setting from a file\n");
+        int ch;
+        printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
+        int temp = scanf("%d", &ch);
+        char loadfile[100];
+        if( dig.GetChannelMask() & ( 1 << ch) ){ 
+           printf("Change channel-%d from file (serie No. %d)? ", ch, dig.GetSerialNumber());
+           temp = scanf("%s", loadfile);
+           printf("----> load from %s\n", loadfile);
+           dig.LoadChannelSetting(ch, loadfile);
+           int ret = dig.ProgramChannels();
+           printf("==================");
+           ret == 0 ? printf(" Changed.\n") : printf("Fail.\n");
+        }else{
+           printf("Channel-%d is disabled.", ch);
+        }
+        uncooked();
       }
       if( c == 'x' ){ //========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
         int coinTime;
-        printf("Change coincident time window from \e[33m%d\e[0m ns to ? ", dig.GetCoincidentTimeWindow());
+        printf("\nChange coincident time window from \e[33m%d\e[0m ns to ? ", dig.GetCoincidentTimeWindow());
         int temp = scanf("%d", &coinTime);
         dig.SetCoincidentTimeWindow(coinTime);
         gp->SetCoincidentTimeWindow(coinTime);
         printf("Done, the coincident time window is now \e[33m%d\e[0m.\n", dig.GetCoincidentTimeWindow());
         gp->Draw();
-        PrintCommands();
         uncooked();
       }
       if( c == 'w' ){ //========== Change coincident time window
-        dig.StopACQ();
-        dig.ClearRawData();
-        printf("\n\n##################################\n");
-        cooked();
-        int length;
-        printf("Change to read Wave Form, Set Record Length [ns]? ");
-        int temp = scanf("%d", &length);
-        dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
-        gp->SetWaveCanvas(length/2);
-        PrintCommands();
-        uncooked();
+
+        if( dig.GetAcqMode() == "mixed"){
+           printf("Already in mixed mode\n");
+        }else{
+           dig.StopACQ();
+           dig.ClearRawData();
+           printf("\n\n##################################\n");
+           cooked();
+           int length;
+           printf("Change to read Wave Form, Set Record Length [ns]? ");
+           int temp = scanf("%d", &length);
+           dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
+           gp->SetWaveCanvas(length/2);
+           uncooked();
+        }
       }
       if( c == 'd' ){ //========== Change coincident time window
-        dig.StopACQ();
-        dig.ClearRawData();
-        printf("Change to List mode.\n");
-        dig.SetAcqMode("list", 2000);
-        gp->SetCanvasTitleDivision(rootFileName);
-        gp->Draw();
-        PrintCommands();
+        if( dig.GetAcqMode() == "list" ) {
+           printf("Already in list mode\n");
+        }else{
+           dig.StopACQ();
+           dig.ClearRawData();
+           printf("Change to List mode.\n");
+           dig.SetAcqMode("list", 2000);
+           gp->SetCanvasTitleDivision(rootFileName);
+           gp->Draw();
+        }
       }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
@@ -398,8 +420,8 @@ int main(int argc, char *argv[]){
         system(expression.c_str());
         
         gp->LoadCuts("cutsFile.root");
-        PrintCommands();
       }
+      PrintCommands();
     }//------------ End of keyboardHit
     
     if (!dig.IsRunning()) {
@@ -411,7 +433,6 @@ int main(int argc, char *argv[]){
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
-       //gp->FillWave(dig.GetWaveFormLength(3), 3, dig.GetWaveForm(3), 1);
        gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
     } 
     
@@ -482,7 +503,7 @@ int main(int argc, char *argv[]){
       if( gp->GetClassID() == 2 ) {
         WriteToDataBase( databaseName, "G1", tag, gp->GetG1Count()/timeRangeSec);
         WriteToDataBase( databaseName, "G2", tag, gp->GetG2Count()/timeRangeSec);
-        ///WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
+        WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
         WriteToDataBase( databaseName, "G4", tag, gp->GetG4Count()/timeRangeSec);
         gp->SetCountZero();
       }
