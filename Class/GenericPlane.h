@@ -341,12 +341,15 @@ void GenericPlane::SetGenericHistograms(){
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", bin, 0, rangeTime);
   
   hE->GetXaxis()->SetLabelSize(labelSize);
+  hE->GetXaxis()->SetNdivisions(405);
   hE->GetYaxis()->SetLabelSize(labelSize);
   
   hdE->GetXaxis()->SetLabelSize(labelSize);
+  hdE->GetXaxis()->SetNdivisions(405);
   hdE->GetYaxis()->SetLabelSize(labelSize);
   
   hTDiff->GetXaxis()->SetLabelSize(labelSize);
+  hTDiff->GetXaxis()->SetNdivisions(405);
   hTDiff->GetYaxis()->SetLabelSize(labelSize);
   
   hdEE->SetMinimum(1);
