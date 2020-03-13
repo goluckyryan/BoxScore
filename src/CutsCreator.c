@@ -75,22 +75,20 @@ int main(int argc, char* argv[] ){
   TH2F * hEdE = NULL;
   
   TString expression;
-  if( mode == 0 ) {
+  if( mode == 0 ) {  //same gain
     hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 1 ){
+  }else if ( mode == 1 ){ // dE = 2Vpp, E = 0.5Vpp
     hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 2){
+  }else if ( mode == 2){  // dE = 0.5Vpp, E = 2 Vpp
     hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]/4:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 3){
+  }else if ( mode == 3){  //custom gain
     hEdE = new TH2F("hEdE", Form("dE - totE = %4.2fdE + %4.2fE ; totE [ch] ; dE [ch]", gainDE, gainE), 500, rangeE_min * gainE + rangeDE_min * gainDE, rangeE_max * gainE + rangeDE_max* gainDE, 500, rangeDE_min * gainDE , rangeDE_max * gainDE );
     expression.Form("e[%d]*%4.2f:e[%d]*%4.2f + e[%d]*%4.2f>>hEdE", chDE, gainDE, chEE, gainE, chDE, gainDE);
-  }else if ( mode == 4){
-    hEdE = new TH2F("hEdE", "dE (Y1+Y2)-E; E [ch]; Y1+Y2 [ch]", 500, rangeE_min, rangeE_max, 500, rangeDE_min, rangeDE_max);
-    expression.Form("e[2]+e[4]:e[7] >>hEdE");
   }
+
   tree->Draw(expression, "", "colz");
   gSystem->ProcessEvents();
   

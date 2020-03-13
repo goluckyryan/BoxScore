@@ -308,6 +308,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     //============= Program the digitizer (see function ProgramDigitizer) 
     
     ret = (CAEN_DGTZ_ErrorCode)ProgramDigitizer();
+    ret |= SetAcqMode("list", RecordLength);
     if (ret != 0) {
       printf("Failed to program the digitizer\n");
       isDetected = false;
@@ -406,8 +407,11 @@ Digitizer::~Digitizer(){
 
 int Digitizer::SetAcqMode(string mode, int recordLength){
    
-   this->RecordLength = recordLength;
-
+   if( recordLength < 4096 ){
+      this->RecordLength = recordLength;
+   }else{
+      this->RecordLength = 4096;
+   }
    if( mode == "list"){
       AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;             // enables the acquisition of time stamps and energy value 
    }else if ( mode == "mixed"){
@@ -418,11 +422,33 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
    
    int ret = 0;
    if( isDetected ) {
-
-      printf("Setting digitizer to %s mode with recordLenght = %d \n", mode.c_str(), RecordLength);
       
-      //TODO take out the essential
-      ret = ProgramDigitizer();
+      if( AcqMode ==    CAEN_DGTZ_DPP_ACQ_MODE_List){
+         printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
+      }else{
+         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = %d ch.\n", mode.c_str(), RecordLength);         
+      }
+      /* Set the DPP acquisition mode
+         This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
+         CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
+         CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
+         CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
+         CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
+         
+         //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+   
+       ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+
+       // Set Extras 2 to enable, this override Accusition mode, focring list mode
+       if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ) {
+          uint32_t value = 0x10E0114;
+         ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
+       }else{
+        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+       }
+      
    }
    return ret;
 }
@@ -652,28 +678,8 @@ int Digitizer::ProgramDigitizer(){
     }
     
     ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000, 0x01000114);  // Channel Control Reg (indiv trg, seq readout) ??
-
-   /* Set the DPP acquisition mode
-   This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
-   CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
-   CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
-   CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
-   CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
-   
-   //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
-   
-    ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-
-    // Set Extras 2 to enable, this override Accusition mode, focring list mode
-    if( AcqMode == 1 ) {
-       uint32_t value = 0x10E0114;
-      ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
-    }else{
-       
-     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-     //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-    }
+    
+    ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
     
     // Set the number of samples for each waveform
     ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
@@ -839,8 +845,8 @@ void Digitizer::LoadGeneralSetting(string fileName){
     }
     
     //=============== print setting
-    printf(" %-30s  %d ch\n", "Coincident Time Window", CoincidentTimeWindow);
-    printf(" %-30s  %d ch\n", "Record Lenght", RecordLength);
+    printf(" %-25s  %5d ch\n", "Coincident Time Window", CoincidentTimeWindow);
+    printf(" %-25s  %5d ch\n", "Record Lenght", RecordLength);
     printf("====================================== \n");
     
   }
@@ -938,12 +944,6 @@ void Digitizer::ReadData(bool debug){
          waveformLength[ch] = (int)(Waveform->Ns); // Number of samples
          WaveLine[ch] = Waveform->Trace1;                // First trace (ANALOG_TRACE_1)
          //DigitalWaveLine = Waveform->DTrace1;        // First Digital Trace (DIGITALPROBE1)
-         
-         //printf("============ ret : %d, ev : %d,  %d \n", ret, ev,  waveformLength);
-
-         //for( int p = 0; p < waveformLength; p ++){
-         //   if( p%10 == 0 ) printf(" %3d | %d \n", p, WaveLine[p]);
-         //}
          
       }
         

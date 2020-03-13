@@ -50,7 +50,7 @@ public:
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
-  void         SetWaveCanvas();
+  void         SetWaveCanvas(int length);
   void         FillWave(int length, int ch, int16_t * wave, int padID);
   void         FillWaves(int* length, int16_t ** wave);
     
@@ -602,19 +602,45 @@ void GenericPlane::FillWave(int length, int ch,  int16_t * wave, int padID){
    }
 }
 
-void GenericPlane::SetWaveCanvas(){
+void GenericPlane::SetWaveCanvas(int length){
+   
+   bool isOscilloscope = false;
       
    fCanvas->Clear();
    
-   int divX  = (nChannel+1)/2 ; 
-   int divY = 2;
-   
-   fCanvas->Divide(divX,divY);
-   for( int i = 1; i <= divX * divY ; i++){ 
-      fCanvas->cd(i)->SetGridy();
-      fCanvas->cd(i)->SetGridx();
-   }
-   
+   if( isOscilloscope ){
+      // Oscilloscaope mode, i.e single wave
+      fCanvas->cd();
+      fCanvas->cd()->SetGridy();
+      fCanvas->cd()->SetGridx();
+      for(int j = 0; j < length ; j++) {
+         waveForm[0]->SetPoint(j, j*2, 0);
+      }
+      waveForm[0]->GetYaxis()->SetRangeUser(-1000, 17000);
+      waveForm[0]->GetXaxis()->SetRangeUser(0, length*2);
+      waveForm[0]->Draw("AP");
+   }else{
+      
+      int divX  = (nChannel+1)/2 ; 
+      int divY = 2;
+      
+      int xVal[length], yVal[length];
+      for( int i = 0; i < length; i++) xVal[i] = i*2;
+      std::fill_n(yVal, length, 0);
+      
+      fCanvas->Divide(divX,divY);
+      for( int i = 1; i <= divX * divY ; i++){ 
+         fCanvas->cd(i)->SetGridy();
+         fCanvas->cd(i)->SetGridx();
+         
+         for(int j = 0; j < length ; j++) {
+            waveForm[i-1]->SetPoint(j, j*2, 0);
+         }
+         waveForm[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
+         waveForm[i-1]->GetXaxis()->SetRangeUser(0, length*2);
+         waveForm[i-1]->Draw("AP");
+      }
+   }   
    fCanvas->Modified();
    fCanvas->Update();
    gSystem->ProcessEvents();
@@ -622,6 +648,9 @@ void GenericPlane::SetWaveCanvas(){
 }
 
 void GenericPlane::FillWaves(int* length, int16_t ** wave){
+   
+   bool isOscilloscope = false;
+
 
    int padID = 0;
    for( int ch = 0 ; ch < 8; ch ++){
@@ -630,6 +659,10 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       if( length[ch] > 0 ) {
          
          waveForm[ch]->Clear();
+         if( isOscilloscope ) {
+            waveForm[ch]->SetLineColor(ch+1);
+            waveForm[ch]->SetMarkerColor(ch+1);
+         }
          waveFormDiff[ch]->Clear();
          
          for(int i = 0; i < length[ch]; i++){
@@ -637,10 +670,17 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
          }
 
          waveForm[ch]->SetTitle(Form("channel = %d", ch));
-
-         fCanvas->cd(padID);
+         waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
+         waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]*2);
          
-         waveForm[ch]->Draw("AP");
+         if(isOscilloscope) {
+            fCanvas->cd();
+            if( padID == 1 ) waveForm[ch]->Draw("A");
+            waveForm[ch]->Draw("same");
+         }else{
+            fCanvas->cd(padID);
+            waveForm[ch]->Draw("AP");
+         }
          //waveFormDiff->Draw("PL same");
       
       }

@@ -354,12 +354,13 @@ int main(int argc, char *argv[]){
       if( c == 'w' ){ //========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
+        printf("\n\n##################################\n");
         cooked();
         int length;
         printf("Change to read Wave Form, Set Record Length [ns]? ");
         int temp = scanf("%d", &length);
         dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
-        gp->SetWaveCanvas();
+        gp->SetWaveCanvas(length/2);
         PrintCommands();
         uncooked();
       }
