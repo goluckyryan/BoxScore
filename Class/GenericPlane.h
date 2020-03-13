@@ -108,6 +108,7 @@ protected:
   string location;  //this is for database tag
 
   uint ChannelMask;   // Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  int nChannel;
   
   int NChannelForRealEvent;
   
@@ -196,6 +197,7 @@ GenericPlane::GenericPlane(){
   
   //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
   ChannelMask = 0xff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  nChannel = 8;
   
   rangeDE[0] =     0; /// min range for dE
   rangeDE[1] = 60000; /// max range for dE
@@ -249,15 +251,16 @@ GenericPlane::GenericPlane(){
 void GenericPlane::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0){
   
   uint32_t mask = 0;
+  nChannel = 0;
   
-  if( ch0 ) mask +=   1;
-  if( ch1 ) mask +=   2;
-  if( ch2 ) mask +=   4;
-  if( ch3 ) mask +=   8;
-  if( ch4 ) mask +=  16;
-  if( ch5 ) mask +=  32;
-  if( ch6 ) mask +=  64;
-  if( ch7 ) mask += 128;
+  if( ch0 ) {mask +=   1; nChannel ++;}
+  if( ch1 ) {mask +=   2; nChannel ++;}
+  if( ch2 ) {mask +=   4; nChannel ++;}
+  if( ch3 ) {mask +=   8; nChannel ++;}
+  if( ch4 ) {mask +=  16; nChannel ++;}
+  if( ch5 ) {mask +=  32; nChannel ++;}
+  if( ch6 ) {mask +=  64; nChannel ++;}
+  if( ch7 ) {mask += 128; nChannel ++;}
   
   ChannelMask = mask;
   
@@ -603,11 +606,15 @@ void GenericPlane::FillWave(int length, int ch,  int16_t * wave, int padID){
 void GenericPlane::SetWaveCanvas(){
       
    fCanvas->Clear();
-   fCanvas->Divide(1,2);
-   fCanvas->cd(1)->SetGridy();
-   fCanvas->cd(1)->SetGridx();
-   fCanvas->cd(2)->SetGridy();
-   fCanvas->cd(2)->SetGridx();
+   
+   int divX  = (nChannel+1)/2 ; 
+   int divY = 2;
+   
+   fCanvas->Divide(divX,divY);
+   for( int i = 1; i <= divX * divY ; i++){ 
+      fCanvas->cd(i)->SetGridy();
+      fCanvas->cd(i)->SetGridx();
+   }
    
    fCanvas->Modified();
    fCanvas->Update();
@@ -617,31 +624,27 @@ void GenericPlane::SetWaveCanvas(){
 
 void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
+   int padID = 0;
    for( int ch = 0 ; ch < 8; ch ++){
       if (!(ChannelMask & (1<<ch))) continue;
-      
-   
+      padID ++;
       if( length[ch] > 0 ) {
-         //printf(" ----------- %d \n", length);
          
          waveForm[ch]->Clear();
          waveFormDiff[ch]->Clear();
          
          for(int i = 0; i < length[ch]; i++){
             waveForm[ch]->SetPoint(i, i*2, wave[ch][i]);
-            //if( i < length - 1) waveFormDiff[ch]->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
          }
 
          waveForm[ch]->SetTitle(Form("channel = %d", ch));
 
-         if( ch == chdE) fCanvas->cd(1); 
-         if( ch == chE) fCanvas->cd(2); 
+         fCanvas->cd(padID);
          
          waveForm[ch]->Draw("AP");
          //waveFormDiff->Draw("PL same");
       
       }
-   
    }
    
    fCanvas->Modified();

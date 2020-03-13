@@ -894,6 +894,7 @@ void Digitizer::ReadData(bool debug){
   /* Analyze data */
   //if( debug ) printf("----------- read data\n");
   //rawEvCount = 0;
+  
   for (int ch = 0; ch < MaxNChannels; ch++) {    
     if (!(ChannelMask & (1<<ch))) continue;
     //printf("------------------------ %d \n", ch);
@@ -924,9 +925,12 @@ void Digitizer::ReadData(bool debug){
           PurCnt[ch]++;
       }
       
-      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
-      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
+      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
+      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
          
+         ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
+         ret = CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform), &AllocatedSize); 
+    
          // only get the 0th event
          ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform);
 
@@ -934,6 +938,7 @@ void Digitizer::ReadData(bool debug){
          waveformLength[ch] = (int)(Waveform->Ns); // Number of samples
          WaveLine[ch] = Waveform->Trace1;                // First trace (ANALOG_TRACE_1)
          //DigitalWaveLine = Waveform->DTrace1;        // First Digital Trace (DIGITALPROBE1)
+         
          //printf("============ ret : %d, ev : %d,  %d \n", ret, ev,  waveformLength);
 
          //for( int p = 0; p < waveformLength; p ++){
