@@ -301,11 +301,11 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
   }
   
   if( chGain[chE] == 1.0 && chGain[chdE] == 1.0 ){
-    mode = 4;
+    mode = 0;
     if( dynamicRange[chE] == dynamicRange[chdE] ) {
       chdEGain = 1.0;
       chEGain = 1.0;
-      mode = 1;
+      mode = 0;
     }else if (dynamicRange[chE] > dynamicRange[chdE]) { // E = 0.5Vpp, dE = 2 Vpp
       chdEGain = 1.;
       chEGain = 0.25;
@@ -313,13 +313,12 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
     }else if (dynamicRange[chE] < dynamicRange[chdE]) { // E = 2 Vpp, dE = 0.5 Vpp
       chdEGain = 0.25;
       chEGain = 1.;
-      mode = 3;
+      mode = 1;
     }
   }else{
-    
+    mode = 3;
     chdEGain = chGain[chdE];
     chEGain = chGain[chE];
-    
   }
   
 }
@@ -429,12 +428,12 @@ void GenericPlane::Fill(UInt_t * energy){
   hdE->Fill(dE);
   hdEE->Fill(E, dE);
   float totalE = dE * chdEGain + E * chEGain;
-  hdEtotE->Fill(totalE, dE);
+  hdEtotE->Fill(totalE, dE * chdEGain);
   
   if( numCut > 0  ){
     for( int i = 0; i < numCut; i++){
       cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(totalE, dE)){
+      if( cutG->IsInside(totalE, dE * chdEGain)){
         countOfCut[i] += 1;
       }
     }
