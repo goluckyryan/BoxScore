@@ -493,14 +493,25 @@ void GenericPlane::SetHistogramsRange(){
   
   if( !isHistogramSet ) return;
   
-  hE->SetAxisRange(rangeE[0], rangeE[1], "X");
-  hdE->SetAxisRange(rangeDE[0], rangeDE[1], "X");
+  ///data is stored in bin
+  hE->SetBins(500, rangeE[0], rangeE[1]);
+  hdE->SetBins(500, rangeDE[0], rangeDE[1]);
   
-  hdEE->SetAxisRange(chEGain * rangeE[0], chEGain * rangeE[1], "X");
-  hdEE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
-  
-  hdEtotE->SetAxisRange(chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], "X");
-  hdEtotE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  hdEE->SetBins(500, chEGain * rangeE[0], chEGain * rangeE[1], 
+                500, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+
+  hdEtotE->SetBins(500, chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], 
+                   500, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+
+  printf("===============  suggest clear histograms. \n");
+  ///hE->SetAxisRange(rangeE[0], rangeE[1], "X");
+  ///hdE->SetAxisRange(rangeDE[0], rangeDE[1], "X");
+  ///
+  ///hdEE->SetAxisRange(chEGain * rangeE[0], chEGain * rangeE[1], "X");
+  ///hdEE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  ///
+  ///hdEtotE->SetAxisRange(chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], "X");
+  ///hdEtotE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
   
 }
 
