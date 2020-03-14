@@ -10,6 +10,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
+#include "TPad.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TGraph.h"
@@ -43,6 +44,7 @@ public:
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
+  void         SetHistogramsRange();
   
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(UInt_t * energy);
@@ -485,6 +487,21 @@ void GenericPlane::ZeroCountOfCut(){
       countOfCut[i] = 0;
     }
   }
+}
+
+void GenericPlane::SetHistogramsRange(){
+  
+  if( !isHistogramSet ) return;
+  
+  hE->SetAxisRange(rangeE[0], rangeE[1], "X");
+  hdE->SetAxisRange(rangeDE[0], rangeDE[1], "X");
+  
+  hdEE->SetAxisRange(chEGain * rangeE[0], chEGain * rangeE[1], "X");
+  hdEE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  
+  hdEtotE->SetAxisRange(chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], "X");
+  hdEtotE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
+  
 }
 
 void GenericPlane::CutCreator(){

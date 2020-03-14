@@ -62,15 +62,10 @@ using namespace std;
 #define MaxNChannels 8
 
 //========== General setting , there are the most general setting that should be OK for all experiment.
-int updatePeriod = 1000; //Table, tree, Plots update period in mili-sec.
-
-bool isSaveRaw = false; // saving Raw data
-
+int updatePeriod = 1000; ///Table, tree, Plots update period in mili-sec.
+bool isSaveRaw = false;  /// saving Raw data
+TString databaseName="RAISOR_exit"; ///database
 string location;
-
-//database
-TString databaseName="RAISOR_exit";
-
 bool  QuitFlag = false;
 
 /* ###########################################################################
@@ -91,8 +86,9 @@ void PrintCommands(){
   printf("\e[96m=============  Command List  ===================\e[0m\n");
   printf("s ) Start acquisition   z ) Change Threhsold\n");
   printf("a ) Stop acquisition    k ) Change Dynamic Range\n");
-  printf("c ) Cuts Creator        x ) Change Coincident Time Window\n");
+  printf("c ) Cuts Creator        t ) Change Coincident Time Window\n");
   printf("q ) Quit                y ) Clear histograms\n");
+  printf("                        r ) Change dE E range\n");
   printf("                        l ) Load setting of a channel\n");
   printf("d ) List Mode           p ) Print Channel setting\n");
   printf("w ) Wave Mode           o ) Print Channel threshold and DynamicRange\n");
@@ -123,13 +119,20 @@ int main(int argc, char *argv[]){
     printf("                         +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
     printf("                         +-- XY (Helios target XY) \n");
     printf("                         +-- iso (isomer with Glover Ge detector) \n");
+    printf("                         +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
     printf("                         +-- array (single Helios array) \n");
     return -1;
   }
   
+  
+  TString cutopt = "RECREATE"; // by default
+  TString cutFileName; cutFileName = "cutsFile.root"; // default
+  TString archiveCutFile;
+  
   const int nInput = argc;
   const int boardID = atoi(argv[1]);
   string location = argv[2];
+  
   TString rootFileName;
   if( argc >= 4 ) rootFileName = argv[3];
   bool isDebug= false;
@@ -182,8 +185,16 @@ int main(int argc, char *argv[]){
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
     gp = new IsoDetect();
+  }else if ( location == "IonCh"){
+    gp = new GenericPlane();
+    gp->SetChannelMask(1,0,0,1,0,0,0,0);
+    gp->SetdEEChannels(4, 7);
+    gp->SetNChannelForRealEvent(2);
   }else if ( location == "array" ){
     gp = new HelioArray();
+  }else{
+    printf(" no such plane. exit. \n");
+    return 0;
   }
 
   printf("******************************************** \n");
@@ -215,7 +226,7 @@ int main(int argc, char *argv[]){
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms(); 
   
   //====== load cut and Draw
-  gp->LoadCuts("cutsFile.root");
+  gp->LoadCuts(cutFileName);
   gp->Draw();
   
   /* *************************************************************************************** */
@@ -353,7 +364,7 @@ int main(int argc, char *argv[]){
         }
         uncooked();
       }
-      if( c == 'x' ){ //========== Change coincident time window
+      if( c == 't' ){ //========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
@@ -395,9 +406,66 @@ int main(int argc, char *argv[]){
            gp->Draw();
         }
       }
+      if( c == 'r' ){ //========== Change dE E range
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        int option;
+        printf("\e[32m=================== Change dE or E Range\e[0m\n");
+        printf("Change dE or E range ? ( 1 for dE, 2 for E, other = cancel ) ");
+        int temp = scanf("%d", &option);
+        if( option == 1 ) {
+          int x1, x2;
+          int * rangedE = gp->GetdERange();
+          printf("--------- Change dE range. (%d, %d)\n", rangedE[0], rangedE[1]);
+          printf("min ? ");
+          temp = scanf("%d", &x1);
+          printf("max ? ");
+          temp = scanf("%d", &x2);
+          gp->SetdERange(x1, x2);
+        }else if (option == 2){
+          int x1, x2;
+          int * rangeE = gp->GetERange();
+          printf("--------- Change E range. (%d, %d)\n", rangeE[0], rangeE[1]);
+          printf("min ? ");
+          temp = scanf("%d", &x1);
+          printf("max ? ");
+          temp = scanf("%d", &x2);
+          gp->SetERange(x1, x2);
+        }
+        gp->SetHistogramsRange();
+        gp->Draw();
+        PrintCommands();
+        uncooked();
+      }
       if( c == 'c' ){ //========== pause and make cuts
         dig.StopACQ();
         dig.ClearRawData();
+        
+        cooked();
+        int opt;
+        printf("Do you want to [1] update the current cut file or [2] create a new one?\n"); //GLW
+        int temp = scanf("%d", &opt);
+        if(opt==1){
+           cutopt = "UPDATE";
+        }else if(opt==2){
+           cutopt = "RECREATE";
+           TFile * cutcheck = (TFile *)gROOT->GetListOfFiles()->FindObject(cutFileName);
+           if(cutcheck != nullptr){
+              if(cutcheck->IsOpen()){
+                 cutcheck->Close();
+                 archiveCutFile.Form("ArchiveCut_%4d%02d%02d_%02d%02d.root", year, month, day, hour, minute);
+                 system(("cp "+cutFileName+" "+archiveCutFile));
+                 printf("\n Save the old cutFile.root to %s \n", archiveCutFile.Data());
+              }else{
+                 printf("cutsFile.root isn't open.\n");
+              }
+              printf("No cutsFile.root is open.\n");
+           }
+        }else{
+           cutopt = "UPDATE";
+           printf("defaulting to updating the previous cutfile.\n");
+        }
         
         int mode = gp->GetMode();
         float * chGain = dig.GetChannelGain(); 
@@ -407,19 +475,22 @@ int main(int argc, char *argv[]){
         int chDE = gp->GetdEChannel();
         
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
+        expression = expression + (string)cutopt + " ";
         expression = expression + to_string(chDE) + " ";
         expression = expression + to_string(chE) + " ";
         expression = expression + to_string(rangeDE[0]) + " ";
         expression = expression + to_string(rangeDE[1]) + " ";
-        expression = expression + to_string(rangeDE[0]+rangeE[0]) + " ";
-        expression = expression + to_string(rangeDE[1]+rangeE[1]) + " ";
+        expression = expression + to_string(rangeE[0]) + " ";
+        expression = expression + to_string(rangeE[1]) + " ";
         expression = expression + to_string(mode) + " ";
         expression = expression + to_string(chGain[chDE]) + " ";
         expression = expression + to_string(chGain[chE]) + " ";
         printf("%s\n", expression.c_str());
         system(expression.c_str());
         
-        gp->LoadCuts("cutsFile.root");
+        gp->LoadCuts(cutFileName);
+        gp->Draw();
+        uncooked();
       }
       PrintCommands();
     }//------------ End of keyboardHit
