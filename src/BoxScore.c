@@ -8,7 +8,6 @@
 ******************************************************************************/
 
 //TODO loading setting for detector (save as some files?)
-//TODO the TCUTG save with the same directory of the data, add load TCUTG
 //TODO write waveForm into File
 //TODO digitizer output array of channel setting, feed to GenericPlan, trapezoidal filter
 //TODO more online control of the digitizer.
@@ -126,7 +125,7 @@ int main(int argc, char *argv[]){
   
   
   TString cutopt = "RECREATE"; // by default
-  TString cutFileName; cutFileName = "cutsFile.root"; // default
+  TString cutFileName; cutFileName = "data/cutsFile.root"; // default
   TString archiveCutFile;
   
   const int nInput = argc;
@@ -454,7 +453,7 @@ int main(int argc, char *argv[]){
            if(cutcheck != nullptr){
               if(cutcheck->IsOpen()){
                  cutcheck->Close();
-                 archiveCutFile.Form("ArchiveCut_%4d%02d%02d_%02d%02d.root", year, month, day, hour, minute);
+                 archiveCutFile.Form("data/ArchiveCut_%4d%02d%02d_%02d%02d.root", year, month, day, hour, minute);
                  system(("cp "+cutFileName+" "+archiveCutFile));
                  printf("\n Save the old cutFile.root to %s \n", archiveCutFile.Data());
               }else{

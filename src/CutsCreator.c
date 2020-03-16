@@ -109,7 +109,7 @@ int main(int argc, char* argv[] ){
   tree->Draw(expression, "", "colz");
   
   // make cuts
-  TString cutFileName = "cutsFile.root";
+  TString cutFileName = "data/cutsFile.root";
   int prevCount = 0;
   cutFile = new TFile(cutFileName, cutopt.c_str());  
   printf("cutFileName = %s, cutopt = %s \n", cutFileName.Data(), cutopt.c_str());
