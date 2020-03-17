@@ -450,8 +450,8 @@ void GenericPlane::Fill(UInt_t * energy){
 void GenericPlane::FillRateGraph(float x, float y){
   graphRate->SetPoint(graphIndex, x, y);
   graphIndex++;
-  // if rateGraph not Draw, not Yaxis();
-  //rateGraph->GetYaxis()->SetRangeUser(0, y*1.2);
+  rateGraph->GetYaxis()->SetRangeUser(0, y*1.2);
+  rateGraph->GetXaxis()->SetRangeUser(0, x*1.2);
   if( numCut > 0 ) {
     for( int i = 0; i < numCut ; i++){
       graphRateCut[i]->SetPoint(graphIndex, x, countOfCut[i]);
@@ -475,7 +475,8 @@ void GenericPlane::Draw(){
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
-  fCanvas->cd(2); rateGraph->Draw("AP"); legend->Draw();
+  fCanvas->cd(2);   
+  rateGraph->Draw("AP"); legend->Draw();
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
