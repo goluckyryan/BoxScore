@@ -45,6 +45,7 @@ public:
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
   void         SetHistogramsRange();
+  void         SetChannelsPlotRange(int ** range);
   
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(UInt_t * energy);
@@ -329,6 +330,7 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
 void GenericPlane::SetGenericHistograms(){
   
   //printf("Setting up histogram\n");
+  if( isHistogramSet ) return;
   
   int bin = 200;
   float labelSize = 0.08;
@@ -395,6 +397,7 @@ void GenericPlane::SetGenericHistograms(){
 
 void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Clear();
+  fCanvas->SetTitle(titleExtra);
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
@@ -439,7 +442,7 @@ void GenericPlane::Fill(UInt_t * energy){
   if( numCut > 0  ){
     for( int i = 0; i < numCut; i++){
       cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(totalE, dE * chdEGain)){
+      if( cutG->IsInside(E, dE) ){
         countOfCut[i] += 1;
       }
     }
@@ -462,8 +465,8 @@ void GenericPlane::FillRateGraph(float x, float y){
 void GenericPlane::Draw(){
   if ( !isHistogramSet ) return;
   
-  fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
-  //fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
+  //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
+  fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
 
   if( numCut > 0 ){
     for( int i = 0; i < numCut; i++){
@@ -514,6 +517,15 @@ void GenericPlane::SetHistogramsRange(){
   ///hdEtotE->SetAxisRange(chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], "X");
   ///hdEtotE->SetAxisRange(chdEGain * rangeDE[0], chdEGain * rangeDE[1], "Y");
   
+}
+
+void GenericPlane::SetChannelsPlotRange(int ** range){
+
+   SetdERange(range[chdE][0], range[chdE][1]);
+   SetERange(range[chE][0], range[chE][1]);
+   
+   SetHistogramsRange();
+   
 }
 
 void GenericPlane::CutCreator(){

@@ -96,11 +96,11 @@ int main(int argc, char* argv[] ){
     hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]/4:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
   }else if ( mode == 3){  //custom gain
-    hEdE = new TH2F("hEdE", Form("dE - totE = %4.2fdE + %4.2fE ; totE [ch] ; dE [ch]", gainDE, gainE), 
-          500, 
+    hEdE = new TH2F("hEdE", Form("dE - E ; E [ch] ; dE [ch]"), 
+          1000, 
           (int) rangeE_min * gainE + rangeDE_min * gainDE, 
           (int) rangeE_max * gainE + rangeDE_max* gainDE, 
-          500, 
+          1000, 
           (int) rangeDE_min * gainDE , 
           (int) rangeDE_max * gainDE );
     expression.Form("e[%d]*%4.2f:e[%d]*%4.2f + e[%d]*%4.2f>>hEdE", chDE, gainDE, chEE, gainE, chDE, gainDE);

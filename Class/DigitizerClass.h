@@ -52,6 +52,7 @@ public:
   int  SetChannelParity(int ch, bool isPositive);
   int  SetChannelThreshold(int ch, string folder, int threshold);
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
+  void SetChannelPlotRange(int ch, string folder, int min, int max);
   int  SetAcqMode(string mode, int recordLength);
   //TODO
   //void SetRegister(uin32_t address, int ch, float value); 
@@ -67,10 +68,11 @@ public:
   int *    GetInputDynamicRange()       {return inputDynamicRange;}
   float *  GetChannelGain()             {return chGain;}
   float    GetChannelGain(int ch)       {return chGain[ch];}
-  int      GetChannelToNanoSec()        {return ch2ns;};
+  int      GetChannelToNanoSec()        {return ch2ns;}
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
   
+  int **   GetChannelsPlotRange()       {return plotRange;}
   
   string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
   uint32_t GetRecordLength()            { return RecordLength;}
@@ -169,6 +171,7 @@ private:
   float chGain[MaxNChannels];
   uint  PreTriggerSize[MaxNChannels];     
   float DCOffset[MaxNChannels];  
+  int ** plotRange;
   
   //====================== General Setting
   unsigned long long int ch2ns;    
@@ -230,6 +233,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   for(int i = 0 ; i < MaxNChannels; i++ )waveformLength[i] = 0;
   
   //----------------- default channel setting
+  plotRange = new int *[MaxNChannels];
   for ( int i = 0; i < MaxNChannels ; i++ ) {
     DCOffset[i]          = 0.2;
     inputDynamicRange[i] = 0;
@@ -238,6 +242,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     NumEvents[i]         = 0; 
     PreTriggerSize[i]    = 1000;
     PulsePolarity[i]     = CAEN_DGTZ_PulsePolarityPositive; 
+    plotRange[i] = new int[2];
   }
   
   memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
@@ -498,6 +503,17 @@ int Digitizer::SetChannelDynamicRange(int ch, string folder, int dyRange){
   }
   return ret;
   
+}
+
+void Digitizer::SetChannelPlotRange(int ch, string folder, int min, int max){
+   
+   TString command;
+   command.Form("sed -i '29s/.*/%d     \\/\\/plot min/' %s/setting_%d.txt", min, folder.c_str(), ch);
+   system(command.Data());
+   command.Form("sed -i '30s/.*/%d     \\/\\/plot max/' %s/setting_%d.txt", max, folder.c_str(), ch);
+   system(command.Data());
+   printf("Done. Plot Range of ch-%d is (%d,%d) now.\n", ch, min, max);
+   
 }
 
 void Digitizer::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0){
@@ -804,6 +820,8 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
     DPPParams.twwdt[ch]      = 100;     // Rise Time Validation Window (ns)
     
     chGain[ch] = 1.0;      // gain of the channel; if -1, default based on input-dynamic range;
+    plotRange[ch][0] = 0;
+    plotRange[ch][1] = 16000;
     
   }else{
     printf("channel: %d | %s.\n", ch, fileName.c_str());
@@ -835,7 +853,9 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
         if( count == 19 ) DPPParams.dgain[ch]      = atoi(line.substr(0, pos).c_str());
         if( count == 20 ) DPPParams.trgwin[ch]     = atoi(line.substr(0, pos).c_str());
         if( count == 21 ) DPPParams.twwdt[ch]      = atoi(line.substr(0, pos).c_str());
-        if( count == 22 ) chGain[ch]               = atof(line.substr(0, pos).c_str());             
+        if( count == 22 ) chGain[ch]               = atof(line.substr(0, pos).c_str());   
+        if( count == 23 ) plotRange[ch][0]         = atoi(line.substr(0, pos).c_str());
+        if( count == 24 ) plotRange[ch][1]         = atoi(line.substr(0, pos).c_str());
         count++;
       }
     }

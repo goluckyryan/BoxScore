@@ -9,6 +9,8 @@
 
 //TODO loading setting for detector (save as some files?)
 //TODO write waveForm into File
+//TODO push signal channel to Grafana
+//TODO waveform display, polarity seems reverse.
 //TODO digitizer output array of channel setting, feed to GenericPlan, trapezoidal filter
 //TODO more online control of the digitizer.
 //TODO FULL GUI? Qt? EPICS+EDM?
@@ -215,11 +217,13 @@ int main(int argc, char *argv[]){
   
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-
-  gp->SetCanvasTitleDivision(rootFileName);  
+  
+  gp->SetCanvasTitleDivision(location + " | " + rootFileName);  
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
+  gp->SetChannelsPlotRange(dig.GetChannelsPlotRange());
   gp->SetGenericHistograms(); ///must be after SetChannelGain  
+  
   
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms(); 
@@ -384,13 +388,14 @@ int main(int argc, char *argv[]){
            dig.StopACQ();
            dig.ClearRawData();
            printf("\n\n##################################\n");
-           cooked();
-           int length;
-           printf("Change to read Wave Form, Set Record Length [ns]? ");
-           int temp = scanf("%d", &length);
+           //cooked();
+           int length = 4000;
+           //printf("Change to read Wave Form, Set Record Length [ns]? ");
+           //int temp = scanf("%d", &length);
            dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
            gp->SetWaveCanvas(length/2);
-           uncooked();
+           dig.StartACQ();
+           //uncooked();
         }
       }
       if( c == 'd' ){ //========== Change coincident time window
@@ -422,6 +427,7 @@ int main(int argc, char *argv[]){
           printf("max ? ");
           temp = scanf("%d", &x2);
           gp->SetdERange(x1, x2);
+          dig.SetChannelPlotRange(gp->GetdEChannel(), folder, x1, x2);
         }else if (option == 2){
           int x1, x2;
           int * rangeE = gp->GetERange();
@@ -431,6 +437,7 @@ int main(int argc, char *argv[]){
           printf("max ? ");
           temp = scanf("%d", &x2);
           gp->SetERange(x1, x2);
+          dig.SetChannelPlotRange(gp->GetEChannel(), folder, x1, x2);
         }
         gp->SetHistogramsRange();
         gp->Draw();
@@ -515,6 +522,14 @@ int main(int argc, char *argv[]){
     //##################################################################
     CurrentTime = get_time();
     ElapsedTime = CurrentTime - PreviousTime; /// milliseconds
+    
+    if ( ElapsedTime > updatePeriod && dig.GetAcqMode() == "mixed" )  {
+       system("clear");
+       PrintCommands();
+       printf("\n\n");
+       dig.PrintReadStatistic();
+       PreviousTime = CurrentTime;
+    }
     
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
     //if (ElapsedTime > updatePeriod ) {
