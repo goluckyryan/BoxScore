@@ -56,6 +56,7 @@ public:
   void         SetWaveCanvas(int length);
   void         FillWave(int length, int ch, int16_t * wave, int padID);
   void         FillWaves(int* length, int16_t ** wave);
+  int16_t *    TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave);
     
   virtual void Draw();
   virtual void ClearHistograms();
@@ -742,5 +743,30 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
 }
 
+int16_t * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave){
+   
+   int16_t* trap = new int16_t[length];
+   
+   int16_t pn = 0;
+   int16_t sn = 0;
+   
+   for( int i = 0; i < length ; i++){
+      int16_t vn = wave[i];
+      int16_t v1 = 0; if( i - riseTime > 0 ) v1 = wave[i-riseTime];
+      int16_t v2 = 0; if( i - riseTime - flatTop > 0 ) v2 = wave[i-riseTime-flatTop];
+      int16_t v3 = 0; if( i - 2*riseTime - flatTop > 0 ) v3 = wave[i-2*riseTime - flatTop];
+      
+      int16_t dn = vn - v1 - v2 + v3;
+      
+      int16_t pn = dn; if( n > 0 ) pn = pn + dn; 
+      int16_t sn = pn + dn * decayTime; if( n > 0 ) sn = sn + pn + dn*decayTime; 
+      
+      trap[i] = sn / 100 / decayTime;
+      
+   }
+   
+   return trap;
+   
+}
 
 #endif
