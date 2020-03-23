@@ -743,26 +743,39 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
 }
 
-int16_t * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave){
+double * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decay, int baselineEnd, int16_t * wave){
+   double * trap = new double[length];
    
-   int16_t* trap = new int16_t[length];
+   //find baseline;
+   double baseline;
+   for( int i = 0; i < baselineEnd; i++){
+      baseline += wave[i];
+   }
+   baseline = baseline*1./baselineEnd;
    
-   int16_t pn = 0;
-   int16_t sn = 0;
+   #printf("baseline = %f \n", baseline);
    
+   double pn = 0.;
+   double sn = 0.;
    for( int i = 0; i < length ; i++){
-      int16_t vn = wave[i];
-      int16_t v1 = 0; if( i - riseTime > 0 ) v1 = wave[i-riseTime];
-      int16_t v2 = 0; if( i - riseTime - flatTop > 0 ) v2 = wave[i-riseTime-flatTop];
-      int16_t v3 = 0; if( i - 2*riseTime - flatTop > 0 ) v3 = wave[i-2*riseTime - flatTop];
+   
+      double dlk = wave[i] - baseline;
+      if( i - riseTime >= 0 )dlk -= wave[i-riseTime] - baseline;
+      if( i - flatTop - riseTime >= 0) dlk -= wave[i - flatTop - riseTime] - baseline;
+      if( i - flatTop - 2*riseTime >= 0) dlk += wave[i - flatTop - 2*riseTime] - baseline;
       
-      int16_t dn = vn - v1 - v2 + v3;
+      if( i == 0 ){
+         pn = dlk;
+         sn = pn + dlk*decay;
+      }else{
+         pn = pn + dlk;
+         sn = sn + pn + dlk*decay;
+      }    
       
-      int16_t pn = dn; if( n > 0 ) pn = pn + dn; 
-      int16_t sn = pn + dn * decayTime; if( n > 0 ) sn = sn + pn + dn*decayTime; 
+      trap[i] = sn / decay / riseTime;
       
-      trap[i] = sn / 100 / decayTime;
-      
+      #if( i < 10 ) printf("%4d | %6f, %6f, %6f, %6f \n", i, dlk, pn, sn, trap[i]);
+   
    }
    
    return trap;
