@@ -56,7 +56,7 @@ public:
   void         SetWaveCanvas(int length);
   void         FillWave(int length, int ch, int16_t * wave, int padID);
   void         FillWaves(int* length, int16_t ** wave);
-  int16_t *    TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave);
+  double  *    TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave);
     
   virtual void Draw();
   virtual void ClearHistograms();
@@ -390,6 +390,9 @@ void GenericPlane::SetGenericHistograms(){
 
    waveFormDiff[i] = new TGraph();
    waveFormDiff[i]->SetLineColor(2);
+   
+   trapezoid[i] = new TGraph();
+   trapezoid[i]->SetLineColor(4);
   }
   
   isHistogramSet = true;
@@ -712,8 +715,11 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
          waveFormDiff[ch]->Clear();
          waveFormDiff[ch]->SetLineColor(2);
          
+         double * trap = TrapezoidFilter(length[ch], 500, 500, 50000, wave[ch]);
+         
          for(int i = 0; i < length[ch]; i++){
             waveForm[ch]->SetPoint(i, i*2, wave[ch][i]);
+            trapezoid[ch]->SetPoint(i, i*2, trap[i]);
          }
          
          //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
@@ -731,6 +737,7 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
          }else{
             fCanvas->cd(padID);
             waveForm[ch]->Draw("AP");
+            trapezoid[ch]->Draw("same");
             //waveFormDiff[ch]->Draw("same");
          }
       
@@ -743,9 +750,9 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
 }
 
-int16_t * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave){
+double * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave){
    
-   int16_t* trap = new int16_t[length];
+   double* trap = new double[length];
    
    int16_t pn = 0;
    int16_t sn = 0;
@@ -758,10 +765,13 @@ int16_t * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, i
       
       int16_t dn = vn - v1 - v2 + v3;
       
-      int16_t pn = dn; if( n > 0 ) pn = pn + dn; 
-      int16_t sn = pn + dn * decayTime; if( n > 0 ) sn = sn + pn + dn*decayTime; 
+      int16_t pn = dn; if( i > 0 ) pn = pn + dn; 
+      int16_t sn = pn + dn * decayTime; if( i > 0 ) sn = sn + pn + dn*decayTime; 
       
-      trap[i] = sn / 100 / decayTime;
+      trap[i] = sn / 100. + 8000;
+      
+      //if( i%100 == 0 )
+      //printf("%3d | %5d,  %5d, %6d, %6d, %f\n", i, vn, dn, pn, sn, trap[i]);
       
    }
    
