@@ -333,7 +333,7 @@ void GenericPlane::SetGenericHistograms(){
   //printf("Setting up histogram\n");
   if( isHistogramSet ) return;
   
-  int bin = 200;
+  int bin = 600;
   float labelSize = 0.08;
   
   hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ", chE, chEGain),   bin,  rangeE[0],  rangeE[1]);
@@ -505,8 +505,8 @@ void GenericPlane::SetHistogramsRange(){
   hE->SetBins(500, rangeE[0], rangeE[1]);
   hdE->SetBins(500, rangeDE[0], rangeDE[1]);
   
-  hdEE->SetBins(500, chEGain * rangeE[0], chEGain * rangeE[1], 
-                500, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+  hdEE->SetBins(1000, chEGain * rangeE[0], chEGain * rangeE[1], 
+                1000, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
 
   hdEtotE->SetBins(500, chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], 
                    500, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
