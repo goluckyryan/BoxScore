@@ -83,6 +83,8 @@ int getch(void);
 int keyboardhit();
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
 bool isIntegrateWave = false;
+bool isTimedACQ = false;
+int timeLimitSec ;
 
 void PrintCommands(){
   printf("\n");
@@ -95,7 +97,7 @@ void PrintCommands(){
   printf("                        l ) Load setting of a channel\n");
   printf("d ) List Mode           p ) Print Channel setting\n");
   printf("w ) Wave Mode           o ) Print Channel threshold and DynamicRange\n");
-  printf("i ) integrate-wave\n");
+  printf("i ) integrate-wave      T ) timed ACQ\n");
 }
 
 void paintCanvas(){
@@ -304,6 +306,19 @@ int main(int argc, char *argv[]){
         StopTime = get_time();  
         printf("========== Duration : %u msec\n", StopTime - StartTime);
       }
+      if ( c == 'T'){ //============ Timed acquisition
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked(); ///set keyboard need enter to responds
+        printf("Timed ACQ, for how long [sec] ? ");
+        int temp = scanf("%d", &timeLimitSec);
+        uncooked();
+        StartTime = get_time();
+        isTimedACQ  = true;
+        printf("ACQ for %d sec\n", timeLimitSec);
+        
+        dig.StartACQ();
+      }
       if (c == 'z')  { //========== Change threshold
         dig.StopACQ();
         dig.ClearRawData();
@@ -385,7 +400,7 @@ int main(int argc, char *argv[]){
         gp->Draw();
         uncooked();
       }
-      if( c == 'w' ){ //========== Change coincident time window
+      if( c == 'w' ){ //========== wave form mode
 
         if( dig.GetAcqMode() == "mixed" && isIntegrateWave == false){
            printf("Already in mixed mode\n");
@@ -404,7 +419,7 @@ int main(int argc, char *argv[]){
            //uncooked();
         }
       }
-      if( c == 'i'  ) {
+      if( c == 'i'  ) { //============= integrate waveform mode
         dig.StopACQ();
         dig.ClearRawData();
         printf("\n\n###############################\n");
@@ -534,6 +549,7 @@ int main(int argc, char *argv[]){
        }else{
          gp->DrawWaves();  
        }
+      
     } 
     
     if( isSaveRaw ) {
@@ -550,13 +566,25 @@ int main(int argc, char *argv[]){
        system("clear");
        PrintCommands();
        printf("\n\n");
+       printf("Time elapsed: %f sec\n", (CurrentTime - StartTime)/1000. );
        dig.PrintReadStatistic();
        PreviousTime = CurrentTime;
+       
+      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
+        dig.StopACQ();
+        dig.ClearRawData(); 
+        break;
+      }
     }
     
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
     //if (ElapsedTime > updatePeriod ) {
-      
+    
+      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec) {
+        dig.StopACQ();
+        dig.ClearRawData(); 
+        break;
+      }
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);

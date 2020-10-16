@@ -224,7 +224,7 @@ GenericPlane::GenericPlane(){
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 900);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 600);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -688,9 +688,9 @@ void GenericPlane::SetWaveCanvas(int length){
 
 void GenericPlane::FillWaves(int* length, int16_t ** wave){
   
-  int integrateWindow = 500; // ch, 1ch = 2ns
+  int integrateWindow = 400; // ch, 1ch = 2ns
   int pre_rise_start_ch = 100;
-  int post_rise_start_ch = 700;
+  int post_rise_start_ch = 800;
   
   for( int ch = 0 ; ch < 8; ch ++){
     if (!(ChannelMask & (1<<ch))) {
@@ -720,9 +720,23 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       waveForm[ch]->SetTitle(Form("channel = %d", ch));
       waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
       waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]*2);
+     
+      //int yMax = waveForm[ch]->GetYaxis()->GetXmax();
+      //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
+      //waveEnergy[ch] = (yMax - yMin)/2.;
+      
+      if( length[ch] >= post_rise_start_ch + integrateWindow){
+        double pre_rise_energy = waveForm[ch]->Integral(pre_rise_start_ch, pre_rise_start_ch+ integrateWindow);
+        double post_rise_energy = waveForm[ch]->Integral(post_rise_start_ch, post_rise_start_ch+ integrateWindow);
         
+        waveEnergy[ch] = (post_rise_energy - pre_rise_energy)/integrateWindow; 
+   
+      }else{
+        waveEnergy[ch] = 0;
+      }
     }
     
+    /*
     if( length[ch] >= post_rise_start_ch + integrateWindow) {
       int pre_rise_energy = 0;
       int post_rise_energy = 0;
@@ -739,6 +753,7 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
     }else{
       waveEnergy[ch] = 0;
     }
+    */ 
   }
 }
 

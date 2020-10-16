@@ -93,16 +93,16 @@ void MicroChannelPlate::SetOthersHistograms(){
   float labelSize = 0.08;
   
   float xMin =  0 ;
-  float xMax =  6000;
+  float xMax =  4000;
   float yMin =  0;
-  float yMax =  6000;
+  float yMax =  4000;
   
-  hX1 = new TH1F("hX1", "X1; X1[ch]; count", bin, xMin, xMax);
-  hY1 = new TH1F("hY1", "Y1; Y1[ch]; count", bin, yMin, yMax);
-  hX2 = new TH1F("hX2", "X2; X2[ch]; count", bin, xMin, xMax);
-  hY2 = new TH1F("hY2", "Y2; Y2[ch]; count", bin, yMin, yMax);
+  hX1 = new TH1F("hX1", "A; A[ch]; count", bin, xMin, xMax);
+  hY1 = new TH1F("hY1", "B; B[ch]; count", bin, yMin, yMax);
+  hX2 = new TH1F("hX2", "C; C[ch]; count", bin, xMin, xMax);
+  hY2 = new TH1F("hY2", "D; D[ch]; count", bin, yMin, yMax);
   
-  hXY = new TH2F("hXY", "X-Y; X[ch]; Y[ch]", bin, 0, 1, bin, 0, 1);
+  hXY = new TH2F("hXY", "X-Y; X[ch]; Y[ch]", bin, 0.2, 0.8, bin, 0.2, 0.8);
   
   //hX->GetXaxis()->SetLabelSize(labelSize);
   //hX->GetYaxis()->SetLabelSize(labelSize);
@@ -161,9 +161,10 @@ void MicroChannelPlate::FillEnergies(double * energy){
   
   if( energy[chA] > 0 && energy[chB]>0 && energy[chC] > 0 && energy[chD] > 0 ){
     
-    //printf("%f, %f, %f, %f \n", energy[chA], energy[chC], energy[chB], energy[chD]);
+    printf("%f, %f, %f, %f \n", energy[chA], energy[chC], energy[chB], energy[chD]);
 
-    if( energy[chA]< 3500 && energy[chB]< 3500 && energy[chC]< 3500 && energy[chD]< 3500 ){
+    int limit = 3500;
+    if( energy[chA]< limit && energy[chB]< limit && energy[chC]< limit && energy[chD]< limit ){
       hX1->Fill(energy[chA]);
       hY1->Fill(energy[chC]);
     

@@ -6,7 +6,7 @@
 
 void ReadWave(){
 
-  TFile * file = new TFile("testing.root");
+  TFile * file = new TFile("testing_2.root");
   TTree * tree = (TTree *) file->FindObjectAny("tree");
   
   int numEvent = tree->GetEntries();
@@ -15,32 +15,40 @@ void ReadWave(){
   TObjArray * wave = new TObjArray();
   tree->SetBranchAddress("wave", &wave);
   
-  TCanvas * canvas = new TCanvas("c", "c", 600, 400);
+  TCanvas * canvas = new TCanvas("c", "c", 600, 600);
+  canvas->Divide(2,2);
   
   for( int ev = 0 ; ev < numEvent; ev ++ ){
     tree->GetEntry(ev);  
     
     int size = wave->GetLast()+1;
     
-    for( int i = 0; i < size; i++){
-      
+    for( int i = 0; i < size; i+= 2){
       TGraph * g = (TGraph *) wave->At(i);
-      g->SetTitle(Form("ev: %d, ch: %d", ev, i));
       
-      if( g->GetN() > 0 ) {
-        g->Draw("Al");
+      canvas->cd(i/2+1);
       
-        canvas->Modified();
-        canvas->Update();
-        gSystem->ProcessEvents();
+      //if( g->GetN() == 0 ) continue;
       
-        cout << "Press Enter to Continue : ";
-        cin.ignore();
+      double yMax = g->GetYaxis()->GetXmax();
+      double yMin = g->GetYaxis()->GetXmin();
+      
+      double z1 = g->Integral(100, 200);
+      
+      g->SetTitle(Form("ev: %d, ch: %d, (%f, %f, %f)", ev, i, yMax, yMin, (yMax-yMin)/2.));
+      
+      g->Draw("Al");
+      
         
-        gSystem->ProcessEvents();
+      gSystem->ProcessEvents();
       
-      }
     }
+    canvas->Modified();
+    canvas->Update();
+    gSystem->ProcessEvents();
+    
+    cout << "Press Enter to Continue : ";
+    cin.ignore();
   }
 
 

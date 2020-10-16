@@ -157,7 +157,7 @@ private:
   uint32_t NumEvents[MaxNChannels];
   uint32_t AllocatedSize, BufferSize; 
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
-  CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform;     /// waveforms buffer
+  CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform[MaxNChannels];     /// waveforms buffer
 
   int16_t *WaveLine[MaxNChannels];
   uint8_t *DigitalWaveLine[MaxNChannels];
@@ -335,8 +335,9 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
     // Allocate memory for the events
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;     
     // Allocate memory for the waveforms
-    ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform), &AllocatedSize); 
-    
+    for( int i = 0 ; i < MaxNChannels; i++){
+      ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize); 
+    }
 
     if (ret != 0) {
       printf("Can't allocate memory buffers\n");
@@ -946,6 +947,12 @@ void Digitizer::ReadData(bool debug){
   for (int ch = 0; ch < MaxNChannels; ch++) {    
     if (!(ChannelMask & (1<<ch))) continue;
     //printf("------------------------ %d \n", ch);
+    
+    //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List) { 
+    // ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
+    // ret = CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform), &AllocatedSize); 
+    //}
+    
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
       TrgCnt[ch]++;
       
@@ -973,18 +980,14 @@ void Digitizer::ReadData(bool debug){
           PurCnt[ch]++;
       }
       
-      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) { // only for the first event for channel for one retreive. 
-      //if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List  ) {
-         
-         ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
-         ret = CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform), &AllocatedSize); 
+      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
     
          // only get the 0th event
-         ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform);
-
+         ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
+         
          // Use waveform data here...
-         waveformLength[ch] = (int)(Waveform->Ns); // Number of samples
-         WaveLine[ch] = Waveform->Trace1;                // First trace (ANALOG_TRACE_1)
+         waveformLength[ch] = (int)(Waveform[ch]->Ns); // Number of samples
+         WaveLine[ch] = Waveform[ch]->Trace1;                // First trace (ANALOG_TRACE_1)
          //DigitalWaveLine = Waveform->DTrace1;        // First Digital Trace (DIGITALPROBE1)
          
       }
