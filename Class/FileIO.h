@@ -43,6 +43,8 @@ public:
   
   void WriteObjArray(TObjArray * objArray){ fileOut->cd(); objArray->Write();} 
   
+  void FillTreeWave(TGraph * waveForm);
+  
   void Close(){
     if( tree != NULL ) tree->Write("", TObject::kOverwrite); 
     fileOut->Close();
@@ -140,6 +142,8 @@ void FileIO::FillTree(int * Channel, UInt_t * Energy, ULong64_t * TimeStamp){
   
   tree->Fill();
 }
+
+
 
 
 

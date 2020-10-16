@@ -57,6 +57,7 @@
 #include "../Class/HelioTarget.h"
 #include "../Class/IsoDetect.h"
 #include "../Class/HelioArray.h"
+#include "../Class/MCPClass.h"
 
 using namespace std;
 
@@ -81,6 +82,7 @@ static void raw(void);
 int getch(void);
 int keyboardhit();
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
+bool isIntegrateWave = false;
 
 void PrintCommands(){
   printf("\n");
@@ -93,6 +95,7 @@ void PrintCommands(){
   printf("                        l ) Load setting of a channel\n");
   printf("d ) List Mode           p ) Print Channel setting\n");
   printf("w ) Wave Mode           o ) Print Channel threshold and DynamicRange\n");
+  printf("i ) integrate-wave\n");
 }
 
 void paintCanvas(){
@@ -122,9 +125,9 @@ int main(int argc, char *argv[]){
     printf("                         +-- iso (isomer with Glover Ge detector) \n");
     printf("                         +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
     printf("                         +-- array (single Helios array) \n");
+    printf("                         +-- MCP (Micro Channel Plate) \n");
     return -1;
   }
-  
   
   TString cutopt = "RECREATE"; // by default
   TString cutFileName; cutFileName = "data/cutsFile.root"; // default
@@ -193,6 +196,8 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "array" ){
     gp = new HelioArray();
+  }else if ( location == "MCP"){
+    gp = new MicroChannelPlate();
   }else{
     printf(" no such plane. exit. \n");
     return 0;
@@ -382,7 +387,7 @@ int main(int argc, char *argv[]){
       }
       if( c == 'w' ){ //========== Change coincident time window
 
-        if( dig.GetAcqMode() == "mixed"){
+        if( dig.GetAcqMode() == "mixed" && isIntegrateWave == false){
            printf("Already in mixed mode\n");
         }else{
            dig.StopACQ();
@@ -395,8 +400,17 @@ int main(int argc, char *argv[]){
            dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
            gp->SetWaveCanvas(length/2);
            dig.StartACQ();
+           isIntegrateWave = false;
            //uncooked();
         }
+      }
+      if( c == 'i'  ) {
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("\n\n###############################\n");
+        int length = 4000;
+        dig.SetAcqMode("mixed", length/2);
+        isIntegrateWave = true;
       }
       if( c == 'd' ){ //========== Change coincident time window
         if( dig.GetAcqMode() == "list" ) {
@@ -511,6 +525,12 @@ int main(int argc, char *argv[]){
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
        gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
+       if( isIntegrateWave ){
+         gp->FillEnergies(gp->GetWaveEnergy());
+         gp->Draw();
+       }else{
+         gp->DrawWaves();  
+       }
     } 
     
     if( isSaveRaw ) {

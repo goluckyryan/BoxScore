@@ -25,6 +25,8 @@
 
 #include <thread>
 
+#define numChannel 8
+
 using namespace std;
 
 class GenericPlane{
@@ -54,11 +56,12 @@ public:
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void         SetWaveCanvas(int length);
-  void         FillWave(int length, int ch, int16_t * wave, int padID);
   void         FillWaves(int* length, int16_t ** wave);
-  int16_t *    TrapezoidFilter(int length, int riseTime, int flatTop, int decayTime, int16_t * wave);
+  double *     TrapezoidFilter(int length, int riseTime, int flatTop, int decay, int baselineEnd, int16_t * wave);
+  virtual void FillEnergies(double * energy){}
     
   virtual void Draw();
+  virtual void DrawWaves();
   virtual void ClearHistograms();
   void         ZeroCountOfCut();
   void         LoadCuts(TString cutFileName);
@@ -83,6 +86,9 @@ public:
   TH2F * GethdEE()             {return hdEE;}
   TH2F * GethdEtotE()          {return hdEtotE;}
   TMultiGraph * GetRateGraph() {return rateGraph;}
+  
+  TGraph ** GetWaveForm()      {return waveForm;}
+  double * GetWaveEnergy()     {return waveEnergy;}
 
   TObjArray * GetCutList()  {return cutList;}
   int GetCountOfCut (int i) {if( countOfCut.size() <= i ) return -404; return countOfCut[i];}
@@ -104,6 +110,7 @@ public:
   virtual int GetG4Count()  {}
   virtual int GetdEECount() {}
   virtual void SetCountZero() {}
+  
 
 protected:
 
@@ -143,6 +150,7 @@ protected:
   TGraph * waveForm[8];
   TGraph * waveFormDiff[8];
   TGraph * trapezoid[8];
+  double waveEnergy[8];
   
   TObjArray * cutList; 
   int numCut;
@@ -181,9 +189,13 @@ GenericPlane::~GenericPlane(){
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
   delete rateGraph;
+  delete line;
   
-  //delete waveForm;
-  //delete waveFormDiff;
+  for(int i = 0; i < numChannel; i++){
+    delete waveForm[i];
+    delete waveFormDiff[i];
+    delete trapezoid[i];
+  }
   
   delete legend; 
   //delete rangeGraph;
@@ -242,6 +254,12 @@ GenericPlane::GenericPlane(){
   line->SetLineColor(2);
   
   graphIndex = 0;
+  
+  for( int i = 0 ; i < 8 ; i++){
+    waveForm[i] = NULL;
+    waveFormDiff[i] = NULL;
+    trapezoid[i] = NULL;
+  }
   
   cutG    = NULL;
   cutList = NULL;
@@ -622,31 +640,6 @@ void GenericPlane::LoadCuts(TString cutFileName){
   
 }
 
-void GenericPlane::FillWave(int length, int ch,  int16_t * wave, int padID){
-   
-   if( length > 0 && ch >= 0) {
-      //printf(" ----------- %d \n", length);
-      
-      waveForm[ch]->Clear();
-      waveFormDiff[ch]->Clear();
-      
-      for(int i = 0; i < length; i++){
-         waveForm[ch]->SetPoint(i, i*2, wave[i]);
-         //if( i < length - 1) waveFormDiff[ch]->SetPoint(i, i*2, wave[i+1] - wave[i] + wave[0]);
-      }
-
-      waveForm[ch]->SetTitle(Form("channel = %d", ch));
-
-      if( waveForm[ch]->GetN() >0 ){
-         fCanvas->cd(padID); 
-         waveForm[ch]->Draw("AP");
-         //waveFormDiff->Draw("PL same");
-         fCanvas->Modified();
-         fCanvas->Update();
-         gSystem->ProcessEvents();
-      }
-   }
-}
 
 void GenericPlane::SetWaveCanvas(int length){
    
@@ -694,53 +687,88 @@ void GenericPlane::SetWaveCanvas(int length){
 }
 
 void GenericPlane::FillWaves(int* length, int16_t ** wave){
-   
-   bool isOscilloscope = false;
-
-
-   int padID = 0;
-   for( int ch = 0 ; ch < 8; ch ++){
-      if (!(ChannelMask & (1<<ch))) continue;
-      padID ++;
-      if( length[ch] > 0 ) {
+  
+  int integrateWindow = 500; // ch, 1ch = 2ns
+  int pre_rise_start_ch = 100;
+  int post_rise_start_ch = 700;
+  
+  for( int ch = 0 ; ch < 8; ch ++){
+    if (!(ChannelMask & (1<<ch))) {
+      waveEnergy[ch] = 0;
+      continue;
+    }
+    if( length[ch] > 0 ) {
+      waveForm[ch]->Clear();
+      waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
+      waveFormDiff[ch]->SetLineColor(2);
          
-         waveForm[ch]->Clear();
-         if( isOscilloscope ) {
-            waveForm[ch]->SetLineColor(ch+1);
-            waveForm[ch]->SetMarkerColor(ch+1);
-         }
-         waveFormDiff[ch]->Clear();
-         waveFormDiff[ch]->SetLineColor(2);
-         
-         for(int i = 0; i < length[ch]; i++){
-            waveForm[ch]->SetPoint(i, i*2, wave[ch][i]);
-         }
-         
-         //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
-         
-         //TODO Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
-
-         waveForm[ch]->SetTitle(Form("channel = %d", ch));
-         waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
-         waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]*2);
-         
-         if(isOscilloscope) {
-            fCanvas->cd();
-            if( padID == 1 ) waveForm[ch]->Draw("A");
-            waveForm[ch]->Draw("same");
-         }else{
-            fCanvas->cd(padID);
-            waveForm[ch]->Draw("AP");
-            //waveFormDiff[ch]->Draw("same");
-         }
-      
+      for(int i = 0; i < length[ch]; i++){
+        waveForm[ch]->SetPoint(i, i*2, wave[ch][i]); // 2 for 1ch = 2 ns
+            
+        if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
+          waveFormDiff[ch]->SetPoint(i, i*2, 7200-1000);
+        }else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
+          waveFormDiff[ch]->SetPoint(i, i*2, 7200+1000);
+        }else{
+          waveFormDiff[ch]->SetPoint(i, i*2, 7200);
+        } 
       }
-   }
-   
-   fCanvas->Modified();
-   fCanvas->Update();
-   gSystem->ProcessEvents();
+         
+      //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
+      //TODO Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
 
+      waveForm[ch]->SetTitle(Form("channel = %d", ch));
+      waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
+      waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]*2);
+        
+    }
+    
+    if( length[ch] >= post_rise_start_ch + integrateWindow) {
+      int pre_rise_energy = 0;
+      int post_rise_energy = 0;
+      
+      for( int i = 0; i < length[ch]; i++ ){
+        if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
+          pre_rise_energy += wave[ch][i];
+        } 
+        if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
+          post_rise_energy += wave[ch][i];
+        } 
+      }
+      waveEnergy[ch] = (post_rise_energy - pre_rise_energy)*1./integrateWindow;
+    }else{
+      waveEnergy[ch] = 0;
+    }
+  }
+}
+
+
+void GenericPlane::DrawWaves(){
+  
+  bool isOscilloscope = false;
+
+  int padID = 0;
+  for( int ch = 0 ; ch < 8; ch ++){
+    if (!(ChannelMask & (1<<ch))) continue;
+    padID ++;
+
+    if(isOscilloscope) {
+      fCanvas->cd();
+      if( padID == 1 ) waveForm[ch]->Draw("A");
+      waveForm[ch]->Draw("same");
+      //waveFormDiff[ch]->Draw("same");
+    }else{
+      fCanvas->cd(padID);
+      waveForm[ch]->Draw("AP");
+      waveFormDiff[ch]->Draw("same");
+    }
+
+  }
+
+  fCanvas->Modified();
+  fCanvas->Update();
+  gSystem->ProcessEvents();
+  
 }
 
 double * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, int decay, int baselineEnd, int16_t * wave){
@@ -753,7 +781,7 @@ double * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, in
    }
    baseline = baseline*1./baselineEnd;
    
-   #printf("baseline = %f \n", baseline);
+   //printf("baseline = %f \n", baseline);
    
    double pn = 0.;
    double sn = 0.;
@@ -774,7 +802,7 @@ double * GenericPlane::TrapezoidFilter(int length, int riseTime, int flatTop, in
       
       trap[i] = sn / decay / riseTime;
       
-      #if( i < 10 ) printf("%4d | %6f, %6f, %6f, %6f \n", i, dlk, pn, sn, trap[i]);
+      //if( i < 10 ) printf("%4d | %6f, %6f, %6f, %6f \n", i, dlk, pn, sn, trap[i]);
    
    }
    
