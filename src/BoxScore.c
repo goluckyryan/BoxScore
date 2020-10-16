@@ -528,6 +528,9 @@ int main(int argc, char *argv[]){
        if( isIntegrateWave ){
          gp->FillEnergies(gp->GetWaveEnergy());
          gp->Draw();
+         file.Append();
+         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy());
+         file.Close();
        }else{
          gp->DrawWaves();  
        }

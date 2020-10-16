@@ -43,7 +43,7 @@ public:
   
   void WriteObjArray(TObjArray * objArray){ fileOut->cd(); objArray->Write();} 
   
-  void FillTreeWave(TGraph * waveForm);
+  void FillTreeWave(TGraph ** wave, double * waveEnergy);
   
   void Close(){
     if( tree != NULL ) tree->Write("", TObject::kOverwrite); 
@@ -63,6 +63,9 @@ private:
   ULong64_t * timeStamp;
   UInt_t * energy;
   int * channel;
+  TGraph ** waveForm;
+  
+  TObjArray * waveList;
   
 };
 
@@ -78,6 +81,9 @@ FileIO::FileIO(TString filename){
   timeStamp = NULL;
   energy = NULL;
   channel = NULL;
+  waveForm = NULL;
+  
+  waveList = NULL;
   
 }
 
@@ -89,6 +95,7 @@ FileIO::~FileIO(){
   delete energy;
   delete channel;
   
+  delete waveList;
 }
 
 void FileIO::WriteMacro(TString file){
@@ -110,12 +117,20 @@ void FileIO::SetTree(TString treeName, int NumChannel){
   timeStamp = new ULong64_t[NumChannel];
   energy    = new UInt_t[NumChannel];
   channel   = new int[NumChannel];
+
+  waveList = new TObjArray();  
+  waveForm = new TGraph*[NumChannel];
+  for( int i = 0; i< NumChannel; i++){
+    waveForm[i] = new TGraph();
+    waveList->Add(waveForm[i]);
+  }
   
   TString expre;
   expre.Form("channel[%d]/I", NumChannel); tree->Branch("ch", channel, expre);
   expre.Form("energy[%d]/i", NumChannel); tree->Branch("e", energy, expre);
   expre.Form("timeStamp[%d]/l", NumChannel); tree->Branch("t", timeStamp, expre);
   
+  tree->Branch("wave", "TObjArray", &waveList);
   
   tree->Write(treeName, TObject::kOverwrite); 
   
@@ -129,6 +144,7 @@ void FileIO::Append(){
   tree->SetBranchAddress("e", energy);
   tree->SetBranchAddress("t", timeStamp);
   tree->SetBranchAddress("ch", channel);
+  tree->SetBranchAddress("wave", &waveList);
      
 }
 
@@ -143,7 +159,17 @@ void FileIO::FillTree(int * Channel, UInt_t * Energy, ULong64_t * TimeStamp){
   tree->Fill();
 }
 
-
+void FileIO::FillTreeWave(TGraph ** wave, double * waveEnergy){
+  
+  waveList->Clear();
+  for( int ch = 0; ch < NumChannel; ch++){
+    channel[ch] = ch;
+    energy[ch] = waveEnergy[ch];
+    waveList->Add(wave[ch]);
+  }
+  tree->Fill();
+  
+}
 
 
 
