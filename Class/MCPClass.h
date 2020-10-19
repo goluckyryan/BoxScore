@@ -161,7 +161,7 @@ void MicroChannelPlate::FillEnergies(double * energy){
   
   if( energy[chA] > 0 && energy[chB]>0 && energy[chC] > 0 && energy[chD] > 0 ){
     
-    printf("%f, %f, %f, %f \n", energy[chA], energy[chC], energy[chB], energy[chD]);
+    //printf("%f, %f, %f, %f \n", energy[chA], energy[chC], energy[chB], energy[chD]);
 
     int limit = 3500;
     if( energy[chA]< limit && energy[chB]< limit && energy[chC]< limit && energy[chD]< limit ){
