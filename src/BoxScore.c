@@ -190,7 +190,7 @@ int main(int argc, char *argv[]){
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
-    gp = new IsoDetect();
+  //  gp = new IsoDetect();
   }else if ( location == "IonCh"){
     gp = new GenericPlane();
     gp->SetChannelMask(1,0,0,1,0,0,0,0);
