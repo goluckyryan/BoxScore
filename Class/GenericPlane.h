@@ -220,7 +220,7 @@ GenericPlane::GenericPlane(){
   
   chdE = 1;  chdEGain = 1; 
   chE = 7;   chEGain = 1;
-  mode = 1; ///default channel Gain is equal
+  mode = 3; ///default channel Gain is equal
   
   hdE     = NULL;
   hE      = NULL;
@@ -325,7 +325,7 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
     chdEGain = chGain[chdE];
     chEGain = chGain[chE];
   }
-  
+  mode = 3; //crh always de-e only (no gain factors) 10/20
 }
 
 void GenericPlane::SetGenericHistograms(){
@@ -333,7 +333,7 @@ void GenericPlane::SetGenericHistograms(){
   //printf("Setting up histogram\n");
   if( isHistogramSet ) return;
   
-  int bin = 600;
+  int bin = 2000;
   float labelSize = 0.08;
   
   hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ", chE, chEGain),   bin,  rangeE[0],  rangeE[1]);
@@ -405,9 +405,10 @@ void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
-  fCanvas->cd(2)->SetGridy();
-  fCanvas->cd(2)->SetTicky();
-  fCanvas->cd(2)->SetTickx();
+  fCanvas->cd(2)->Divide(2,1);
+  fCanvas->cd(2)->cd(2)->SetGridy();
+  fCanvas->cd(2)->cd(2)->SetTicky();
+  fCanvas->cd(2)->cd(2)->SetTickx();
   fCanvas->cd(1)->cd(2)->Divide(2,2);
   fCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
   fCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
@@ -469,8 +470,8 @@ void GenericPlane::FillRateGraph(float x, float y){
 void GenericPlane::Draw(){
   if ( !isHistogramSet ) return;
   
-  //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
-  fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
+  fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
+  fCanvas->cd(2)->cd(1); hdEE->Draw("colz");
 
   if( numCut > 0 ){
     for( int i = 0; i < numCut; i++){
@@ -482,7 +483,7 @@ void GenericPlane::Draw(){
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
-  fCanvas->cd(2);   
+  fCanvas->cd(2)->cd(2);   
   rateGraph->Draw("AP"); legend->Draw();
   fCanvas->Modified();
   fCanvas->Update();
@@ -502,14 +503,14 @@ void GenericPlane::SetHistogramsRange(){
   if( !isHistogramSet ) return;
   
   ///data is stored in bin
-  hE->SetBins(500, rangeE[0], rangeE[1]);
-  hdE->SetBins(500, rangeDE[0], rangeDE[1]);
+  hE->SetBins(2000, rangeE[0], rangeE[1]);
+  hdE->SetBins(2000, rangeDE[0], rangeDE[1]);
   
-  hdEE->SetBins(1000, chEGain * rangeE[0], chEGain * rangeE[1], 
-                1000, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+  hdEE->SetBins(2000, chEGain * rangeE[0], chEGain * rangeE[1], 
+                2000, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
 
-  hdEtotE->SetBins(500, chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], 
-                   500, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+  hdEtotE->SetBins(2000, chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1], 
+                   2000, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
 
   printf("===============  suggest clear histograms. \n");
   ///hE->SetAxisRange(rangeE[0], rangeE[1], "X");

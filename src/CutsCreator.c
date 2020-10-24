@@ -41,8 +41,8 @@ int main(int argc, char* argv[] ){
   }
   
   // mode = 0 ; gain_dE   = gain_E
-  // mode = 1 ; gain_dE   = gain_E/4
-  // mode = 2 ; gain_dE/4 = gain_E
+  // mode = 2 ; gain_dE   = gain_E/4
+  // mode = 1 ; gain_dE/4 = gain_E
   // mode = 3 ; custom gain
   
   string rootFile = argv[1];
@@ -87,23 +87,23 @@ int main(int argc, char* argv[] ){
   
   TString expression;
   if( mode == 0 ) {  //same gain
-    hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+    hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 1000, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 1000, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 1 ){ // dE = 2Vpp, E = 0.5Vpp
-    hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+  }else if ( mode == 2 ){ // dE = 2Vpp, E = 0.5Vpp
+    hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 1000, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 1000, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 2){  // dE = 0.5Vpp, E = 2 Vpp
-    hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
+  }else if ( mode == 1){  // dE = 0.5Vpp, E = 2 Vpp
+    hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 1000, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 1000, rangeDE_min , rangeDE_max );
     expression.Form("e[%d]/4:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
   }else if ( mode == 3){  //custom gain
     hEdE = new TH2F("hEdE", Form("dE - E ; E [ch] ; dE [ch]"), 
           1000, 
-          (int) rangeE_min * gainE + rangeDE_min * gainDE, 
-          (int) rangeE_max * gainE + rangeDE_max* gainDE, 
+          (int) rangeE_min * gainE, 
+          (int) rangeE_max * gainE, 
           1000, 
           (int) rangeDE_min * gainDE , 
           (int) rangeDE_max * gainDE );
-    expression.Form("e[%d]*%4.2f:e[%d]*%4.2f + e[%d]*%4.2f>>hEdE", chDE, gainDE, chEE, gainE, chDE, gainDE);
+    expression.Form("e[%d]*%4.2f:e[%d]*%4.2f>>hEdE", chDE, gainDE, chEE, gainE);
   }
   
   tree->Draw(expression, "", "colz");
