@@ -55,7 +55,7 @@
 #include "../Class/FileIO.h"
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
-#include "../Class/IsoDetect.h"
+//#include "../Class/IsoDetect.h"
 #include "../Class/HelioArray.h"
 #include "../Class/MCPClass.h"
 
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]){
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
   }else if ( location == "iso" ) {
-    gp = new IsoDetect();
+  //  gp = new IsoDetect();
   }else if ( location == "IonCh"){
     gp = new GenericPlane();
     gp->SetChannelMask(1,0,0,1,0,0,0,0);
