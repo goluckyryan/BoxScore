@@ -43,7 +43,7 @@
 
 #include "../Class/GenericPlane.h"
 #include "../Class/HelioTarget.h"
-#include "../Class/IsoDetect.h"
+//#include "../Class/IsoDetect.h"
 #include "../Class/HelioArray.h"
 
 using namespace std;
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]){
     printf("                                  +-- cross (dE = 1 ch, E = 4 ch) \n");
     printf("                                  +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
     printf("                                  +-- XY (Helios target XY) \n");
-    printf("                                  +-- iso (isomer with Glover Ge detector) \n");
+    //    printf("                                  +-- iso (isomer with Glover Ge detector) \n");
     printf("                                  +-- array (Helios array) \n");
     return -1;
   }
@@ -109,8 +109,8 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
-  }else if ( location == "iso" ) {
-    gp = new IsoDetect();
+    //}else if ( location == "iso" ) {
+    //gp = new IsoDetect();
   }else if ( location == "array"){
     gp = new HelioArray();
   }
