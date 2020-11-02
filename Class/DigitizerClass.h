@@ -448,32 +448,29 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
    int ret = 0;
    if( isDetected ) {
 
-      if( AcqMode ==    CAEN_DGTZ_DPP_ACQ_MODE_List){
+      if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
+         /// Set Extras 2 to enable, this override Accusition mode, focring list mode
+         uint32_t value = 0x10E0114;
+         ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
          printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
-      }else{
+      }else{  //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+         /// Set the number of samples for each waveform
+         ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
          printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = %d ch.\n", mode.c_str(), RecordLength);
       }
-      /* Set the DPP acquisition mode
+      /********************* Set the DPP acquisition mode
          This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
          CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
          CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
+      
+      ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
 
-         //AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
 
-       ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-
-       // Set Extras 2 to enable, this override Accusition mode, focring list mode
-       if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_List ) {
-          uint32_t value = 0x10E0114;
-         ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
-       }else{
-        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-        //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-       }
-
+      //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+      //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+      //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
    }
    return ret;
 }
