@@ -270,9 +270,14 @@ GenericPlane::GenericPlane(){
   graphIndex = 0;
   
   for( int i = 0 ; i < 8 ; i++){
-    waveForm[i] = NULL;
-    waveFormDiff[i] = NULL;
-    trapezoid[i] = NULL;
+    waveForm[i] = new TGraph();
+    waveForm[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
+
+    waveFormDiff[i] = new TGraph();
+    waveFormDiff[i]->SetLineColor(2);
+   
+    trapezoid[i] = new TGraph();
+    trapezoid[i]->SetLineColor(4);
     
     riseTime[i] = 500; ///  500 ch = 1000 ns
     flatTop[i] = 1000; /// 1000 ch = 2000 ns
@@ -419,19 +424,6 @@ void GenericPlane::SetGenericHistograms(){
   rangeGraph->SetPoint(0,  5, 0);
   rateGraph->Add(rangeGraph);
   rateGraph->Add(graphRate);
-  
-
-  for( int i = 0; i < 8; i++){
-   waveForm[i] = new TGraph();
-   waveForm[i]->GetXaxis()->SetTitle("time [ns]");
-
-   waveFormDiff[i] = new TGraph();
-   waveFormDiff[i]->SetLineColor(2);
-   
-   trapezoid[i] = new TGraph();
-   trapezoid[i]->SetLineColor(4);
-   
-  }
   
   isHistogramSet = true;
   
@@ -676,10 +668,10 @@ void GenericPlane::SetWaveCanvas(int length){
       fCanvas->cd()->SetGridy();
       fCanvas->cd()->SetGridx();
       for(int j = 0; j < length ; j++) {
-         waveForm[0]->SetPoint(j, j*2, 0);
+         waveForm[0]->SetPoint(j, j, 0);
       }
       waveForm[0]->GetYaxis()->SetRangeUser(-1000, 17000);
-      waveForm[0]->GetXaxis()->SetRangeUser(0, length*2);
+      waveForm[0]->GetXaxis()->SetRangeUser(0, length);
       waveForm[0]->Draw("AP");
    }else{
       
@@ -694,12 +686,11 @@ void GenericPlane::SetWaveCanvas(int length){
       for( int i = 1; i <= divX * divY ; i++){ 
          fCanvas->cd(i)->SetGridy();
          fCanvas->cd(i)->SetGridx();
-         
          for(int j = 0; j < length ; j++) {
-            waveForm[i-1]->SetPoint(j, j*2, 0);
+            waveForm[i-1]->SetPoint(j, j, 0);
          }
          waveForm[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
-         waveForm[i-1]->GetXaxis()->SetRangeUser(0, length*2);
+         waveForm[i-1]->GetXaxis()->SetRangeUser(0, length);
          waveForm[i-1]->Draw("AP");
       }
    }   
@@ -729,23 +720,22 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       TrapezoidFilter(ch, length[ch], wave[ch]);
     
       for(int i = 0; i < length[ch]; i++){
-        waveForm[ch]->SetPoint(i, i*2, wave[ch][i]); // 2 for 1ch = 2 ns
+        waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
             
         if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
-          waveFormDiff[ch]->SetPoint(i, i*2, 7200-1000);
+          waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
         }else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
-          waveFormDiff[ch]->SetPoint(i, i*2, 7200+1000);
+          waveFormDiff[ch]->SetPoint(i, i, 7200+1000);
         }else{
-          waveFormDiff[ch]->SetPoint(i, i*2, 7200);
+          waveFormDiff[ch]->SetPoint(i, i, 7200);
         } 
       }
          
       //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
-      //TODO Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
 
       waveForm[ch]->SetTitle(Form("channel = %d", ch));
       waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
-      waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]*2);
+      waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
      
       //int yMax = waveForm[ch]->GetYaxis()->GetXmax();
       //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
@@ -793,6 +783,8 @@ void GenericPlane::DrawWaves(){
     if (!(ChannelMask & (1<<ch))) continue;
     padID ++;
 
+    if( waveForm[ch]->GetN() == 0 ) continue;
+    
     if(isOscilloscope) {
       fCanvas->cd();
       if( padID == 1 ) waveForm[ch]->Draw("A");
@@ -814,19 +806,16 @@ void GenericPlane::DrawWaves(){
 }
 
 void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
-   
-   //int riseTime, int flatTop, int decay, int baselineEnd,
-   
+   ///Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
+
    trapezoid[ch]->Clear();
    
-   //find baseline;
+   ///find baseline;
    double baseline;
    for( int i = 0; i < baseLineEnd[ch]; i++){
       baseline += wave[i];
    }
    baseline = baseline*1./baseLineEnd[ch];
-   
-   //printf("baseline = %f \n", baseline);
    
    double pn = 0.;
    double sn = 0.;
@@ -845,7 +834,7 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
          sn = sn + pn + dlk*decayTime[ch];
       }    
       
-      trapezoid[ch]->SetPoint(i, i*2, sn / decayTime[ch] / riseTime[ch]);
+      trapezoid[ch]->SetPoint(i, i, sn / decayTime[ch] / riseTime[ch]);
       
    }
    

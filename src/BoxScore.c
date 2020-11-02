@@ -103,10 +103,10 @@ void PrintCommands(){
 void PrintTrapezoidCommands(){
   printf("\n");
   printf("\e[96m=============  Trapezoid Setting  ===================\e[0m\n");
-  printf("r) rise time[ns] , trapezoid rise time, no need to be same as pulse rise-time\n");
-  printf("t) flat-top [ns] , trapezoid flat-top time  \n");
-  printf("f) decay time[ns], trapezoid fall-time, should be same as pulse decay-time\n");
-  printf("b) base line end time [ns], the time for baseline estimation\n");
+  printf("r) rise time[ns] \n");
+  printf("t) flat-top [ns] \n");
+  printf("f) decay time[ns]\n");
+  printf("b) base line end time [ns]\n");
   printf("------------------------------------------------------------\n");
   ///printf("s ) Start acquisition  \n");
   ///printf("a ) Stop acquisition   \n");
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]){
   ///------Initialize the ChannelMask and histogram setting
   if( location == "testing") {
     gp = new GenericPlane();
-    gp->SetChannelMask(1,1,1,1,1,1,1,1);
+    gp->SetChannelMask(0,0,0,0,0,0,0,1);
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
@@ -245,7 +245,11 @@ int main(int argc, char *argv[]){
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp->SetChannelsPlotRange(dig.GetChannelsPlotRange());
   gp->SetGenericHistograms(); ///must be after SetChannelGain
-
+  for( int ch = 0; ch < MaxNChannels ; ch++){
+    gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
+    gp->SetFlatTop(ch, dig.GetChannelFlatTop(ch));
+    gp->SetFallTime(ch, dig.GetChannelDecay(ch));
+  }
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
@@ -418,12 +422,12 @@ int main(int argc, char *argv[]){
            dig.ClearRawData();
            printf("\n\n##################################\n");
            //cooked();
-           int length = 8000; // in ns
+           int length = 4000; // in ch
            //printf("Change to read Wave Form, Set Record Length [ns]? ");
            //int temp = scanf("%d", &length);
-           dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
-           gp->SetWaveCanvas(length/2);
-           dig.StartACQ();
+           dig.SetAcqMode("mixed", length);
+           gp->SetWaveCanvas(length);
+           //dig.StartACQ();
            isIntegrateWave = false;
            //uncooked();
         }
@@ -434,7 +438,7 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         printf("\n\n###############################\n");
         int length = 4000;
-        dig.SetAcqMode("mixed", length/2);
+        dig.SetAcqMode("mixed", length);
         isIntegrateWave = true;
       }
       if( c == 'd'){ //========== Change coincident time window
@@ -541,41 +545,43 @@ int main(int argc, char *argv[]){
         gp->Draw();
         uncooked();
       }
-      if( c == 'r' && dig.GetAcqMode() == "mixed"){  //========== Set Trapezoid rise time, only for wave mode
+      if( (c == 'r' || c == 't' || c == 'f' ) && dig.GetAcqMode() == "mixed"){  //========== Set Trapezoid rise time, only for wave mode
+        dig.StopACQ();
+        dig.ClearRawData();
         cooked();
         int ch;
         printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
         int temp = scanf("%d", &ch);
-        int old_setting = gp->GetRiseTime(ch);
+        int old_setting ;
         int setting; 
-        printf("Present riseTime %d [ch] = %d [ns], New setting in [ch] ?", old_setting, old_setting * 2);
+        string settingType;
+        if( c == 'r') {
+          settingType = "Rise Time";
+          old_setting = gp->GetRiseTime(ch);
+        }else if( c == 't') {
+          settingType = "Flat Top";
+          old_setting = gp->GetFlatTop(ch);
+        }else if( c == 'f') {
+          settingType = "Decay/Pole-Zero";
+          old_setting = gp->GetFallTime(ch);
+        }
+        
+        printf("Present %s %d [ch] = %d [ns], New setting in [ch] ?", settingType.c_str(), old_setting, old_setting * 2);
         temp = scanf("%d", &setting);
-        gp->SetRiseTime(ch, setting);
+        setting = setting/8*8;
+        if( c == 'r') {
+          gp->SetRiseTime(ch, setting);
+          dig.SetChannelRiseTime(ch, folder, setting);
+        }else if( c == 't') {
+          gp->SetFlatTop(ch, setting);
+          dig.SetChannelFlatTop(ch, folder, setting);
+        }else if( c == 'f') {
+          gp->SetFallTime(ch, setting);
+          dig.SetChannelDecay(ch, folder, setting);
+        }
+        
         uncooked();
-      }
-      if( c == 't' && dig.GetAcqMode() == "mixed"){  //========== Set Trapezoid flatTop, only for wave mode
-        cooked();
-        int ch;
-        printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
-        int temp = scanf("%d", &ch);
-        int old_setting = gp->GetFlatTop(ch);
-        int setting; 
-        printf("Present Flat-top %d [ch] = %d [ns], New setting in [ch] ?", old_setting, old_setting * 2);
-        temp = scanf("%d", &setting);
-        gp->SetFlatTop(ch, setting);
-        uncooked();
-      }      
-      if( c == 'f' && dig.GetAcqMode() == "mixed"){  //========== Set Trapezoid Fall Time, only for wave mode
-        cooked();
-        int ch;
-        printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
-        int temp = scanf("%d", &ch);
-        int old_setting = gp->GetFallTime(ch);
-        int setting; 
-        printf("Present Fall-Time %d [ch] = %d [ns], New setting in [ch] ?", old_setting, old_setting * 2);
-        temp = scanf("%d", &setting);
-        gp->SetFallTime(ch, setting);
-        uncooked();
+        dig.StartACQ();
       }
       if( c == 'b' && dig.GetAcqMode() == "mixed"){  //========== Set Trapezoid baseline estimation, only for wave mode
         cooked();
@@ -591,6 +597,8 @@ int main(int argc, char *argv[]){
       }
       
       PrintCommands();
+      
+      if( dig.GetAcqMode() == "mixed" ) PrintTrapezoidCommands();
     }//------------ End of keyboardHit
 
     if (!dig.IsRunning()) {

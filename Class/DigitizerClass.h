@@ -50,12 +50,11 @@ public:
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) {
     CoincidentTimeWindow = nanoSec;
-
-    //TODO save
-    //TString command;
-    //command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
-    //system(command.Data());
-    //printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
+    
+    TString command;
+    command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
+    system(command.Data());
+    printf("Done. time-coincident is %d ns now.\n", nanoSec);
 
   }
 
@@ -64,9 +63,8 @@ public:
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
   void SetChannelPlotRange(int ch, string folder, int min, int max);
   int  SetAcqMode(string mode, int recordLength);
-  //TODO
-  //void SetRegister(uin32_t address, int ch, float value);
-  //void SetRegister(DigiReg regName, int ch, float value);
+  
+  void SetRegister(uint32_t address, int ch, uint32_t value);
 
   bool     IsConnected()                {return isConnected;} /// can connect and retrieve Digitizer Info.
   bool     IsDetected()                 {return isDetected;}      /// can detect digitizer
@@ -81,6 +79,14 @@ public:
   int      GetChannelToNanoSec()        {return ch2ns;}
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
+  
+  int      GetChannelRiseTime(int ch) {return DPPParams.k[ch];}
+  int      GetChannelFlatTop(int ch) {return DPPParams.m[ch];}
+  int      GetChannelDecay(int ch) {return DPPParams.M[ch];}
+
+  int      SetChannelRiseTime(int ch, string folder, int temp);
+  int      SetChannelFlatTop(int ch, string folder, int temp);
+  int      SetChannelDecay(int ch, string folder, int temp);
 
   int **   GetChannelsPlotRange()       {return plotRange;}
 
@@ -403,7 +409,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
 
 }
 
-
 Digitizer::~Digitizer(){
 
   /* stop the acquisition, close the device and free the buffers */
@@ -475,19 +480,65 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
    return ret;
 }
 
+int Digitizer::SetChannelRiseTime(int ch, string folder, int temp){
+  
+  ret |= CAEN_DGTZ_WriteRegister(handle, 0x105C +  (ch<<8), temp/8);
+  
+  if( ret == 0 ) {
+    TString command;
+    command.Form("sed -i '7s/.*/%d     \\/\\/Trapezoid Rise Time (ch)/' %s/setting_%d.txt", temp, folder.c_str(), ch);
+    system(command.Data());
+    printf("Done. Rise-Time of ch-%d is %d ch now.\n", ch, temp);
+    DPPParams.k[ch] = temp;
+  }else{
+    printf("fail. something wrong.\n");
+  }
+  return ret;
+  
+}
+
+int Digitizer::SetChannelFlatTop(int ch, string folder, int temp){
+  
+  ret |= CAEN_DGTZ_WriteRegister(handle, 0x1060 +  (ch<<8), temp/8);
+
+  if( ret == 0 ) {
+    TString command;
+    command.Form("sed -i '8s/.*/%d     \\/\\/Trapezoid Flat Top  (ch)/' %s/setting_%d.txt", temp, folder.c_str(), ch);
+    system(command.Data());
+    printf("Done. Flat-Top of ch-%d is %d ch now.\n", ch, temp);
+    DPPParams.m[ch] = temp;
+  }else{
+    printf("fail. something wrong.\n");
+  }
+  return ret;
+}
+
+int Digitizer::SetChannelDecay(int ch, string folder, int temp){
+  
+  ret |= CAEN_DGTZ_WriteRegister(handle, 0x1068 +  (ch<<8), temp/8);
+    
+  if( ret == 0 ) {
+    TString command;
+    command.Form("sed -i '9s/.*/%d     \\/\\/Decay Time Constant (ch)/' %s/setting_%d.txt", temp, folder.c_str(), ch);
+    system(command.Data());
+    printf("Done. Decay/Pole-Zero of ch-%d ch is %d now.\n", ch, temp);
+    DPPParams.M[ch] = temp;
+  }else{
+    printf("fail. something wrong.\n");
+  }
+  return ret;
+}
+
 int Digitizer::SetChannelThreshold(int ch, string folder, int threshold){
 
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x106C +  (ch<<8), threshold);
 
-  DPPParams.thr[ch] = threshold;
-
   if( ret == 0 ) {
-    //TODO use serial number
     TString command;
     command.Form("sed -i '2s/.*/%d     \\/\\/Tigger Threshold (in LSB)/' %s/setting_%d.txt", threshold, folder.c_str(), ch);
     system(command.Data());
     printf("Done. Threshold of ch-%d is %d now.\n", ch, threshold);
-
+    DPPParams.thr[ch] = threshold;
   }else{
     printf("fail. something wrong.\n");
   }
@@ -502,18 +553,27 @@ int Digitizer::SetChannelDynamicRange(int ch, string folder, int dyRange){
   }
 
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x1028 +  (ch<<8), dyRange);
-  inputDynamicRange[ch] = dyRange;
 
   if( ret == 0 ) {
     TString command;
     command.Form("sed -i '15s/.*/%d     \\/\\/input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp/' %s/setting_%d.txt", dyRange, folder.c_str(), ch);
     system(command.Data());
     printf("Done. Dynamic Range of ch-%d is %3.1f Vpp now.\n", ch, dyRange == 0 ? 2.0 : 0.5);
+
+    inputDynamicRange[ch] = dyRange;
   }else{
     printf("fail. something wrong.\n");
   }
   return ret;
 
+}
+
+void Digitizer::SetRegister(uint32_t address, int ch, uint32_t value){
+  
+  ret != CAEN_DGTZ_WriteRegister(handle, address +  (ch<<8), value);
+  
+  if( ret != 0 ) printf("fail. something wrong.\n");
+  
 }
 
 void Digitizer::SetChannelPlotRange(int ch, string folder, int min, int max){
@@ -550,7 +610,6 @@ void Digitizer::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3,
   }
 
 }
-
 
 int Digitizer::SetChannelParity(int ch, bool isPositive){
 
@@ -672,11 +731,12 @@ void Digitizer::GetChannelSetting(int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x10A0 + (ch << 8), value);
   cout <<" DPP algorithm Control 2: 0b" << bitset<32>(value[0]) << endl;
 
-  printf("* = multiple of 8 \n");
+  printf("*  = multiple of 8 \n");
+  printf("** = multiple of 16 \n");
 
   printf("==========----- input \n");
-  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d \n", "Record Length",  value[0] * 8); //Record length
-  CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ch \n", "Record Length",  value[0] * 8); //Record length
+  CAEN_DGTZ_ReadRegister(handle, 0x1038 + (ch << 8), value); printf("%20s  %d ch \n", "Pre-tigger",  value[0] * 4); //Pre-trigger
   printf("%20s  %s \n", "polarity",  (polarity & 1) ==  0 ? "Positive" : "negative"); //Polarity
   printf("%20s  %.0f sample \n", "Ns baseline",  pow(4, 1 + baseline & 7)); //Ns baseline
   CAEN_DGTZ_ReadRegister(handle, 0x1098 + (ch << 8), value); printf("%20s  %.2f %% \n", "DC offset",  value[0] * 100./ int(0xffff) ); //DC offset
@@ -684,21 +744,21 @@ void Digitizer::GetChannelSetting(int ch){
 
   printf("==========----- discriminator \n");
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); //Threshold
-  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ns \n", "trigger hold off *",  value[0] * 8); //Trigger Hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ch \n", "trigger hold off *",  value[0] * 8); //Trigger Hold off
   CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] ); //Fast Discriminator smoothing
-  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ch \n", "Input rise time *",  value[0] * 8); //Input rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ns \n", "Input rise time **",  value[0] * 8 * 2); //Input rise time
 
   printf("==========----- Trapezoid \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise x decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); //Trap. Rescaling Factor
-  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time *",  value[0] * 8 ); //Trap. rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 8 * 2  ); //Trap. rise time, 2 for 1 ch to 2ns
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value);
-  int flatTopTime = value[0] * 8;
-  printf("%20s  %d ns \n", "Trap. flat time *",  flatTopTime); //Trap. flat time
-  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero *",  value[0] * 8); //Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time *",  value[0] * 8); //Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time *",  value[0] * 8, value[0] * 800. / flatTopTime ); //Peaking time
+  int flatTopTime = value[0] * 8 * 2;
+  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); //Trap. flat time
+//  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero *",  value[0] * 8); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 8 * 2); //Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 8 * 2, value[0] * 800. * 2 / flatTopTime ); //Peaking time
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
-  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off*",  value[0] * 8 ); //Peak hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off **",  value[0] * 8 *2 ); //Peak hold off
 
   printf("==========----- Other \n");
   CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); //Energy fine gain
@@ -813,18 +873,18 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
     DPPParams.a[ch]     = 4;        // Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
     DPPParams.b[ch]     = 200;      // Input Signal Rise time (ns)
 
-    DPPParams.k[ch]    = 3000;     // Trapezoid Rise Time (ns)
-    DPPParams.m[ch]    = 900;      // Trapezoid Flat Top  (ns)
-    DPPParams.M[ch]    = 50000;    // Decay Time Constant (ns)
-    DPPParams.ftd[ch]  = 500;      // Flat top delay (peaking time) (ns)
+    DPPParams.k[ch]    = 3000;     // Trapezoid Rise Time (ch)
+    DPPParams.m[ch]    = 900;      // Trapezoid Flat Top  (ch)
+    DPPParams.M[ch]    = 50000;    // Decay Time Constant (ch)
+    DPPParams.ftd[ch]  = 500;      // Flat top delay (peaking time) (ch)
     DPPParams.nspk[ch] = 0;        // Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-    DPPParams.pkho[ch] = 2000;    // peak holdoff (ns)
+    DPPParams.pkho[ch] = 2000;    // peak holdoff (ch)
 
     DPPParams.nsbl[ch]    = 4;        // number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
     inputDynamicRange[ch] = 0;       // input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 
     energyFineGain[ch]       = 10;      // Energy Fine gain
-    DPPParams.blho[ch]       = 500;     // Baseline holdoff (ns)
+    DPPParams.blho[ch]       = 500;     // Baseline holdoff (ch)
     DPPParams.enf[ch]        = 1.0;     // Energy Normalization Factor
     DPPParams.decimation[ch] = 0;       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
     DPPParams.dgain[ch]      = 0;       // decimation gain. Options: 0->DigitalGain=1; 1->DigitalGain=2 (only with decimation >= 2samples); 2->DigitalGain=4 (only with decimation >= 4samples); 3->DigitalGain=8( only with decimation = 8samples).
@@ -846,13 +906,13 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
         if( count ==  0 ) DPPParams.thr[ch]        = atoi(line.substr(0, pos).c_str());
         if( count ==  1 ) DPPParams.trgho[ch]      = atoi(line.substr(0, pos).c_str());
         if( count ==  2 ) DPPParams.a[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  3 ) DPPParams.b[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  4 ) DPPParams.k[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  5 ) DPPParams.m[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  6 ) DPPParams.M[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  7 ) DPPParams.ftd[ch]        = atoi(line.substr(0, pos).c_str());
+        if( count ==  3 ) DPPParams.b[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  4 ) DPPParams.k[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  5 ) DPPParams.m[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  6 ) DPPParams.M[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  7 ) DPPParams.ftd[ch]        = atoi(line.substr(0, pos).c_str())/8*8;
         if( count ==  8 ) DPPParams.nspk[ch]       = atoi(line.substr(0, pos).c_str());
-        if( count ==  9 ) DPPParams.pkho[ch]       = atoi(line.substr(0, pos).c_str());
+        if( count ==  9 ) DPPParams.pkho[ch]       = atoi(line.substr(0, pos).c_str())/8*8;
         if( count == 10 ) DPPParams.nsbl[ch]       = atoi(line.substr(0, pos).c_str());
         if( count == 11 ) inputDynamicRange[ch]    = atoi(line.substr(0, pos).c_str());
         if( count == 12 ) DCOffset[ch]             = atof(line.substr(0, pos).c_str());
