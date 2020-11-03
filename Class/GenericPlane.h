@@ -57,7 +57,7 @@ public:
   
   void         SetWaveCanvas(int length);
   void         FillWaves(int* length, int16_t ** wave);
-  virtual void FillEnergies(double * energy){}
+  virtual void FillWaveEnergies(double * energy);
   
   void         TrapezoidFilter(int ch, int length, int16_t * wave);
   void         SetRiseTime(int ch, int temp)    { this->riseTime[ch]    = temp;} /// in ch, 1 ch = 2 ns
@@ -488,6 +488,13 @@ void GenericPlane::Fill(UInt_t * energy){
 
 }
 
+void GenericPlane::FillWaveEnergies(double * energy){
+    
+    hE->Fill(energy[chE]);
+    hdE->Fill(energy[chdE]);
+    hdEE->Fill(energy[chE], energy[chdE]);
+}
+
 void GenericPlane::FillRateGraph(float x, float y){
   graphRate->SetPoint(graphIndex, x, y);
   graphIndex++;
@@ -517,7 +524,7 @@ void GenericPlane::Draw(){
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
   fCanvas->cd(2);   
-  rateGraph->Draw("AP"); legend->Draw();
+  ///rateGraph->Draw("AP"); legend->Draw();
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
@@ -702,7 +709,7 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
     }
     
     waveForm[ch]->Clear(); 
-    waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
+    ///waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
               
     if( length[ch] > 0 ) { 
       
@@ -725,23 +732,17 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       waveForm[ch]->SetTitle(Form("channel = %d", ch));
       waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
       waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
-     
-      //int yMax = waveForm[ch]->GetYaxis()->GetXmax();
-      //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
-      //waveEnergy[ch] = (yMax - yMin)/2.;
       
-      //if( length[ch] >= post_rise_start_ch + integrateWindow){
-      //  double pre_rise_energy = waveForm[ch]->Integral(pre_rise_start_ch, pre_rise_start_ch+ integrateWindow);
-      //  double post_rise_energy = waveForm[ch]->Integral(post_rise_start_ch, post_rise_start_ch+ integrateWindow);
-      //  
-      //  waveEnergy[ch] = (post_rise_energy - pre_rise_energy)/integrateWindow; 
-      //
-      //}else{
-      //  waveEnergy[ch] = 0;
-      //}
+      ///use Trapezoid energy at halfway of flattop
+      waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
+      
+      ///int yMax = waveForm[ch]->GetYaxis()->GetXmax();
+      ///int yMin = waveForm[ch]->GetYaxis()->GetXmin();
+      ///waveEnergy[ch] = (yMax - yMin)/2.;
+      
     }
     
-    /*
+    /**
     if( length[ch] >= post_rise_start_ch + integrateWindow) {
       int pre_rise_energy = 0;
       int post_rise_energy = 0;
@@ -773,7 +774,7 @@ void GenericPlane::DrawWaves(){
     
     fCanvas->cd(padID);
     waveForm[ch]->Draw("AP");
-    //waveFormDiff[ch]->Draw("same");
+    waveFormDiff[ch]->Draw("same");
     trapezoid[ch]->Draw("same");
   }
   fCanvas->Modified();
@@ -786,6 +787,7 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
    ///Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
 
    trapezoid[ch]->Clear();
+   waveFormDiff[ch]->Clear();
    
    ///find baseline;
    double baseline;
@@ -813,6 +815,11 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
       
       trapezoid[ch]->SetPoint(i, i, sn / decayTime[ch] / riseTime[ch]);
       
+      if( i < 900 + riseTime[ch] + flatTop[ch]/2){
+        waveFormDiff[ch]->SetPoint(i, i, 0 );
+      }else{
+        waveFormDiff[ch]->SetPoint(i, i, 1000);
+      }
    }
    
 }

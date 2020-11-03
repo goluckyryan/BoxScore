@@ -33,6 +33,7 @@ public:
 
   void SetTree(TString treeName, int NumChannel);
   void Append();
+  bool isOpen() {return openned;}
 
   void FillTree(int * Channel, UInt_t * Energy, ULong64_t* TimeStamp);
   void WriteMacro(TString file);
@@ -43,11 +44,12 @@ public:
 
   void WriteObjArray(TObjArray * objArray){ fileOut->cd(); objArray->Write();}
 
-  void FillTreeWave(TGraph ** wave, double * waveEnergy);
+  void FillTreeWave(TGraph ** wave, double * waveEnergy, int nRaw,  int * chRaw, ULong64_t * timeStampRaw);
 
   void Close(){
     if( tree != NULL ) tree->Write("", TObject::kOverwrite);
     fileOut->Close();
+    openned = false;
   }
 
   double GetFileSize(){ return fileOut->GetSize() / 1024. / 1024.;}
@@ -55,6 +57,7 @@ public:
 private:
   TString fileOutName;
   TFile * fileOut;
+  bool openned;
 
   TString treeName;
   TTree * tree;
@@ -74,7 +77,8 @@ FileIO::FileIO(TString filename){
   fileOutName = filename;
 
   fileOut = new TFile(filename, "RECREATE");
-
+  openned = true;
+  
   tree = NULL;
 
   NumChannel = 0;
@@ -139,6 +143,7 @@ void FileIO::SetTree(TString treeName, int NumChannel){
 void FileIO::Append(){
 
   fileOut = new TFile(fileOutName, "UPDATE");
+  openned = true;
   tree = (TTree*) fileOut->Get(treeName);
 
   tree->SetBranchAddress("e", energy);
@@ -159,13 +164,19 @@ void FileIO::FillTree(int * Channel, UInt_t * Energy, ULong64_t * TimeStamp){
   tree->Fill();
 }
 
-void FileIO::FillTreeWave(TGraph ** wave, double * waveEnergy){
+void FileIO::FillTreeWave(TGraph ** wave, double * waveEnergy, int nRaw, int * chRaw, ULong64_t * timeStampRaw){
 
   waveList->Clear();
   for( int ch = 0; ch < NumChannel; ch++){
     channel[ch] = ch;
     energy[ch] = waveEnergy[ch];
     waveList->Add(wave[ch]);
+    timeStamp[ch] = 0;
+    for( int ev = 0; ev < nRaw; ev ++){
+      if( ch == chRaw[ev]){
+        timeStamp[ch] = timeStampRaw[ev];
+      }
+    }
   }
   tree->Fill();
 

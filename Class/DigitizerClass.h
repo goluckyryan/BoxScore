@@ -433,13 +433,14 @@ Digitizer::~Digitizer(){
   delete buffer;
 }
 
-int Digitizer::SetAcqMode(string mode, int recordLength){
+int Digitizer::SetAcqMode(string mode, int recordLength = -1){
 
-   if( recordLength < 4096 ){
+   if( 0 < recordLength && recordLength < 8192 ){ /// ch
       this->RecordLength = recordLength;
-   }else{
-      this->RecordLength = 4096;
+   }else if ( recordLength >= 8192 ){
+      this->RecordLength = 8192;
    }
+   
    if( mode == "list"){
       AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;           /// enables the acquisition of time stamps and energy value
    }else if ( mode == "mixed"){
@@ -450,8 +451,6 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
 
    int ret = 0;
    if( isDetected ) {
-
-
       /********************* Set the DPP acquisition mode
          This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
@@ -757,7 +756,7 @@ void Digitizer::GetChannelSetting(int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 8 * 2  ); ///Trap. rise time, 2 for 1 ch to 2ns
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value);
   int flatTopTime = value[0] * 8 * 2;  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); ///Trap. flat time
-//  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero *",  value[0] * 8); //Trap. pole zero really? 
+  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero? *",  value[0] * 8 *2); //Trap. pole zero really? 
   CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 8 * 2); ///Trap. pole zero
   CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 8 * 2, value[0] * 800. * 2 / flatTopTime ); //Peaking time
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
@@ -1021,7 +1020,9 @@ void Digitizer::ReadData(bool debug){
 
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
       TrgCnt[ch]++;
-
+      
+      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev > 0) break;
+      
       if (Events[ch][ev].Energy > 0 && Events[ch][ev].TimeTag > 0 ) {
         ECnt[ch]++;
 
@@ -1030,7 +1031,7 @@ void Digitizer::ReadData(bool debug){
         rollOver = rollOver << 31;
         timetag  += rollOver ;
 
-        ///printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
 
         rawChannel[rawEvCount + rawEvLeftCount] = ch;
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;

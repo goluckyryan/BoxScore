@@ -186,6 +186,7 @@ int main(int argc, char *argv[]){
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
+    gp->SetNChannelForRealEvent(2);
     rootFileName = "test.root";
   }else if( location == "exit") {
     gp = new GenericPlane();
@@ -319,6 +320,7 @@ int main(int argc, char *argv[]){
         dig.StopACQ();
         dig.ClearRawData();
         StopTime = get_time();
+        if( file.isOpen() ) file.Close();
         printf("========== Duration : %u msec\n", StopTime - StartTime);
       }
       if( c == 'T'){ ////========== Timed acquisition
@@ -422,11 +424,12 @@ int main(int argc, char *argv[]){
            dig.ClearRawData();
            printf("\n\n##################################\n");
            ///cooked();
-           int length = 4000; /// in ch
+           ///int length = 4000; /// in ch
            ///printf("Change to read Wave Form, Set Record Length [ns]? ");
            ///int temp = scanf("%d", &length);
-           dig.SetAcqMode("mixed", length);
-           gp->SetWaveCanvas(length);
+           ///dig.SetAcqMode("mixed", length);
+           dig.SetAcqMode("mixed"); /// if no length input, the record length is same as genernal setting
+           gp->SetWaveCanvas((int) dig.GetRecordLength());
            ///dig.StartACQ();
            isIntegrateWave = false;
            ///uncooked();
@@ -437,8 +440,7 @@ int main(int argc, char *argv[]){
         dig.StopACQ();
         dig.ClearRawData();
         printf("\n\n###############################\n");
-        int length = 4000;
-        dig.SetAcqMode("mixed", length);
+        dig.SetAcqMode("mixed");
         isIntegrateWave = true;
       }
       if( c == 'd'){ ////========== Change coincident time window
@@ -448,7 +450,7 @@ int main(int argc, char *argv[]){
            dig.StopACQ();
            dig.ClearRawData();
            printf("Change to List mode.\n");
-           dig.SetAcqMode("list", 2000); /// for list mode, recordLength is dummy
+           dig.SetAcqMode("list");
            gp->SetCanvasTitleDivision(location + " | " + rootFileName);
            gp->Draw();
         }
@@ -609,17 +611,24 @@ int main(int argc, char *argv[]){
     ///the digitizer will output a channel after a channel.,
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
+    
+    ///since the wave mode only extract waveform for ev = 0, so we have to draw the wave after dig.ReadData(), otherwise, the wave is overwrited.
     if( dig.GetAcqMode() == "mixed" ) {
+       if( !file.isOpen() ) file.Append();
+        
        gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
        if( isIntegrateWave ){
-         gp->FillEnergies(gp->GetWaveEnergy());
+         gp->FillWaveEnergies(gp->GetWaveEnergy());
          gp->Draw();
-         file.Append();
-         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy());
-         file.Close();
+         ///Get Raw ch, energy, timestamp
+         int * chRaw = dig.GetRawChannel();
+         ULong64_t * timeRaw = dig.GetRawTimeStamp();
+         int nRaw = dig.GetNumRawEvent();         
+         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
        }else{
          gp->DrawWaves();
        }
+       dig.ClearRawData(); /// clean up raw data, as no event build, the raw data accumulate, that will reflect the actual trigger rate
     }
 
     if( isSaveRaw ) {
@@ -645,7 +654,8 @@ int main(int argc, char *argv[]){
       if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
         dig.StopACQ();
         dig.ClearRawData();
-        break;
+        if( file.isOpen() ) file.Close();
+        printf("=========== time-up.\n");
       }
     }
 
