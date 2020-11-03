@@ -127,9 +127,6 @@ public:
   int * GetNChannelEventCount()         {return countNChannelEvent;}
   int   GetTotalNChannelEvent(int Nch)  {return totNChannelEvent[Nch-1];}
 
-
-  void EventGenerator(int numEvent);
-
   ///======== Get built event
   ULong64_t * GetTimeStamp(int ev)        {return TimeStamp[ev];}
   UInt_t *    GetEnergy(int ev)           {return Energy[ev];}
@@ -416,7 +413,7 @@ Digitizer::~Digitizer(){
   
   CAEN_DGTZ_SWStopAcquisition(handle);
   CAEN_DGTZ_CloseDigitizer(handle);
-  //CAEN_DGTZ_FreeReadoutBuffer(&buffer); // somehow it causes free empty pointer
+  CAEN_DGTZ_FreeReadoutBuffer(&buffer); // somehow it causes free empty pointer
   CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
 
   printf("======== Closed digitizer\n");

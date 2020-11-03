@@ -203,7 +203,7 @@ GenericPlane::~GenericPlane(){
   delete hHit;
   delete hDetIDHit;
   
-  delete graphRate;
+  //delete graphRate;
   //delete graphRateCut; //need to know how to delete pointer of pointer
   delete rateGraph;
   delete line;
