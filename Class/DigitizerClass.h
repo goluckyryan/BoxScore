@@ -451,16 +451,7 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
    int ret = 0;
    if( isDetected ) {
 
-      if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
-         /// Set Extras 2 to enable, this override Accusition mode, focring list mode
-         uint32_t value = 0x10E0114;
-         ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
-         printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
-      }else{  ///AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
-         /// Set the number of samples for each waveform
-         ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
-         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = %d ch.\n", mode.c_str(), RecordLength);
-      }
+
       /********************* Set the DPP acquisition mode
          This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
@@ -472,6 +463,23 @@ int Digitizer::SetAcqMode(string mode, int recordLength){
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+      
+      if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
+         /// Set Extras 2 to enable, this override Accusition mode, focring list mode
+         uint32_t value = 0x10E0114;
+         ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
+         printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
+      }else{  ///AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+         /// Set the number of samples for each waveform
+         ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
+         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = %d ch.\n", mode.c_str(), RecordLength);
+         //TODO need to release the memory first
+         /// Allocate memory for the waveforms
+         for( int i = 0 ; i < MaxNChannels; i++){
+           ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
+         }
+      }
+           
    }
    return ret;
 }

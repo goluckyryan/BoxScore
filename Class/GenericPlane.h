@@ -583,7 +583,6 @@ void GenericPlane::CutCreator(){
   
   //thread paintCanvasThread(paintCanvas); // using loop keep root responding
   
-  
   // make cuts
   TFile * cutFile = new TFile("cuts.root", "recreate");
   cutList = new TObjArray();
@@ -662,43 +661,28 @@ void GenericPlane::LoadCuts(TString cutFileName){
 
 void GenericPlane::SetWaveCanvas(int length){
    
-   bool isOscilloscope = false;
-      
    fCanvas->Clear();
    
-   if( isOscilloscope ){
-      // Oscilloscaope mode, i.e single wave
-      fCanvas->cd();
-      fCanvas->cd()->SetGridy();
-      fCanvas->cd()->SetGridx();
-      for(int j = 0; j < length ; j++) {
-         waveForm[0]->SetPoint(j, j, 0);
-      }
-      waveForm[0]->GetYaxis()->SetRangeUser(-1000, 17000);
-      waveForm[0]->GetXaxis()->SetRangeUser(0, length);
-      waveForm[0]->Draw("AP");
-   }else{
-      
-      int divX  = (nChannel+1)/2 ; 
-      int divY = 2;
-      if( nChannel == 1 ) divY = 1;
-      
-      int xVal[length], yVal[length];
-      for( int i = 0; i < length; i++) xVal[i] = i*2;
-      std::fill_n(yVal, length, 0);
-      
-      fCanvas->Divide(divX,divY);
-      for( int i = 1; i <= divX * divY ; i++){ 
-         fCanvas->cd(i)->SetGridy();
-         fCanvas->cd(i)->SetGridx();
-         for(int j = 0; j < length ; j++) {
-            waveForm[i-1]->SetPoint(j, j, 0);
-         }
-         waveForm[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
-         waveForm[i-1]->GetXaxis()->SetRangeUser(0, length);
-         waveForm[i-1]->Draw("AP");
-      }
-   }   
+    int divX  = (nChannel+1)/2 ; 
+    int divY = 2;
+    if( nChannel == 1 ) divY = 1;
+    
+    int xVal[length], yVal[length];
+    for( int i = 0; i < length; i++) xVal[i] = i*2;
+    std::fill_n(yVal, length, 0);
+    
+    fCanvas->Divide(divX,divY);
+    for( int i = 1; i <= divX * divY ; i++){ 
+       fCanvas->cd(i)->SetGridy();
+       fCanvas->cd(i)->SetGridx();
+       for(int j = 0; j < length ; j++) {
+          waveForm[i-1]->SetPoint(j, j, 0);
+       }
+       waveForm[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
+       waveForm[i-1]->GetXaxis()->SetRangeUser(0, length);
+       waveForm[i-1]->Draw("AP");
+    }
+  
    fCanvas->Modified();
    fCanvas->Update();
    gSystem->ProcessEvents();
@@ -717,12 +701,12 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       continue;
     }
     
-    waveForm[ch]->Clear();
-    //waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
+    waveForm[ch]->Clear(); 
+    waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
               
     if( length[ch] > 0 ) { 
       
-      //TrapezoidFilter(ch, length[ch], wave[ch]);
+      TrapezoidFilter(ch, length[ch], wave[ch]);
     
       for(int i = 0; i < length[ch]; i++){
         waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
@@ -781,29 +765,17 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
 void GenericPlane::DrawWaves(){
   
-  bool isOscilloscope = false;
-
   int padID = 0;
   for( int ch = 0 ; ch < 8; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
     padID ++;
-
     if( waveForm[ch]->GetN() == 0 ) continue;
     
-    if(isOscilloscope) {
-      fCanvas->cd();
-      if( padID == 1 ) waveForm[ch]->Draw("A");
-      waveForm[ch]->Draw("same");
-      //waveFormDiff[ch]->Draw("same");
-    }else{
-      fCanvas->cd(padID);
-      waveForm[ch]->Draw("AP");
-      //waveFormDiff[ch]->Draw("same");
-      //trapezoid[ch]->Draw("same");
-    }
-
+    fCanvas->cd(padID);
+    waveForm[ch]->Draw("AP");
+    //waveFormDiff[ch]->Draw("same");
+    trapezoid[ch]->Draw("same");
   }
-
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
