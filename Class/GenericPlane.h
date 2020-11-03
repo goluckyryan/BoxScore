@@ -190,6 +190,9 @@ private:
 
 
 GenericPlane::~GenericPlane(){
+  
+  printf("cleaning up GenericPlane \n");
+  
   delete fCanvas;
   delete hE;
   delete hdE;
@@ -200,8 +203,8 @@ GenericPlane::~GenericPlane(){
   delete hHit;
   delete hDetIDHit;
   
-  //delete graphRate;
-  //delete graphRateCut; need to know how to delete pointer of pointer
+  delete graphRate;
+  //delete graphRateCut; //need to know how to delete pointer of pointer
   delete rateGraph;
   delete line;
   
@@ -212,10 +215,12 @@ GenericPlane::~GenericPlane(){
   }
   
   delete legend; 
-  //delete rangeGraph;
+  ///delete rangeGraph;
   
   delete cutG;
   delete cutList;
+
+  printf("cleaned up GenericPlane.\n");
 
 }
 
@@ -372,7 +377,6 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
 
 void GenericPlane::SetGenericHistograms(){
   
-  //printf("Setting up histogram\n");
   if( isHistogramSet ) return;
   
   int bin = 200;
@@ -499,7 +503,7 @@ void GenericPlane::FillRateGraph(float x, float y){
 void GenericPlane::Draw(){
   if ( !isHistogramSet ) return;
   
-  //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
+  ///fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
 
   if( numCut > 0 ){
@@ -508,7 +512,7 @@ void GenericPlane::Draw(){
       cutG->Draw("same");
     }
   }
-
+  
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
@@ -677,6 +681,7 @@ void GenericPlane::SetWaveCanvas(int length){
       
       int divX  = (nChannel+1)/2 ; 
       int divY = 2;
+      if( nChannel == 1 ) divY = 1;
       
       int xVal[length], yVal[length];
       for( int i = 0; i < length; i++) xVal[i] = i*2;
@@ -713,22 +718,22 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
     }
     
     waveForm[ch]->Clear();
-    waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
+    //waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
               
     if( length[ch] > 0 ) { 
       
-      TrapezoidFilter(ch, length[ch], wave[ch]);
+      //TrapezoidFilter(ch, length[ch], wave[ch]);
     
       for(int i = 0; i < length[ch]; i++){
         waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
             
-        if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
-          waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
-        }else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
-          waveFormDiff[ch]->SetPoint(i, i, 7200+1000);
-        }else{
-          waveFormDiff[ch]->SetPoint(i, i, 7200);
-        } 
+        ///if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
+        ///  waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
+        ///}else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
+        ///  waveFormDiff[ch]->SetPoint(i, i, 7200+1000);
+        ///}else{
+        ///  waveFormDiff[ch]->SetPoint(i, i, 7200);
+        ///} 
       }
          
       //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
@@ -793,8 +798,8 @@ void GenericPlane::DrawWaves(){
     }else{
       fCanvas->cd(padID);
       waveForm[ch]->Draw("AP");
-      waveFormDiff[ch]->Draw("same");
-      trapezoid[ch]->Draw("same");
+      //waveFormDiff[ch]->Draw("same");
+      //trapezoid[ch]->Draw("same");
     }
 
   }

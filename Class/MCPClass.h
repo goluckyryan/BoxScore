@@ -71,7 +71,8 @@ MicroChannelPlate::MicroChannelPlate(){
   chB = 2;
   chC = 4;
   chD = 6;
-  GenericPlane::SetChannelMask(0,1,0,1,0,1,0,1);
+  //GenericPlane::SetChannelMask(0,1,0,1,0,1,0,1);
+  GenericPlane::SetChannelMask(0,0,0,0,0,0,0,1);
   
 }
 
