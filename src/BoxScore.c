@@ -648,23 +648,19 @@ int main(int argc, char *argv[]){
        PrintTrapezoidCommands();
        printf("\n\n");
        printf("Time elapsed: %f sec\n", (CurrentTime - StartTime)/1000. );
-       dig.PrintReadStatistic();
+       
        PreviousTime = CurrentTime;
-
-      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
-        dig.StopACQ();
-        dig.ClearRawData();
-        if( file.isOpen() ) file.Close();
-        printf("=========== time-up.\n");
-      }
+       
+       double fileSize = file.GetFileSize() ;
+       printf("Built-event save to  : %s \n", rootFileName.Data());
+       printf("File size            : %.4f MB \n", fileSize );
+       printf("\n");
+       
+       dig.PrintReadStatistic();
+       
     }
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
-      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec) {
-        dig.StopACQ();
-        dig.ClearRawData();
-        break;
-      }
       ///======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
@@ -752,6 +748,14 @@ int main(int argc, char *argv[]){
 
       PreviousTime = CurrentTime;
 
+    }
+
+    if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
+      dig.StopACQ();
+      dig.ClearRawData();
+      if( file.isOpen() ) file.Close();
+      PrintCommands();
+      printf("=========== time-up.\n");
     }
 
   } ///============== End of readout loop
