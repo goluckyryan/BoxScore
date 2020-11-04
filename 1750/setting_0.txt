@@ -17,7 +17,7 @@
 0.5     // DC offset ( from 0 to 1,  for positive pulse, 1 = baseline bottom )
 1000    // pre trigger size [ch];
 true    // is pulse positive parity;
-10       // Energy fine gain
+30000   // Energy fine gain, 33900 is roughly equal Compass 10x, 30000 is roughly equal to real voltage at Vpp=2.0x
 500     // Baseline holdoff (ns)
 1.00     // Energy Normalization Factor
 0       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
@@ -26,5 +26,5 @@ true    // is pulse positive parity;
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
 1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
-1000        // plot range min
-5000    // plot range max
+0        // plot range min
+8000    // plot range max

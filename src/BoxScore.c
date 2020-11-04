@@ -444,6 +444,8 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         printf("\n\n###############################\n");
         dig.SetAcqMode("mixed");
+        gp->SetCanvasTitleDivision(location + " | " + rootFileName);
+        gp->Draw();
         isIntegrateWave = true;
       }
       if( c == 'd'){ ////========== Change coincident time window

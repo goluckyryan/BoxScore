@@ -765,22 +765,20 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 
 
 void GenericPlane::DrawWaves(){
-  
   int padID = 0;
   for( int ch = 0 ; ch < 8; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
     padID ++;
-    if( waveForm[ch]->GetN() == 0 ) continue;
     
     fCanvas->cd(padID);
-    waveForm[ch]->Draw("AP");
-    waveFormDiff[ch]->Draw("same");
-    trapezoid[ch]->Draw("same");
+    if( waveForm[ch]->GetN() > 0 ) waveForm[ch]->Draw("AP");
+    if( waveFormDiff[ch]->GetN() > 0 ) waveFormDiff[ch]->Draw("same");
+    if( trapezoid[ch]->GetN() > 0 ) trapezoid[ch]->Draw("same");
+    
   }
-  fCanvas->Modified();
+  
   fCanvas->Update();
   gSystem->ProcessEvents();
-  
 }
 
 void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
