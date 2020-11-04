@@ -178,8 +178,8 @@ void FileIO::FillTreeWave(TGraph ** wave, double * waveEnergy, int nRaw, int * c
       }
     }
   }
-  waveList->Clear();
   tree->Fill();
+  waveList->Clear();
 
 }
 
