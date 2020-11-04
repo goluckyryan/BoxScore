@@ -102,10 +102,9 @@ void PrintCommands(){
 void PrintTrapezoidCommands(){
   printf("\n");
   printf("\e[96m=============  Trapezoid Setting  ===================\e[0m\n");
-  printf("r) rise time[ns] \n");
-  printf("t) flat-top [ns] \n");
+  printf("r) rise time[ns]        l) set wave record Length\n");
+  printf("t) flat-top [ns]        b) base line end time [ns]\n");
   printf("f) decay time[ns]\n");
-  printf("b) base line end time [ns]\n");
   printf("------------------------------------------------------------\n");
   ///printf("s ) Start acquisition  \n");
   ///printf("a ) Stop acquisition   \n");
@@ -381,7 +380,7 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         dig.PrintThresholdAndDynamicRange();
       }
-      if( c == 'l'){ ////========== load channel setting from a file
+      if( c == 'l' && dig.GetAcqMode() == "list"){ ////========== load channel setting from a file
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
@@ -595,6 +594,17 @@ int main(int argc, char *argv[]){
         printf("Present Base-Line-End %d [ch] = %d [ns], New setting in [ch] ?", old_setting, old_setting * 2);
         temp = scanf("%d", &setting);
         gp->SetBaseLineEnd(ch, setting);
+        uncooked();
+      }
+      if( c == 'l' && dig.GetAcqMode() == "mixed"){  ////========== Set wave form record length, only for wave mode
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("\n\n##################################\n");
+        cooked();
+        int length = dig.GetRecordLength(); /// in ch
+        printf("Set Record Length in [ns] ( present : %d [ch])? ", dig.GetRecordLength());
+        int temp = scanf("%d", &length);
+        dig.SetAcqMode("mixed", length);
         uncooked();
       }
       

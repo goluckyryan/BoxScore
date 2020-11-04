@@ -27,15 +27,21 @@
 
 using namespace std;
 
+///For 730 DPP-PHA
 enum DigiReg {
   recordLength = 0x1020,
   preTrigger   = 0x1038,
   dcOffset     = 0x1098,
   dynamicRange = 0x1028,
   threshold    = 0x106C,
-  trigHoldOff  = 0x1074
-
-  //TODO fill all register
+  trigHoldOff  = 0x1074,
+  inputRiseTime = 0x1058, ///the me constant of the deriva ve component of the PHA fast discriminator filter
+  trapRiseTime = 0x105C,
+  trapFlatTop  = 0x1060,
+  trapFallTime = 0x1068,
+  peakingTime  = 0x1064, 
+  peakHoldOff  = 0x1078, ///starts at the end of the trapezoid flat top and defines how close must be two trapezoids to be considered piled-up
+  fineGaie     = 0x10C4
 };
 
 
@@ -98,7 +104,7 @@ public:
   int*      GetWaveFormLengths()        { return waveformLength;}
   int16_t** GetWaveForms()              { return WaveLine;}
 
-  unsigned long long int Getch2ns()     {return ch2ns;}
+  int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
   uint32_t GetChannelMask() const       {return ChannelMask;}
   string   GetChannelMaskString();
@@ -189,7 +195,7 @@ private:
   int ** plotRange;
 
   ///====================== General Setting
-  unsigned long long int ch2ns;
+  int ch2ns;
   uint32_t VMEBaseAddress;
   CAEN_DGTZ_ConnectionType LinkType;
   CAEN_DGTZ_IOLevel_t IOlev;
@@ -342,6 +348,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   }
 
   if( isDetected ) {
+    
     /** WARNING: The mallocs MUST be done after the digitizer programming,
     because the following functions needs to know the digitizer configuration
     to allocate the right memory amount */
@@ -413,8 +420,9 @@ Digitizer::~Digitizer(){
   
   CAEN_DGTZ_SWStopAcquisition(handle);
   CAEN_DGTZ_CloseDigitizer(handle);
-  CAEN_DGTZ_FreeReadoutBuffer(&buffer); // somehow it causes free empty pointer
+  CAEN_DGTZ_FreeReadoutBuffer(&buffer); 
   CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+  CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
 
   printf("======== Closed digitizer\n");
 
@@ -471,8 +479,8 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
       }else{  ///AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
          /// Set the number of samples for each waveform
          ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
-         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = %d ch.\n", mode.c_str(), RecordLength);
-         //TODO need to release the memory first
+         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = \e[33m %d \e[0mch.\n", mode.c_str(), RecordLength);
+         
          /// Allocate memory for the waveforms
          for( int i = 0 ; i < MaxNChannels; i++){
            ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
@@ -749,21 +757,20 @@ void Digitizer::GetChannelSetting(int ch){
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); ///Threshold
   CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ch \n", "trigger hold off *",  value[0] * 8); ///Trigger Hold off
   CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] ); ///Fast Discriminator smoothing
-  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ns \n", "Input rise time **",  value[0] * 8 * 2); ///Input rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ns \n", "Input rise time **",  value[0] * 8 * ch2ns); ///Input rise time
 
   printf("==========----- Trapezoid \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise x decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); ///Trap. Rescaling Factor
-  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 8 * 2  ); ///Trap. rise time, 2 for 1 ch to 2ns
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 8 * ch2ns  ); ///Trap. rise time, 2 for 1 ch to 2ns
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value);
-  int flatTopTime = value[0] * 8 * 2;  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); ///Trap. flat time
-  CAEN_DGTZ_ReadRegister(handle, 0x1020 + (ch << 8), value); printf("%20s  %d ns \n", "Trap. pole zero? *",  value[0] * 8 *2); //Trap. pole zero really? 
-  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 8 * 2); ///Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 8 * 2, value[0] * 800. * 2 / flatTopTime ); //Peaking time
+  int flatTopTime = value[0] * 8 * ch2ns;  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); ///Trap. flat time
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 8 * ch2ns); ///Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 8 * ch2ns, value[0] * 800. * ch2ns / flatTopTime ); //Peaking time
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
-  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off **",  value[0] * 8 *2 ); ///Peak hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off **",  value[0] * 8 *ch2ns ); ///Peak hold off
 
   printf("==========----- Other \n");
-  CAEN_DGTZ_ReadRegister(handle, 0x104C + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain",  value[0]); ///Energy fine gain
+  CAEN_DGTZ_ReadRegister(handle, 0x10C4 + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain ?",  value[0]); ///Energy fine gain
 
   printf("========================================= end of ch-%d\n", ch);
 
@@ -795,7 +802,6 @@ int Digitizer::ProgramDigitizer(){
     ret |= CAEN_DGTZ_SetIOLevel(handle, IOlev);
 
     /** Set the digitizer's behaviour when an external trigger arrives:
-
     CAEN_DGTZ_TRGMODE_DISABLED: do nothing
     CAEN_DGTZ_TRGMODE_EXTOUT_ONLY: generate the Trigger Output signal
     CAEN_DGTZ_TRGMODE_ACQ_ONLY = generate acquisition trigger
@@ -843,8 +849,8 @@ int Digitizer::ProgramChannels(){
             /// Set InputDynamic Range
             ret |= CAEN_DGTZ_WriteRegister(handle, 0x1028 +  (i<<8), inputDynamicRange[i]);
 
-            /// Set Energy Fine gain
-            ret |= CAEN_DGTZ_WriteRegister(handle, 0x104C +  (i<<8), energyFineGain[i]);
+            /// Set Energy Fine gain, not working
+            ret |= CAEN_DGTZ_WriteRegister(handle, 0x10C4 +  (i<<8), energyFineGain[i]);
 
             /// read the register to check the input is correct
             ///uint32_t * value = new uint32_t[8];
