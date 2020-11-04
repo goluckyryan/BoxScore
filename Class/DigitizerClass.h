@@ -125,6 +125,7 @@ public:
 
   void ClearRawData(); /// clear Raw Data and set rawEvCount = 0;
   void ClearData();    /// clear built event vectors, and set countEventBuild =  0;
+  void ClearDigitizerBuffer() { CAEN_DGTZ_ClearData(handle); }
 
   int   GetEventBuilt()                 {return countEventBuilt; }
   int   GetEventBuiltCount()            {return countEventBuilt;}
@@ -642,6 +643,7 @@ void Digitizer::ClearRawData(){
   std::fill_n(rawChannel, 5000, -1);
   std::fill_n(rawTimeStamp, 5000, 0);
   rawEvCount = 0;
+  rawEvLeftCount = 0;
 }
 
 void Digitizer::ClearData(){
@@ -1143,19 +1145,23 @@ void Digitizer::PrintThresholdAndDynamicRange(){
 
 void Digitizer::StopACQ(){
   if( !AcqRun ) return;
-  CAEN_DGTZ_SWStopAcquisition(handle);
+  int ret = CAEN_DGTZ_SWStopAcquisition(handle);
+  ret |= CAEN_DGTZ_ClearData(handle);
+  if( ret != 0 ) printf("something wrong when try to stop the ACQ\n");
   printf("\n\e[1m\e[33m====== Acquisition STOPPED for Board %d\e[0m\n", boardID);
   AcqRun = false;
 }
 
 int Digitizer::BuildEvent(bool debug = false){
 
+  /// flushData = Build Event for the remaining data.
+
   ///################################################################
   ///  Sorrting raw event timeStamp
   ///################################################################
   int nRawData = rawEvCount + rawEvLeftCount;
   if( nRawData < 2 ) return 0; /// too few event to build;
-
+  
   countEventBuilt = 0;
 
   int sortIndex[nRawData];

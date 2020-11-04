@@ -81,9 +81,6 @@ static void raw(void);
 int getch(void);
 int keyboardhit();
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
-bool isIntegrateWave = false;
-bool isTimedACQ = false;
-int timeLimitSec ;
 
 void PrintCommands(){
   printf("\n");
@@ -159,6 +156,12 @@ int main(int argc, char *argv[]){
 
   char hostname[100];
   gethostname(hostname, 100);
+  
+  /// some variable use in the programs
+  bool isIntegrateWave = false;
+  bool isTimedACQ = false;
+  int ZeroEventBuildCount = 0;
+  int timeLimitSec = -1;
 
   time_t now = time(0);
   tm *ltm = localtime(&now);
@@ -318,6 +321,7 @@ int main(int argc, char *argv[]){
       if( c == 'a'){ ////========== stop acquisition
         dig.StopACQ();
         dig.ClearRawData();
+        dig.ClearData();
         StopTime = get_time();
         if( file.isOpen() ) file.Close();
         printf("========== Duration : %u msec\n", StopTime - StartTime);
@@ -681,6 +685,16 @@ int main(int argc, char *argv[]){
       double fileSize = file.GetFileSize() ;
 
       int buildID = dig.BuildEvent(isDebug);
+  
+      ///After 5 cycle and number of build event is zero, flush the remain data.
+      if( dig.GetEventBuiltCount() == 0 ) {
+        ZeroEventBuildCount ++;
+      }else{
+        ZeroEventBuildCount = 0;
+      }
+      
+      if( ZeroEventBuildCount > 4 ) dig.ClearRawData();
+      
       gp->ZeroCountOfCut();
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){

@@ -524,7 +524,7 @@ void GenericPlane::Draw(){
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
   fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
   fCanvas->cd(2);   
-  ///rateGraph->Draw("AP"); legend->Draw();
+  rateGraph->Draw("AP"); legend->Draw();
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
