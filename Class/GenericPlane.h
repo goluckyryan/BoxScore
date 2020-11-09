@@ -361,7 +361,7 @@ void GenericPlane::SetGenericHistograms(){
 
   //int bin = 1000;
 
-  float labelSize = 0.1;
+  float labelSize = 0.07;
 
   hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ",
   chE, chEGain),   histBins,  rangeE[0],  rangeE[1]);
@@ -435,8 +435,8 @@ void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Clear();
   fCanvas->SetTitle(titleExtra);
   fCanvas->Divide(2,2); //divides
-  fCanvas->cd(2)->Divide(2,1);
-  fCanvas->cd(4)->Divide(2,1);
+  fCanvas->cd(2)->Divide(1,2);
+  fCanvas->cd(4)->Divide(1,2);
 
   fCanvas->cd(1)->SetLogz();//hdEE
   fCanvas->cd(3)->SetLogz();//hdEtotE
