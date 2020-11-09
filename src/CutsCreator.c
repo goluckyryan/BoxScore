@@ -34,7 +34,8 @@ int main(int argc, char* argv[] ){
 
   if( argc != 9 && argc != 10  && argc != 12) {
     //printf("Please input channel for dE and E. \n");
-    printf("./CutCreator [rootFile] [opt] [chDE] [chE] [rangeDE_min] [rangeDE_max] [rangeE_min rangeE_max] [mode] [gainDE] [gainE]\n");
+    printf("./CutCreator [rootFile] [opt] [chDE] [chE] [rangeDE_min]\n");
+    printf("[rangeDE_max] [rangeE_min rangeE_max] [mode] [gainDE] [gainE]\n");
     printf("                          | \n");
     printf("                          + opt = recreate / update \n");
     return 0;
@@ -86,16 +87,17 @@ int main(int argc, char* argv[] ){
   TH2F * hEdE = NULL;
 
   TString expression;
-  if( mode == 0 ) {  //same gain
-    hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
-    expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 1 ){ // dE = 2Vpp, E = 0.5Vpp
-    hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
-    expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 2){  // dE = 0.5Vpp, E = 2 Vpp
-    hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
-    expression.Form("e[%d]/4:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
-  }else if ( mode == 3){  //custom gain
+  //Only "custom gain" mode 3
+  // if( mode == 0 ) {  //same gain
+  //   hEdE = new TH2F("hEdE", "dE - totE = dE + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min, rangeE_max + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+  //   expression.Form("e[%d]:e[%d] + e[%d]>>hEdE", chDE, chEE, chDE);
+  // }else if ( mode == 1 ){ // dE = 2Vpp, E = 0.5Vpp
+  //   hEdE = new TH2F("hEdE", "dE - totE = dE + E/4 ; totE [ch] ; dE [ch]", 500, rangeE_min/4. + rangeDE_min, rangeE_max/4. + rangeDE_max, 500, rangeDE_min , rangeDE_max );
+  //   expression.Form("e[%d]:e[%d]/4. + e[%d]>>hEdE", chDE, chEE, chDE);
+  // }else if ( mode == 2){  // dE = 0.5Vpp, E = 2 Vpp
+  //   hEdE = new TH2F("hEdE", "dE - totE = dE/4 + E ; totE [ch] ; dE [ch]", 500, rangeE_min + rangeDE_min/4., rangeE_max + rangeDE_max/4., 500, rangeDE_min , rangeDE_max );
+  //   expression.Form("e[%d]/4:e[%d] + e[%d]/4.>>hEdE", chDE, chEE, chDE);
+  // }else if ( mode == 3){  //custom gain
     hEdE = new TH2F("hEdE", Form("dE - E ; E [ch] ; dE [ch]"),
           1000,
           (int) rangeE_min * gainE + rangeDE_min * gainDE,
@@ -103,8 +105,9 @@ int main(int argc, char* argv[] ){
           1000,
           (int) rangeDE_min * gainDE ,
           (int) rangeDE_max * gainDE );
-    expression.Form("e[%d]*%4.2f:e[%d]*%4.2f + e[%d]*%4.2f>>hEdE", chDE, gainDE, chEE, gainE, chDE, gainDE);
-  }
+    expression.Form("e[%d]*%4.2f:e[%d]*%4.2f>>hEdE",
+    chDE, gainDE, chEE, gainE);
+  // }
 
   tree->Draw(expression, "", "colz");
 
