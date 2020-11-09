@@ -551,7 +551,7 @@ void GenericPlane::SetHistogramsRange(){
 
   ///data is stored in bin
   hE->SetBins(histBins, rangeE[0], rangeE[1]);
-  hdE->SetBins(histBins), rangeDE[0], rangeDE[1]);
+  hdE->SetBins(histBins, rangeDE[0], rangeDE[1]);
 
   hdEE->SetBins(histBins, chEGain * rangeE[0], chEGain * rangeE[1],
                 histBins, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
