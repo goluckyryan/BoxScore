@@ -100,13 +100,13 @@ int main(int argc, char* argv[] ){
   // }else if ( mode == 3){  //custom gain
     hEdE = new TH2F("hEdE", Form("dE - E ; E [ch] ; dE [ch]"),
           1000,
-          (int) rangeE_min * gainE + rangeDE_min * gainDE,
-          (int) rangeE_max * gainE + rangeDE_max* gainDE,
+          (int) rangeE_min,
+          (int) rangeE_max,
           1000,
-          (int) rangeDE_min * gainDE ,
-          (int) rangeDE_max * gainDE );
-    expression.Form("e[%d]*%4.2f:e[%d]*%4.2f>>hEdE",
-    chDE, gainDE, chEE, gainE);
+          (int) rangeDE_min,
+          (int) rangeDE_max);
+    expression.Form("e[%d]:e[%d]>>hEdE",
+    chDE, chEE);
   // }
 
   tree->Draw(expression, "", "colz");

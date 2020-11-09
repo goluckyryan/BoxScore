@@ -440,7 +440,7 @@ void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
 
   fCanvas->cd(1)->SetLogz();//hdEE
   fCanvas->cd(3)->SetLogz();//hdEtotE
-  fCanvas->cd(4)->cd(2)->SetLogy(); //hTDiff
+  fCanvas->cd(4)->cd(1)->SetLogy(); //hTDiff
 
   // fCanvas->cd(2)->SetGridy();
   // fCanvas->cd(2)->SetTicky();
