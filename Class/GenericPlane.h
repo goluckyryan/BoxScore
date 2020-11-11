@@ -330,6 +330,7 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
   chdEGain = chGain[chdE];
   chEGain = chGain[chE];
   printf(" chGain[chdE] : %f[%d]\n", chGain[chdE], chdE);
+  printf(" chGain[chE] : %f[%d]\n", chGain[chE], chE);
 
   // if( chGain[chE] == 1.0 && chGain[chdE] == 1.0 ){
   //   mode = 0;
