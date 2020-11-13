@@ -554,8 +554,8 @@ void GenericPlane::SetHistogramsRange(){
   hE->SetBins(histBins, rangeE[0], rangeE[1]);
   hdE->SetBins(histBins, rangeDE[0], rangeDE[1]);
 
-  hdEE->SetBins(histBins, chEGain * rangeE[0], chEGain * rangeE[1],
-                histBins, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
+  hdEE->SetBins(histBins, rangeE[0], rangeE[1],
+                histBins, rangeDE[0], rangeDE[1]);
 
   hdEtotE->SetBins(histBins, chEGain * rangeE[0] + chdEGain * rangeDE[0], chEGain * rangeE[1] + chdEGain * rangeDE[1],
                    histBins, chdEGain * rangeDE[0], chdEGain * rangeDE[1]);
