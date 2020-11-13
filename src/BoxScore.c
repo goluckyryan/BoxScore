@@ -725,12 +725,15 @@ int main(int argc, char *argv[]){
       string tag = "tag=" + location;
 
       double totalRate = 0;
+      double aveRate = 0; //ave rate over run
 
       if( gp->GetClassID() == 2 ){
         totalRate = gp->GetdEECount()/timeRangeSec;
+        //aveRate = gp->GetdEECount(10.0);
       }else{
          int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
          totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
+         //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
       }
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
