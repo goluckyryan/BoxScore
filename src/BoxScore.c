@@ -342,7 +342,8 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         cooked(); ///set keyboard need enter to responds
         int channel;
-        printf("Please tell me which channel ? ");
+        printf("========== change threshold\n");
+        printf("Please tell me which channel [%s]? ", dig.GetChannelMaskString().c_str());
         int temp = scanf("%d", &channel);
         if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ){
           printf(" !!!!!! Channel is closed. \n");
@@ -365,7 +366,7 @@ int main(int argc, char *argv[]){
         cooked(); ///set keyboard need enter to responds
         dig.PrintDynamicRange();
         int channel;
-        printf("Please tell me which channel to switch ( 2.0 Vpp <-> 0.5 Vpp ) ? ");
+        printf("Please tell me which channel to switch ( 2.0 Vpp <-> 0.5 Vpp ) [%s]? ",dig.GetChannelMaskString().c_str() );
         int temp = scanf("%d", &channel);
         if( ( dig.GetChannelMask() & (1 << channel) ) == 0 ) {
           printf(" !!!!!!! Channel is closed. \n");
@@ -630,7 +631,6 @@ int main(int argc, char *argv[]){
     ///since the wave mode only extract waveform for ev = 0, so we have to draw the wave after dig.ReadData(), otherwise, the wave is overwrited.
     if( dig.GetAcqMode() == "mixed" ) {
        if( !file.isOpen() ) file.Append();
-        
        gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
        if( isIntegrateWave ){
          gp->FillWaveEnergies(gp->GetWaveEnergy());
