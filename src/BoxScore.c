@@ -183,8 +183,7 @@ int main(int argc, char *argv[]){
   ///------Initialize the ChannelMask and histogram setting
   if( location == "testing") {
     gp = new GenericPlane();
-    //gp->SetChannelMask(1,1,1,1,1,1,1,1);
-    gp->SetChannelMask(0,0,0,1,0,0,0,1);
+    gp->SetChannelMask(1,1,1,1,1,1,1,1);
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
