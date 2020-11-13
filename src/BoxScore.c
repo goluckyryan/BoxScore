@@ -631,7 +631,7 @@ int main(int argc, char *argv[]){
     ///since the wave mode only extract waveform for ev = 0, so we have to draw the wave after dig.ReadData(), otherwise, the wave is overwrited.
     if( dig.GetAcqMode() == "mixed" ) {
        if( !file.isOpen() ) file.Append();
-       gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
+       gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms(), dig.GetDigitalWaveForms());
        if( isIntegrateWave ){
          gp->FillWaveEnergies(gp->GetWaveEnergy());
          gp->Draw();

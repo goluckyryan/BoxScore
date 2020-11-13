@@ -6,7 +6,7 @@
 //============= Trapezoid
 500     //Trapezoid Rise Time (ch)
 500     //Trapezoid Flat Top  (ch)
-50000     //Decay Time Constant (ch)
+1000000     //Decay Time Constant (ch)
 200    // Flat top delay (peaking time) (ch)
 2       // Ns peak, Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
 960     // Peak holdoff (ch), start at the end of flat-top, defines how close must be two trapezoid to be considered as piled up

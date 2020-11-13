@@ -56,7 +56,7 @@ public:
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void         SetWaveCanvas(int length);
-  void         FillWaves(int* length, int16_t ** wave);
+  void         FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave);
   virtual void FillWaveEnergies(double * energy);
   
   void         TrapezoidFilter(int ch, int length, int16_t * wave);
@@ -696,7 +696,7 @@ void GenericPlane::SetWaveCanvas(int length){
    
 }
 
-void GenericPlane::FillWaves(int* length, int16_t ** wave){
+void GenericPlane::FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave){
   
   int integrateWindow = 400; // ch, 1ch = 2ns
   int pre_rise_start_ch = 100;
@@ -717,7 +717,7 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
     
       for(int i = 0; i < length[ch]; i++){
         waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
-            
+        waveFormDiff[ch]->SetPoint(i,i, digiWave[ch][i]);
         ///if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
         ///  waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
         ///}else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
@@ -813,11 +813,11 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
       
       trapezoid[ch]->SetPoint(i, i, sn / decayTime[ch] / riseTime[ch]);
       
-      if( i < 900 + riseTime[ch] + flatTop[ch]/2){
-        waveFormDiff[ch]->SetPoint(i, i, 0 );
-      }else{
-        waveFormDiff[ch]->SetPoint(i, i, 1000);
-      }
+      ///if( i < 900 + riseTime[ch] + flatTop[ch]/2){
+      ///  waveFormDiff[ch]->SetPoint(i, i, 0 );
+      ///}else{
+      ///  waveFormDiff[ch]->SetPoint(i, i, 1000);
+      ///}
    }
    
 }
