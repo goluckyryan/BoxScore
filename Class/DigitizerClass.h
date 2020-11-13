@@ -1039,7 +1039,7 @@ void Digitizer::ReadData(bool debug){
         rollOver = rollOver << 31;
         timetag  += rollOver ;
 
-        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+        ///printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
 
         rawChannel[rawEvCount + rawEvLeftCount] = ch;
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
@@ -1049,8 +1049,12 @@ void Digitizer::ReadData(bool debug){
 
         rawEvCount ++;
 
-        if( rawEvCount > MaxDataAShot ) printf(" More than %d data read from Digitizer in a shot! \n", MaxDataAShot);
-
+        if( rawEvCount > MaxDataAShot ) {
+           printf(" More than %d data read from Digitizer in a shot! \n", MaxDataAShot);
+           StopACQ();
+           ClearRawData();
+           ClearData();
+        }
       } else { /// PileUp 
           PurCnt[ch]++;
       }
