@@ -77,6 +77,7 @@ public:
   int    GetEChannel()             {return chE;}
   int    GetdEChannel()            {return chdE;}
   int    GetNChannelForRealEvent() {return NChannelForRealEvent;}
+  int    Get1Dcut()                {return integral;} // Gemma
 
   TH1F * GetTH1F(TString name) {return (TH1F*)gROOT->FindObjectAny(name);};
   TH1F * GethE()               {return hE;}
@@ -166,7 +167,8 @@ protected:
 
   TGraph * graphRate;
   TGraph ** graphRateCut;
-
+  TGraph * oneDcut;
+  int integral; // Gemma
   TGraph * rangeGraph;
 
 private:
@@ -190,6 +192,7 @@ GenericPlane::~GenericPlane(){
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
   delete rateGraph;
+  delete oneDcut; // Gemma
   delete line;
 
   for(int i = 0; i < numChannel; i++){
@@ -249,9 +252,12 @@ GenericPlane::GenericPlane(){
   rateGraph    = NULL;
   graphRate    = NULL;
   graphRateCut = NULL;
+  oneDcut      = NULL; // Gemma
   legend       = NULL;
   rangeGraph   = NULL;
 
+  integral = 0; // Gemma
+  
   line = new TLine();
   line->SetLineColor(2);
 
@@ -474,13 +480,18 @@ void GenericPlane::Fill(UInt_t * energy){
 
   int E = energy[chE] ;// + gRandom->Gaus(0, 500);
   int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-
+  // if(chdE==2) dE = 1000; // Gemma 
   hE->Fill(E);
   hdE->Fill(dE);
   hdEE->Fill(E, dE);
   float totalE = (float)dE * chdEGain + (float)E * chEGain;
   hdEtotE->Fill(totalE, (float)dE * chdEGain);
 
+  //int integral = hE->Integral(0,1000); //Gemma
+  int lower = hE->GetXaxis()->FindBin(4500);
+   int upper =  hE->GetXaxis()->FindBin(5500);
+  int integral = hE->Integral(lower,upper);
+  
   if( numCut > 0  ){
     for( int i = 0; i < numCut; i++){
       cutG = (TCutG *) cutList->At(i);
@@ -502,10 +513,11 @@ void GenericPlane::FillRateGraph(float x, float y){
       rateGraph->GetXaxis()->SetRangeUser(0, 300);
     }
   if( numCut > 0 ) {
-    for( int i = 0; i < numCut ; i++){
+    for( int i = 0; i < numCut; i++){
       graphRateCut[i]->SetPoint(graphIndex, x, countOfCut[i]);
     }
   }
+    oneDcut->SetPoint(graphIndex, x, integral); //Gemma
 }
 
 void GenericPlane::Draw(){
@@ -646,6 +658,13 @@ void GenericPlane::LoadCuts(TString cutFileName){
 
   legend->Clear();
   legend->AddEntry(graphRate, "Total");
+  
+  oneDcut = new TGraph(); // Gemma
+  oneDcut->SetMarkerStyle(10);
+  oneDcut->SetMarkerStyle(30);
+  oneDcut->SetMarkerSize(1);
+  rateGraph->Add(oneDcut);
+  legend->AddEntry(oneDcut,"1D_29Al"); 
 
   if( isCutFileOpen ){
     cutList = (TObjArray *) fCut->FindObjectAny("cutList");
@@ -665,6 +684,7 @@ void GenericPlane::LoadCuts(TString cutFileName){
       graphRateCut[i]->SetMarkerSize(1);
       rateGraph->Add(graphRateCut[i]);
       legend->AddEntry(graphRateCut[i], cutList->At(i)->GetName());
+
 
     }
   }else{

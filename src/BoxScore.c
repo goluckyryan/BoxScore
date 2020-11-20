@@ -508,6 +508,7 @@ int main(int argc, char *argv[]){
         int * rangeDE = gp->GetdERange();
         int chE = gp->GetEChannel();
         int chDE = gp->GetdEChannel();
+	
 
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + (string)cutopt + " ";
@@ -624,6 +625,7 @@ int main(int argc, char *argv[]){
 
       double totalRate = 0;
       double aveRate = 0; //ave rate over run
+      int OneDRate = 0;
 
       if( gp->GetClassID() == 2 ){
         totalRate = gp->GetdEECount()/timeRangeSec;
@@ -634,9 +636,12 @@ int main(int argc, char *argv[]){
          //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
       }
 
+      OneDRate = gp->Get1Dcut(); //Gemma 
+      
       printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
+      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
+      WriteToDataBase(databaseName, "1D_29Alrate", tag, OneDRate);
 
       /// for isomer
       if( gp->GetClassID() == 2 ) {
