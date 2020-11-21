@@ -51,7 +51,7 @@ public:
   void         SetChannelsPlotRange(int ** range);
 
   void         Fill(UInt_t  dE, UInt_t E);
-  virtual void Fill(UInt_t * energy);
+  virtual void Fill(UInt_t * energy, ULong64_t * times);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }

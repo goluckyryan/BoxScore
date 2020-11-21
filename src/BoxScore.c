@@ -647,7 +647,6 @@ int main(int argc, char *argv[]){
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
-      WriteToDataBase(databaseName, "1D_29Alrate", tag, OneDRate);
 
       /// for isomer
       if( gp->GetClassID() == 2 ) {
