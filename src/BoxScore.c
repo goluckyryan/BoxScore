@@ -128,6 +128,7 @@ int main(int argc, char *argv[]){
     printf("                         +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
     printf("                         +-- array (single Helios array) \n");
     printf("                         +-- MCP (Micro Channel Plate) \n");
+    printf("                         +-- music (MUSIC at SPS) \n");
     return -1;
   }
 
@@ -200,6 +201,12 @@ int main(int argc, char *argv[]){
     gp = new HelioArray();
   }else if ( location == "MCP"){
     gp = new MicroChannelPlate();
+  }else if ( location == "music" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(1,0,1,0,0,1,0,0);
+    gp->SetdEEChannels(2, 5);
+    gp->SetTChannel(7);
+    gp->SetNChannelForRealEvent(2);
   }else{
     printf(" no such plane. exit. \n");
     return 0;
@@ -508,7 +515,8 @@ int main(int argc, char *argv[]){
         int * rangeDE = gp->GetdERange();
         int chE = gp->GetEChannel();
         int chDE = gp->GetdEChannel();
-	
+        int chT = gp->GetTChannel();
+
 
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + (string)cutopt + " ";
@@ -600,7 +608,8 @@ int main(int argc, char *argv[]){
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp->Fill(dig.GetEnergy(i));
+          gp->Fill(dig.GetEnergy(i));//eithe add GetTimeStamp to this fill
+          //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }
 
@@ -636,8 +645,8 @@ int main(int argc, char *argv[]){
          //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
       }
 
-      OneDRate = gp->Get1Dcut(); //Gemma 
-      
+      OneDRate = gp->Get1Dcut(); //Gemma
+
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
@@ -672,6 +681,7 @@ int main(int argc, char *argv[]){
       file.WriteHistogram(gp->GethtotE());
       file.WriteHistogram(gp->GethdEE());
       file.WriteHistogram(gp->GethTDiff());
+      file.WriteHistogram(gp->GethdEdT());
       file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
 
       file.Close();

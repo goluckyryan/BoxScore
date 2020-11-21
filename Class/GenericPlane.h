@@ -39,6 +39,7 @@ public:
   void         SetChannelMask(uint32_t mask)       {ChannelMask = mask;}
   void         SetLocation(string loc)             {location = loc;}        ///kind of redanance?
   virtual void SetdEEChannels( int chdE, int chE)  {this->chE = chE; this->chdE = chdE; }
+  virtual void SetTChannels( int chT)  {this->chT = chT; }
   void         SetChannelGain(float chGain[], int dynamicRange[], int NChannel);
   void         SetCoincidentTimeWindow(int nanoSec);
   void         SetGenericHistograms();
@@ -76,8 +77,8 @@ public:
   int*   GetdERange()              {return rangeDE;}
   int    GetEChannel()             {return chE;}
   int    GetdEChannel()            {return chdE;}
+  int    GetTChannel()              {return chT;}
   int    GetNChannelForRealEvent() {return NChannelForRealEvent;}
-  int    Get1Dcut()                {return integral;} // Gemma
 
   TH1F * GetTH1F(TString name) {return (TH1F*)gROOT->FindObjectAny(name);};
   TH1F * GethE()               {return hE;}
@@ -86,6 +87,7 @@ public:
   TH1F * GethTDiff()           {return hTDiff;}
   TH2F * GethdEE()             {return hdEE;}
   TH2F * GethdEtotE()          {return hdEtotE;}
+  TH2F * GethdEdT()           {return hdEdT;}
   TMultiGraph * GetRateGraph() {return rateGraph;}
 
   TGraph ** GetWaveForm()      {return waveForm;}
@@ -142,7 +144,7 @@ protected:
   TH1F * htotE;
   TH1F * hTDiff;
 
-  //TODO TH2F * hdETOF;
+  TH2F * hdEdT; //de vs. tof
 
   TLine * line; // line for coincident window
 
@@ -159,7 +161,7 @@ protected:
   TCutG * cutG;
   vector<int> countOfCut;
 
-  int chdE, chE; //channel ID for E, dE
+  int chdE, chE, chT; //channel ID for E, dE, RF Time
   float chdEGain, chEGain;
   int mode;
 
@@ -168,7 +170,6 @@ protected:
   TGraph * graphRate;
   TGraph ** graphRateCut;
   TGraph * oneDcut;
-  int integral; // Gemma
   TGraph * rangeGraph;
 
 private:
@@ -188,11 +189,12 @@ GenericPlane::~GenericPlane(){
   delete hTDiff;
   delete hHit;
   delete hDetIDHit;
+  delete hdEdT;
+
 
   //delete graphRate;
   //delete graphRateCut; need to know how to delete pointer of pointer
   delete rateGraph;
-  delete oneDcut; // Gemma
   delete line;
 
   for(int i = 0; i < numChannel; i++){
@@ -245,6 +247,7 @@ GenericPlane::GenericPlane(){
   htotE   = NULL;
   hdEtotE = NULL;
   hTDiff  = NULL;
+  hdEdT   = NULL;
 
   hHit = NULL;
   hDetIDHit = NULL;
@@ -252,12 +255,9 @@ GenericPlane::GenericPlane(){
   rateGraph    = NULL;
   graphRate    = NULL;
   graphRateCut = NULL;
-  oneDcut      = NULL; // Gemma
   legend       = NULL;
   rangeGraph   = NULL;
 
-  integral = 0; // Gemma
-  
   line = new TLine();
   line->SetLineColor(2);
 
@@ -319,6 +319,8 @@ void GenericPlane::ClearHistograms(){
   hHit->Reset();
   hDetIDHit->Reset();
 
+  hdEdT->Reset();
+
 }
 
 void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChannel){
@@ -337,36 +339,12 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
   chEGain = chGain[chE];
   printf(" chGain[chdE] : %f[%d]\n", chGain[chdE], chdE);
   printf(" chGain[chE] : %f[%d]\n", chGain[chE], chE);
-
-  // if( chGain[chE] == 1.0 && chGain[chdE] == 1.0 ){
-  //   mode = 0;
-  //   if( dynamicRange[chE] == dynamicRange[chdE] ) {
-  //     chdEGain = 1.0;
-  //     chEGain = 1.0;
-  //     mode = 0;
-  //   }else if (dynamicRange[chE] > dynamicRange[chdE]) { // E = 0.5Vpp, dE = 2 Vpp
-  //     chdEGain = 1.;
-  //     chEGain = 0.25;
-  //     mode = 2;
-  //   }else if (dynamicRange[chE] < dynamicRange[chdE]) { // E = 2 Vpp, dE = 0.5 Vpp
-  //     chdEGain = 0.25;
-  //     chEGain = 1.;
-  //     mode = 1;
-  //   }
-  // }else{
-  //   mode = 3;
-  //   chdEGain = chGain[chdE];
-  //   chEGain = chGain[chE];
-  // }
-
 }
 
 void GenericPlane::SetGenericHistograms(){
 
   //printf("Setting up histogram\n");
   if( isHistogramSet ) return;
-
-  //int bin = 1000;
 
   float labelSize = 0.07;
 
@@ -386,6 +364,9 @@ void GenericPlane::SetGenericHistograms(){
   rangeDE[1] * chdEGain);
 
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, rangeTime);
+
+  hdEdT = new TH2F("hdEdT", "dE - TOF; raw dE; TOF [ch or ns?]",
+  histBins, -1000,1000,histBins, rangeDE[0], rangeDE[1]); //rangeT needed
 
   hE->GetXaxis()->SetLabelSize(labelSize);
   hE->GetXaxis()->SetNdivisions(405);
@@ -448,15 +429,6 @@ void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->cd(1)->SetLogz();//hdEE
   fCanvas->cd(3)->SetLogz();//hdEtotE
   fCanvas->cd(4)->cd(1)->SetLogy(); //hTDiff
-
-  // fCanvas->cd(2)->SetGridy();
-  // fCanvas->cd(2)->SetTicky();
-  // fCanvas->cd(2)->SetTickx();
-  // fCanvas->cd(1)->cd(2)->Divide(2,2);
-  // fCanvas->cd(1)->cd(2)->cd(3)->SetGridy();
-  // fCanvas->cd(1)->cd(2)->cd(3)->SetTicky();
-  // fCanvas->cd(1)->cd(2)->cd(3)->SetTickx();
-  // fCanvas->cd(1)->cd(2)->cd(4)->SetLogy();
 }
 
 void GenericPlane::Fill(UInt_t dE, UInt_t E){
@@ -474,24 +446,29 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
 
 }
 
-void GenericPlane::Fill(UInt_t * energy){
+void GenericPlane::Fill(UInt_t * energy){//ULong64_t * times
 
   if ( !isHistogramSet ) return;
 
   int E = energy[chE] ;// + gRandom->Gaus(0, 500);
   int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-  // if(chdE==2) dE = 1000; // Gemma 
+  ULong64_t ET = times[chE]; //
+  ULong64_t dET = times[chdE]; //
+  ULong64_t T = times[chT]; //
+  ULong64_t dEdT = T - dET; // dE - T time diff only for now
+  float chan2ns = 1000000000.0;
+
   hE->Fill(E);
   hdE->Fill(dE);
   hdEE->Fill(E, dE);
   float totalE = (float)dE * chdEGain + (float)E * chEGain;
   hdEtotE->Fill(totalE, (float)dE * chdEGain);
+  hdEdT->Fill((float)dEdT*chan2ns, dE);//
 
-  //int integral = hE->Integral(0,1000); //Gemma
   int lower = hE->GetXaxis()->FindBin(4500);
-   int upper =  hE->GetXaxis()->FindBin(5500);
+  int upper =  hE->GetXaxis()->FindBin(5500);
   int integral = hE->Integral(lower,upper);
-  
+
   if( numCut > 0  ){
     for( int i = 0; i < numCut; i++){
       cutG = (TCutG *) cutList->At(i);
@@ -517,7 +494,6 @@ void GenericPlane::FillRateGraph(float x, float y){
       graphRateCut[i]->SetPoint(graphIndex, x, countOfCut[i]);
     }
   }
-    oneDcut->SetPoint(graphIndex, x, integral); //Gemma
 }
 
 void GenericPlane::Draw(){
@@ -658,13 +634,6 @@ void GenericPlane::LoadCuts(TString cutFileName){
 
   legend->Clear();
   legend->AddEntry(graphRate, "Total");
-  
-  oneDcut = new TGraph(); // Gemma
-  oneDcut->SetMarkerStyle(10);
-  oneDcut->SetMarkerStyle(30);
-  oneDcut->SetMarkerSize(1);
-  rateGraph->Add(oneDcut);
-  legend->AddEntry(oneDcut,"1D_29Al"); 
 
   if( isCutFileOpen ){
     cutList = (TObjArray *) fCut->FindObjectAny("cutList");
