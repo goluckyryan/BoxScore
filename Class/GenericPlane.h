@@ -446,7 +446,7 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
 
 }
 
-void GenericPlane::Fill(UInt_t * energy){//ULong64_t * times
+void GenericPlane::Fill(UInt_t * energy, ULong64_t * times){
 
   if ( !isHistogramSet ) return;
 

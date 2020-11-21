@@ -205,7 +205,7 @@ int main(int argc, char *argv[]){
     gp = new GenericPlane();
     gp->SetChannelMask(1,0,1,0,0,1,0,0);
     gp->SetdEEChannels(2, 5);
-    gp->SetTChannel(7);
+    gp->SetTChannels(7);
     gp->SetNChannelForRealEvent(2);
   }else{
     printf(" no such plane. exit. \n");
@@ -486,7 +486,7 @@ int main(int argc, char *argv[]){
 
         cooked();
         int opt;
-        printf("Do you want to [1] update the current cut file or [2] create a new one?\n"); //GLW
+        printf("Do you want to [1] update the current cut file or [2] create a new one?\n");
         int temp = scanf("%d", &opt);
         if(opt==1){
            cutopt = "UPDATE";
@@ -608,7 +608,7 @@ int main(int argc, char *argv[]){
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp->Fill(dig.GetEnergy(i));//eithe add GetTimeStamp to this fill
+          gp->Fill(dig.GetEnergy(i), dig.GetTimeStamp(i));//eithe add GetTimeStamp to this fill
           //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }
@@ -634,7 +634,6 @@ int main(int argc, char *argv[]){
 
       double totalRate = 0;
       double aveRate = 0; //ave rate over run
-      int OneDRate = 0;
 
       if( gp->GetClassID() == 2 ){
         totalRate = gp->GetdEECount()/timeRangeSec;
@@ -644,8 +643,6 @@ int main(int argc, char *argv[]){
          totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
          //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
       }
-
-      OneDRate = gp->Get1Dcut(); //Gemma
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
