@@ -159,6 +159,8 @@ public:
   void PrintDynamicRange();
   void PrintThreshold();
   void PrintThresholdAndDynamicRange();
+  
+  string GetDatabaseName() {return databaseName;}
 
 private:
 
@@ -236,6 +238,9 @@ private:
   int ** Channel;
   UInt_t ** Energy;
   ULong64_t ** TimeStamp;
+  
+  ///==== database name
+  string databaseName; 
 
   void ZeroSingleEvent();
 
@@ -427,19 +432,21 @@ Digitizer::~Digitizer(){
 
   printf("======== Closed digitizer\n");
 
-  for(int ch = 0; ch < MaxNChannels; ch++){
-    delete Events[ch];
+  if( isConnected ){
+	for(int ch = 0; ch < MaxNChannels; ch++){
+		delete Events[ch];
+	}
+	
+	delete[] singleChannel;
+	delete[] singleEnergy;
+	delete[] singleTimeStamp;
+	
+	delete[] rawChannel;
+	delete[] rawEnergy;
+	delete[] rawTimeStamp;
+	
+	delete buffer;
   }
-
-  delete[] singleChannel;
-  delete[] singleEnergy;
-  delete[] singleTimeStamp;
-
-  delete[] rawChannel;
-  delete[] rawEnergy;
-  delete[] rawTimeStamp;
-
-  delete buffer;
 }
 
 int Digitizer::SetAcqMode(string mode, int recordLength = -1){
@@ -964,10 +971,15 @@ void Digitizer::LoadGeneralSetting(string fileName){
       if( pos > 1 ){
         if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
         if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
+        if( count == 2  )   databaseName = line.substr(0,pos); 
         count++;
       }
     }
+    
+    ///remove space of databaseName
+    databaseName.erase(std::remove(databaseName.begin(),databaseName.end(),' '),databaseName.end());
 
+    printf(" %-25s  %s\n", "Database Name", databaseName.c_str());
     printf(" %-25s  %5d ch\n", "Coincident Time Window", CoincidentTimeWindow);
     printf(" %-25s  %5d ch\n", "Record Lenght", RecordLength);
     printf("====================================== \n");

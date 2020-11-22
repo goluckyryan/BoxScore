@@ -243,7 +243,7 @@ int main(int argc, char *argv[]){
 
   Digitizer dig(boardID, ChannelMask);
   if( !dig.IsConnected() ) return -1;
-
+ 
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
@@ -266,7 +266,8 @@ int main(int argc, char *argv[]){
   /** ROOT TREE                                                                               */
   /** *************************************************************************************** */
 
-  string folder = to_string(dig.GetSerialNumber());
+  //string folder = to_string(dig.GetSerialNumber());
+  string folder = "setting";
   FileIO file(rootFileName);
   file.WriteMacro(folder + "/generalSetting.txt");
   for( int i = 0 ; i < MaxNChannels; i++){
