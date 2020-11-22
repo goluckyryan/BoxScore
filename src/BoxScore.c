@@ -734,23 +734,21 @@ int main(int argc, char *argv[]){
 
       printf("\n");
 
-	  int * channelGet = dig.GetChannelsGet();
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
+	  
+	  for (int ch = 0; ch < MaxNChannels; ch++) {
+	    if (!(ChannelMask & (1<<ch))) continue;
+	    WriteToDataBase(expName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+	  }
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
-
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-
+      
       double totalRate = 0;
 	  int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
       totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
-
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(expName, "totalRate", tag, totalRate);
-	  for (int ch = 0; ch < MaxNChannels; ch++) {
-	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(expName, Form("ch%d", ch), tag, channelGet[ch]*1.0/timeRangeSec);
-	  }
 
 
       if(gp->IsCutFileOpen()){
