@@ -65,7 +65,7 @@ using namespace std;
 ///========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; ///Table, tree, Plots update period in mili-sec.
 bool isSaveRaw = false;  /// saving Raw data
-TString databaseName="RAISOR_exit"; ///database
+bool isDataBaseExist = false;
 string location;
 bool  QuitFlag = false;
 
@@ -80,7 +80,7 @@ static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
 int keyboardhit();
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
+void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value);
 
 void PrintCommands(){
   printf("\n");
@@ -123,11 +123,13 @@ void paintCanvas(){
 /** ########################################################################### */
 int main(int argc, char *argv[]){
 
-  if( argc != 3 && argc != 4 && argc != 5 ) {
+  if( argc != 3 && argc != 4 && argc != 5 && argc != 6 ) {
     printf("usage:\n");
     printf("                + use DetectDigitizer   \n");
     printf("                |\n");
-    printf("$./BoxScore  boardID location (tree.root) (debug)\n");
+    printf("                |                + setting folder, database name \n");
+    printf("                |                |\n");
+    printf("$./BoxScore  boardID location expName (tree.root) (debug)\n");
     printf("                         | \n");
     printf("                         +-- testing (all ch)\n");
     printf("                         +-- exit (dE = 0 ch, E = 3 ch)\n");
@@ -149,10 +151,12 @@ int main(int argc, char *argv[]){
   const int boardID = atoi(argv[1]);
   string location = argv[2];
 
+  string expName = argv[3];
+
   TString rootFileName;
-  if( argc >= 4 ) rootFileName = argv[3];
+  if( argc >= 5 ) rootFileName = argv[4];
   bool isDebug= false;
-  if( argc >= 5 ) isDebug = atoi(argv[4]);
+  if( argc >= 6 ) isDebug = atoi(argv[5]);
 
   char hostname[100];
   gethostname(hostname, 100);
@@ -234,6 +238,7 @@ int main(int argc, char *argv[]){
   printf("   Location :\e[33m %s \e[0m\n", location.c_str() );
   printf("      Class :\e[33m %s \e[0m\n", gp->GetClassName().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
+  printf("   Exp Name :\e[33m %s \e[0m, same as database name \n", expName.c_str());
 
   /** *************************************************************************************** */
   /** Canvas and Digitzer                                                                     */
@@ -241,9 +246,9 @@ int main(int argc, char *argv[]){
 
   uint ChannelMask = gp->GetChannelMask();
 
-  Digitizer dig(boardID, ChannelMask);
+  Digitizer dig(boardID, ChannelMask, expName);
   if( !dig.IsConnected() ) return -1;
- 
+  
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
@@ -266,13 +271,16 @@ int main(int argc, char *argv[]){
   /** ROOT TREE                                                                               */
   /** *************************************************************************************** */
 
-  //string folder = to_string(dig.GetSerialNumber());
-  string folder = "setting";
+  string folder = "setting/" +  expName; 
   FileIO file(rootFileName);
-  file.WriteMacro(folder + "/generalSetting.txt");
+  
+  ///==== Save setting into the root file
+  TMacro gSetting((folder + "/generalSetting.txt").c_str());
+  gSetting.Write("generalSetting");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-      file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  TMacro chSetting(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  chSetting.Write(Form("setting_%i", i));
     }
   }
   file.SetTree("tree", MaxNChannels);
@@ -717,7 +725,7 @@ int main(int argc, char *argv[]){
       printf("Time Elapsed         = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
       printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size            : %.4f MB \n", fileSize );
-      printf("Database             : %s\n", databaseName.Data());
+      printf("Database             : %s\n", expName.c_str());
 
       printf("\n");
 
@@ -738,14 +746,14 @@ int main(int argc, char *argv[]){
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(databaseName, "totalRate", tag, totalRate);
+      WriteToDataBase(expName, "totalRate", tag, totalRate);
 
       /// for isomer
       if( gp->GetClassID() == 2 ) {
-        WriteToDataBase( databaseName, "G1", tag, gp->GetG1Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G2", tag, gp->GetG2Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G4", tag, gp->GetG4Count()/timeRangeSec);
+        WriteToDataBase( expName, "G1", tag, gp->GetG1Count()/timeRangeSec);
+        WriteToDataBase( expName, "G2", tag, gp->GetG2Count()/timeRangeSec);
+        WriteToDataBase( expName, "G3", tag, gp->GetG3Count()/timeRangeSec);
+        WriteToDataBase( expName, "G4", tag, gp->GetG4Count()/timeRangeSec);
         gp->SetCountZero();
       }
 
@@ -754,7 +762,7 @@ int main(int argc, char *argv[]){
           double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
           printf(" Rate(%4s) :%7.2f pps\n", gp->GetCutName(i).Data(), count);
           ///----------------- write to database
-          WriteToDataBase(databaseName, gp->GetCutName(i).Data(), tag, count);
+          WriteToDataBase(expName, gp->GetCutName(i).Data(), tag, count);
         }
       }
 
@@ -871,10 +879,16 @@ int keyboardhit(){
   return (status);
 }
 
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value){
   if( value >= 0 ){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    
+    if( !isDataBaseExist ) {
+		databaseStr.Form("influx -execute \'create database %s\'", databaseName.c_str());
+		system(databaseStr.Data());
+		isDataBaseExist = true;
+	}
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.c_str());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }

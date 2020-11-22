@@ -48,7 +48,7 @@ enum DigiReg {
 class Digitizer{
   RQ_OBJECT("Digitizer")
 public:
-  Digitizer(int ID, uint32_t ChannelMask);
+  Digitizer(int ID, uint32_t ChannelMask, string expName);
   ~Digitizer();
 
   void SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
@@ -159,8 +159,6 @@ public:
   void PrintDynamicRange();
   void PrintThreshold();
   void PrintThresholdAndDynamicRange();
-  
-  string GetDatabaseName() {return databaseName;}
 
 private:
 
@@ -239,15 +237,16 @@ private:
   UInt_t ** Energy;
   ULong64_t ** TimeStamp;
   
-  ///==== database name
-  string databaseName; 
+  string expName;
 
   void ZeroSingleEvent();
 
   int CalNOpenChannel(uint32_t mask);
 };
 
-Digitizer::Digitizer(int ID, uint32_t ChannelMask){
+Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
+	
+  this->expName = expName;
 
   ///================== initialization
   boardID  = ID;
@@ -332,12 +331,14 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   /**************************************************/
   if( isDetected ){
 
-    LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
+    //LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
+    LoadGeneralSetting("setting/" + expName + "/generalSetting.txt");
 
-    printf("=================== reading Channel setting \n");
+    printf("---- reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
-        LoadChannelSetting(ch, to_string(serialNumber) +"/setting_" + to_string(ch) + ".txt");
+        //LoadChannelSetting(ch, to_string(serialNumber) +"/setting_" + to_string(ch) + ".txt");
+        LoadChannelSetting(ch, "setting/" + expName +  "/setting_" + to_string(ch) + ".txt");
       }
     }
     printf("====================================== \n");
@@ -883,7 +884,7 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
   file_in.open(fileName.c_str(), ios::in);
 
   if( !file_in){
-    printf("Fail to open the file.\n");
+    printf("Fail to open the file : %s\n", fileName.c_str());
     printf("channel: %d | default.\n", ch);
     DPPParams.thr[ch]   = 100;      /// Trigger Threshold (in LSB)
     DPPParams.trgho[ch] = 1200;     /// Trigger Hold Off
@@ -960,9 +961,9 @@ void Digitizer::LoadGeneralSetting(string fileName){
   printf("====================================== \n");
 
   if( !file_in){
-    printf("====== Using Built-in General Setting.\n");
+    printf("Using Built-in General Setting.\n");
   }else{
-    printf("====== Reading General Setting from  %s.\n", fileName.c_str());
+    printf("Reading General Setting from  %s.\n", fileName.c_str());
     string line;
     int count = 0;
     while( file_in.good()){
@@ -971,15 +972,10 @@ void Digitizer::LoadGeneralSetting(string fileName){
       if( pos > 1 ){
         if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
         if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
-        if( count == 2  )   databaseName = line.substr(0,pos); 
         count++;
       }
     }
     
-    ///remove space of databaseName
-    databaseName.erase(std::remove(databaseName.begin(),databaseName.end(),' '),databaseName.end());
-
-    printf(" %-25s  %s\n", "Database Name", databaseName.c_str());
     printf(" %-25s  %5d ch\n", "Coincident Time Window", CoincidentTimeWindow);
     printf(" %-25s  %5d ch\n", "Record Lenght", RecordLength);
     printf("====================================== \n");
