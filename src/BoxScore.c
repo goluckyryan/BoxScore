@@ -64,7 +64,7 @@ using namespace std;
 
 ///========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; ///Table, tree, Plots update period in mili-sec.
-bool isSaveRaw = false;  /// saving Raw data
+///bool isSaveRaw = false;  /// saving Raw data
 bool isDataBaseExist = false;
 string location;
 bool  QuitFlag = false;
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]){
   int secound = ltm->tm_sec;
 
   ///==== default root file name based on datetime and plane
-  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  if( argc == 4 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
 
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
 
@@ -249,6 +249,8 @@ int main(int argc, char *argv[]){
   Digitizer dig(boardID, ChannelMask, expName);
   if( !dig.IsConnected() ) return -1;
   
+  string tag = "tag=" + location; //tag for database
+
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
@@ -287,10 +289,10 @@ int main(int argc, char *argv[]){
   file.Close();
 
   FileIO * rawFile = NULL ;
-  if( isSaveRaw ) {
+  ///if( isSaveRaw ) {
     ///rawFile = new FileIO("raw.root");
     ///rawFile->SetTree("rawTree", 1);
-  }
+  ///}
 
   thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
@@ -633,7 +635,7 @@ int main(int argc, char *argv[]){
       sleep(0.01); /// pause 10 mili-sec
       continue;
     }
-
+	
     ///the digitizer will output a channel after a channel.,
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
@@ -658,11 +660,11 @@ int main(int argc, char *argv[]){
        dig.ClearRawData(); /// clean up raw data, as no event build, the raw data accumulate, that will reflect the actual trigger rate
     }
 
-    if( isSaveRaw ) {
+    ///if( isSaveRaw ) {
       ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
       ///  rawFile.FillTree();
       ///}
-    }
+    ///}
 
     ///##################################################################
     CurrentTime = get_time();
@@ -686,6 +688,8 @@ int main(int argc, char *argv[]){
        dig.PrintReadStatistic();
        
     }
+
+
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
       ///======================== Fill TDiff
@@ -715,6 +719,7 @@ int main(int argc, char *argv[]){
           gp->Fill(dig.GetEnergy(i));
         }
       }
+      file.Close();
 
       gp->FillHit(dig.GetNChannelEventCount());
 
@@ -729,33 +734,24 @@ int main(int argc, char *argv[]){
 
       printf("\n");
 
+	  int * channelGet = dig.GetChannelsGet();
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
 
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      string tag = "tag=" + location;
 
       double totalRate = 0;
-
-      if( gp->GetClassID() == 2 ){
-        totalRate = gp->GetdEECount()/timeRangeSec;
-      }else{
-         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
-         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
-      }
+	  int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+      totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(expName, "totalRate", tag, totalRate);
+	  for (int ch = 0; ch < MaxNChannels; ch++) {
+	    if (!(ChannelMask & (1<<ch))) continue;
+	    WriteToDataBase(expName, Form("ch%d", ch), tag, channelGet[ch]*1.0/timeRangeSec);
+	  }
 
-      /// for isomer
-      if( gp->GetClassID() == 2 ) {
-        WriteToDataBase( expName, "G1", tag, gp->GetG1Count()/timeRangeSec);
-        WriteToDataBase( expName, "G2", tag, gp->GetG2Count()/timeRangeSec);
-        WriteToDataBase( expName, "G3", tag, gp->GetG3Count()/timeRangeSec);
-        WriteToDataBase( expName, "G4", tag, gp->GetG4Count()/timeRangeSec);
-        gp->SetCountZero();
-      }
 
       if(gp->IsCutFileOpen()){
         for( int i = 0 ; i < gp->GetNumCut(); i++ ){
@@ -765,21 +761,9 @@ int main(int argc, char *argv[]){
           WriteToDataBase(expName, gp->GetCutName(i).Data(), tag, count);
         }
       }
-
+	
       ///============ Draw histogram
       gp->Draw();
-
-      ///============ wirte histogram into tree
-      // TODO, a generic method for saving all histogram even in derivative class
-      file.WriteHistogram(gp->GethdEtotE());
-      file.WriteHistogram(gp->GethE());
-      file.WriteHistogram(gp->GethdE());
-      file.WriteHistogram(gp->GethtotE());
-      file.WriteHistogram(gp->GethdEE());
-      file.WriteHistogram(gp->GethTDiff());
-      file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
-
-      file.Close();
 
       dig.ClearData();
 
@@ -797,9 +781,22 @@ int main(int argc, char *argv[]){
 
   } ///============== End of readout loop
 
-  if( isSaveRaw ) {
+  ///if( isSaveRaw ) {
     ///rawFile->Close();
-  }
+  ///}
+  
+  
+///============ wirte histogram into tree
+// TODO, a generic method for saving all histogram even in derivative class
+  file.Append();
+  file.WriteHistogram(gp->GethdEtotE());
+  file.WriteHistogram(gp->GethE());
+  file.WriteHistogram(gp->GethdE());
+  file.WriteHistogram(gp->GethtotE());
+  file.WriteHistogram(gp->GethdEE());
+  file.WriteHistogram(gp->GethTDiff());
+  file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
+  file.Close();
 
   paintCanvasThread.detach();
   

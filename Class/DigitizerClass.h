@@ -84,6 +84,8 @@ public:
   int      GetChannelToNanoSec()        {return ch2ns;}
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
+  int      GetChannelGet(int ch)        {return ECnt[ch];}
+  int *    GetChannelsGet()             {return ECnt;}
   
   int      GetChannelRiseTime(int ch) {return DPPParams.k[ch];}
   int      GetChannelFlatTop(int ch) {return DPPParams.m[ch];}
@@ -1013,29 +1015,30 @@ void Digitizer::ReadData(bool debug){
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   ///ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
 
-  //printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize); 
-
+  ///printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize); 
+	
   if (Nb == 0) {
-     for(int i = 0 ; i < MaxNChannels; i++ ){
-       waveformLength[i] = 0;
-       WaveLine[i] = NULL;
-     }     
+	 if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List ){
+        for(int i = 0 ; i < MaxNChannels; i++ ){
+			waveformLength[i] = 0;
+			WaveLine[i] = NULL;
+		}
+	 }     
      return;
   }
 
-  /** ignore the error
   if (ret) {
     printf("Error when reading data %d\n", ret);
     //CAEN_DGTZ_SWStopAcquisition(handle);
     //CAEN_DGTZ_CloseDigitizer(handle);
-    CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-    CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-    for(int i = 0 ; i < MaxNChannels; i++ ) waveformLength[i] = 0;
+    //CAEN_DGTZ_FreeReadoutBuffer(&buffer);
+    //CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
+    //for(int i = 0 ; i < MaxNChannels; i++ ) waveformLength[i] = 0;
     return;
-  }*/
+  }
 
   /** Analyze data */
-  
+
   for (int ch = 0; ch < MaxNChannels; ch++) {
     if (!(ChannelMask & (1<<ch))) continue;
     ///printf("------------------------ %d \n", ch);
