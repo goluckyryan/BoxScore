@@ -99,11 +99,10 @@ public:
   uint32_t GetRecordLength()            { return RecordLength;}
   int      GetWaveFormLength(int ch)    { return waveformLength[ch];}
   int16_t* GetWaveForm(int ch)          { return WaveLine[ch];}
-  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];}
+  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];} // not used
 
   int*      GetWaveFormLengths()        { return waveformLength;}
   int16_t** GetWaveForms()              { return WaveLine;}
-  uint8_t** GetDigitalWaveForms()       { return DigitalWaveLine;}
 
   int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
@@ -469,7 +468,9 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
       
       ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-       
+      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
+      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
       
       if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
          /// Set Extras 2 to enable, this override Accusition mode, focring list mode
@@ -477,14 +478,6 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
          printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
       }else{  ///AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
-         ///ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly);
-
-         ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid); //set the analog trace1 to be Trapezoid
-         ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-         ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-         ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_None);
-         ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-
          /// Set the number of samples for each waveform
          ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
          printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = \e[33m %d \e[0mch.\n", mode.c_str(), RecordLength);
@@ -1007,14 +1000,20 @@ void Digitizer::StartACQ(){
 void Digitizer::ReadData(bool debug){
   /** Read data from the board */
   ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-  if (BufferSize == 0) {
-     for(int i = 0 ; i < MaxNChannels; i++ )waveformLength[i] = 0;
-     return;
-  }
-
+  
   Nb = BufferSize;
   ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   ///ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
+
+  //printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize); 
+
+  if (Nb == 0) {
+     for(int i = 0 ; i < MaxNChannels; i++ ){
+       waveformLength[i] = 0;
+       WaveLine[i] = NULL;
+     }     
+     return;
+  }
 
   /** ignore the error
   if (ret) {
@@ -1046,7 +1045,7 @@ void Digitizer::ReadData(bool debug){
         rollOver = rollOver << 31;
         timetag  += rollOver ;
 
-        ///printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
 
         rawChannel[rawEvCount + rawEvLeftCount] = ch;
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
@@ -1056,12 +1055,8 @@ void Digitizer::ReadData(bool debug){
 
         rawEvCount ++;
 
-        if( rawEvCount > MaxDataAShot ) {
-           printf(" More than %d data read from Digitizer in a shot! \n", MaxDataAShot);
-           StopACQ();
-           ClearRawData();
-           ClearData();
-        }
+        if( rawEvCount > MaxDataAShot ) printf(" More than %d data read from Digitizer in a shot! \n", MaxDataAShot);
+
       } else { /// PileUp 
           PurCnt[ch]++;
       }
@@ -1072,7 +1067,7 @@ void Digitizer::ReadData(bool debug){
          /// Use waveform data here...
          waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
          WaveLine[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
-         DigitalWaveLine[ch] = Waveform[ch]->DTrace1;   /// First Digital Trace (DIGITALPROBE1)
+         ///DigitalWaveLine = Waveform->DTrace1;        /// First Digital Trace (DIGITALPROBE1)
       }
     } /// loop on events
   } /// loop on channels

@@ -13,7 +13,7 @@ public:
   void SetOthersHistograms();
   void SetCanvasTitleDivision(TString titleExtra);
   
-  void FillEnergies(double * energy);
+  void FillWaveEnergies(double * energy);
   
   void Draw();
 
@@ -154,11 +154,19 @@ void MicroChannelPlate::Draw(){
 }
 
 
-void MicroChannelPlate::FillEnergies(double * energy){
+void MicroChannelPlate::FillWaveEnergies(double * energy){
   
   //GenericPlane::Fill(energy);
   
   if ( !isHistogramSet ) return;
+
+   ///if( energy[chA] > 100 )   hX1->Fill(energy[chA]);
+   ///if( energy[chC] > 100 )   hY1->Fill(energy[chC]);
+   ///if( energy[chB] > 100 )   hX2->Fill(energy[chB]);
+   ///if( energy[chD] > 100 )   hY2->Fill(energy[chD]);
+
+  //printf("%f, %f, %f, %f \n", energy[chA], energy[chC], energy[chB], energy[chD]);
+
   
   if( energy[chA] > 0 && energy[chB]>0 && energy[chC] > 0 && energy[chD] > 0 ){
     
@@ -166,11 +174,12 @@ void MicroChannelPlate::FillEnergies(double * energy){
 
     int limit = 3500;
     if( energy[chA]< limit && energy[chB]< limit && energy[chC]< limit && energy[chD]< limit ){
+
       hX1->Fill(energy[chA]);
       hY1->Fill(energy[chC]);
-    
       hX2->Fill(energy[chB]);
       hY2->Fill(energy[chD]);
+
       
       double total = energy[chA]+energy[chB]+energy[chC]+energy[chD];
       double X = (energy[chB]+energy[chC])/total;

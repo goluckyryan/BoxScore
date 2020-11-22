@@ -56,8 +56,9 @@ public:
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void         SetWaveCanvas(int length);
-  void         FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave);
+  void         FillWaves(int* length, int16_t ** wave);
   virtual void FillWaveEnergies(double * energy);
+  void         ClearWaveEnergies() { for(int i = 0; i < numChannel; i++) waveEnergy[i] = 0;}
   
   void         TrapezoidFilter(int ch, int length, int16_t * wave);
   void         SetRiseTime(int ch, int temp)    { this->riseTime[ch]    = temp;} /// in ch, 1 ch = 2 ns
@@ -243,7 +244,7 @@ GenericPlane::GenericPlane(){
   
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
   
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 800);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 600);
   gStyle->SetOptStat("neiou");
   
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
@@ -696,7 +697,7 @@ void GenericPlane::SetWaveCanvas(int length){
    
 }
 
-void GenericPlane::FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave){
+void GenericPlane::FillWaves(int* length, int16_t ** wave){
   
   int integrateWindow = 400; // ch, 1ch = 2ns
   int pre_rise_start_ch = 100;
@@ -714,10 +715,13 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave){
     if( length[ch] > 0 ) { 
       
       TrapezoidFilter(ch, length[ch], wave[ch]);
+      
+      //printf("ch : %d, wave[500] : %d \n", ch, wave[ch][100]); 
+    
     
       for(int i = 0; i < length[ch]; i++){
         waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
-        waveFormDiff[ch]->SetPoint(i,i, digiWave[ch][i]);
+            
         ///if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
         ///  waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
         ///}else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
@@ -734,11 +738,12 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave, uint8_t ** digiWave){
       waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
       
       ///use Trapezoid energy at halfway of flattop
-      waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
+      ///waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
       
-      ///int yMax = waveForm[ch]->GetYaxis()->GetXmax();
-      ///int yMin = waveForm[ch]->GetYaxis()->GetXmin();
-      ///waveEnergy[ch] = (yMax - yMin)/2.;
+      int yMax = waveForm[ch]->GetYaxis()->GetXmax();
+      //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
+      int yMin = waveForm[ch]->Eval(3500);
+      waveEnergy[ch] = (yMax - yMin)/2.;
       
     }
     
@@ -813,11 +818,11 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
       
       trapezoid[ch]->SetPoint(i, i, sn / decayTime[ch] / riseTime[ch]);
       
-      ///if( i < 900 + riseTime[ch] + flatTop[ch]/2){
-      ///  waveFormDiff[ch]->SetPoint(i, i, 0 );
-      ///}else{
-      ///  waveFormDiff[ch]->SetPoint(i, i, 1000);
-      ///}
+      if( i < 900 + riseTime[ch] + flatTop[ch]/2){
+        waveFormDiff[ch]->SetPoint(i, i, 0 );
+      }else{
+        waveFormDiff[ch]->SetPoint(i, i, 1000);
+      }
    }
    
 }
