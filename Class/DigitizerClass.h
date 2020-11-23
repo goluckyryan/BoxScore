@@ -95,16 +95,21 @@ public:
   int      SetChannelFlatTop(int ch, string folder, int temp);
   int      SetChannelDecay(int ch, string folder, int temp);
 
+  void     SetVirtualProbe(int id, int type);
+
   int **   GetChannelsPlotRange()       {return plotRange;}
 
   string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
   uint32_t GetRecordLength()            { return RecordLength;}
   int      GetWaveFormLength(int ch)    { return waveformLength[ch];}
-  int16_t* GetWaveForm(int ch)          { return WaveLine[ch];}
-  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];} // not used
+  int16_t* GetWaveForm1(int ch)         { return WaveLine1[ch];}
+  int16_t* GetWaveForm2(int ch)         { return WaveLine2[ch];}
+  uint8_t* GetDigitalWaveForm(int ch)   { return DigitalWaveLine[ch];} // not used
 
   int*      GetWaveFormLengths()        { return waveformLength;}
-  int16_t** GetWaveForms()              { return WaveLine;}
+  int16_t** GetWaveForms1()             { return WaveLine1;}
+  int16_t** GetWaveForms2()             { return WaveLine2;}
+  uint8_t** GetDigitialWaveForms()       { return DigitalWaveLine;}
 
   int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
@@ -183,7 +188,21 @@ private:
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
   CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform[MaxNChannels];     /// waveforms buffer
 
-  int16_t *WaveLine[MaxNChannels];
+///======== the struct of CAEN_DGTZ_DPP_PHA_Waveforms_t
+///typedef struct{
+///uint32_t Ns;
+///    uint8_t  DualTrace;
+///    uint8_t  VProbe1;
+///    uint8_t  VProbe2;
+///    uint8_t  VDProbe;
+///    int16_t *Trace1;
+///    int16_t *Trace2;
+///    uint8_t  *DTrace1;
+///    uint8_t  *DTrace2;
+///} CAEN_DGTZ_DPP_PHA_Waveforms_t;
+
+  int16_t *WaveLine1[MaxNChannels];
+  int16_t *WaveLine2[MaxNChannels];
   uint8_t *DigitalWaveLine[MaxNChannels];
   int waveformLength[MaxNChannels];
 
@@ -470,6 +489,7 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
 
    int ret = 0;
    if( isDetected ) {
+     
       /********************* Set the DPP acquisition mode
          This setting affects the modes Mixed and List (see CAEN_DGTZ_DPP_AcqMode_t definition for details)
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyOnly        Only energy (DPP-PHA) or charge (DPP-PSD/DPP-CI v2) is returned
@@ -477,30 +497,189 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
          CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
       
-      ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
-      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
-      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
-      ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-      
       if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
+
+         ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+      
          /// Set Extras 2 to enable, this override Accusition mode, focring list mode
          uint32_t value = 0x10E0114;
          ret |= CAEN_DGTZ_WriteRegister(handle, 0x8000 , value );
          printf("Setting digitizer to \e[33m%s\e[0m mode.\n", mode.c_str());
       }else{  ///AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+		 
+		     ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly);
+         ///ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+		  
          /// Set the number of samples for each waveform
          ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
-         printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = \e[33m %d \e[0mch.\n", mode.c_str(), RecordLength);
          
+         if( ret ) {
+            printf("Somethign wrong with setting the Acq mode to mixed or recordlength \n");
+         }else{
+            printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = \e[33m %d \e[0mch.\n", mode.c_str(), RecordLength);
+         }
          /// Allocate memory for the waveforms
+         ret = 0;
          for( int i = 0 ; i < MaxNChannels; i++){
            ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
          }
+         if( ret ) printf(" somethign wrong with allocateing waveform memory. \n");
+         
+         
+         /******** Set the virtual probes
+         DPP-PHA can save:
+         2 analog waveforms:
+             the first and the second can be specified with the VIRTUALPROBE 1 and 2 parameters
+
+         4 digital waveforms: (we use CAEN_DGTZ_DPP_PHA_Waveforms_t, so only 2 ?? )
+             the first is always the trigger
+             the second is always the gate
+             the third and fourth can be specified with the DIGITALPROBE 1 and 2 parameters
+                  CAEN_DGTZ_DPP_VIRTUALPROBE_SINGLE -> Save only the Input Signal waveform
+                  CAEN_DGTZ_DPP_VIRTUALPROBE_DUAL -> Save also the waveform specified in
+                
+         VIRTUALPROBE
+         Virtual Probes 1 types:
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_Trapezoid //tested
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_Delta     //tested
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_Delta2    // tested
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_Input     //tested
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_NONE     //tested --> Input
+
+         Virtual Probes 2 types:
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE2_Input   //tested
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE2_S3
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE2_DigitalCombo
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE2_trapBaseline
+             CAEN_DGTZ_DPP_PHA_VIRTUALPROBE2_None    //tested, will increses speed?
+             
+         Digital Probes types:
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_trgKln
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_Armed
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_PkRun
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_PkAbort
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_Peaking
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_PkHoldOff
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_Flat
+             CAEN_DGTZ_DPP_PHA_DIGITAL_PROBE_trgHoldOff
+             
+             
+         other virtial probes
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_Delta (1)
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2 (2)
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid (3)   
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced (4)   
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline (5)        //tested, not work
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_Threshold (6)       
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_CFD (7)
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_SmoothedInput (8)   
+          * CAEN_DGTZ_DPP_VIRTUALPROBE_None (9)             //tested, if used in trace_1 ->input
+           
+          
+          * CAEN_DGTZ_DPP_DIGITALPROBE_TRGWin (10)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Armed (11)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_PkRun (12)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Peaking (13)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin (14)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_BLHoldoff (15)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff (16)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal (17)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_ACQVeto (18)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_BFMVeto (19)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_ExtTRG (20)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_OverThr (21)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_TRGOut (22)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence (23)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_PileUp (24)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Gate (25)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_GateShort (26)
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Trigger (27)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_None (28)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_BLFreeze (29)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_Busy (30)   
+          * CAEN_DGTZ_DPP_DIGITALPROBE_PrgVeto (31)
+          * 
+      
+         using GetDPP_SupportedVirtualProbes (in DetectDigitizer )
+         only following is supported.
+           CAEN_DGTZ_DPP_VIRTUALPROBE_Input
+           CAEN_DGTZ_DPP_VIRTUALPROBE_Threshold
+           CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced
+           CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline
+           CAEN_DGTZ_DPP_VIRTUALPROBE_None
+             
+         **********/         
+         ret = 0;
+         /// in below the commented setting is tested and working.
+         ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid); 
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta);  
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2); 
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline); 
+         
+         
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);  
+         //ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline); 
+         ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced); // reduced mean baseline = 0
+         
+         
+         ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
+      
+         if( ret ) printf("something wrong with setting virtual probe \n");
+         
       }
            
    }
    return ret;
 }
+
+void Digitizer::SetVirtualProbe(int id, int type){
+  
+  int ret = 0;
+  if( id == 1){
+    ret = CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, type);  
+  }else{
+    ret = CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, type);  
+  }
+  
+  if( ret ) printf("something wrong with setting virtual probe %d, type : %d\n", id, type);
+  
+  switch (type){
+     case  0: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Input\n"); break;
+     case  1: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Delta\n"); break;
+     case  2: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2\n"); break;
+     case  3: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid\n"); break;
+     case  4: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced\n"); break;
+     case  5: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline\n"); break;
+     case  6: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_Threshold\n"); break;
+     case  7: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_CFD\n"); break;
+     case  8: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_SmoothedInput\n"); break;
+     case  9: printf("\t\t CAEN_DGTZ_DPP_VIRTUALPROBE_None\n"); break;
+     case 10: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_TRGWin\n"); break;
+     case 11: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Armed\n"); break;
+     case 12: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_PkRun\n"); break;
+     case 13: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Peaking\n"); break;
+     case 14: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin\n"); break;
+     case 15: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_BLHoldoff\n"); break;
+     case 16: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff\n"); break;
+     case 17: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal\n"); break;
+     case 18: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_ACQVeto\n"); break;
+     case 19: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_BFMVeto\n"); break;
+     case 20: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_ExtTRG\n"); break;
+     case 21: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_OverThr\n"); break;
+     case 22: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_TRGOut\n"); break;
+     case 23: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence \n"); break;
+     case 24: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_PileUp \n"); break;
+     case 25: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Gate \n");  break;
+     case 26: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_GateShort \n"); break;
+     case 27: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Trigger \n"); break;
+     case 28: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_None  \n"); break;
+     case 29: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_BLFreeze  \n"); break;
+     case 30: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_Busy  \n"); break;
+     case 31: printf("\t\t CAEN_DGTZ_DPP_DIGITALPROBE_PrgVeto \n"); break;
+  }  
+}
+
 
 int Digitizer::SetChannelRiseTime(int ch, string folder, int temp){
   
@@ -1017,13 +1196,14 @@ void Digitizer::ReadData(bool debug){
 
   ///printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize); 
 	
-  if (Nb == 0) {
-	 if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List ){
+  if (Nb == 0 || ret) {
+     if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed ){
         for(int i = 0 ; i < MaxNChannels; i++ ){
-			waveformLength[i] = 0;
-			WaveLine[i] = NULL;
-		}
-	 }     
+          waveformLength[i] = 0;
+          WaveLine1[i] = NULL;
+          WaveLine2[i] = NULL;
+        }
+     }     
      return;
   }
 
@@ -1046,7 +1226,7 @@ void Digitizer::ReadData(bool debug){
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
       TrgCnt[ch]++;
       
-      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev > 0) break;
+      if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed && ev > 0) break;
       
       if (Events[ch][ev].Energy > 0 && Events[ch][ev].TimeTag > 0 ) {
         ECnt[ch]++;
@@ -1072,13 +1252,21 @@ void Digitizer::ReadData(bool debug){
           PurCnt[ch]++;
       }
 
-      if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
+      if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed && ev == 0) {
+         
+         if ( Events[ch][ev].TimeTag > 0 ) ECnt[ch]++;
          /// only get the 0th event
          ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
          /// Use waveform data here...
          waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
-         WaveLine[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
-         ///DigitalWaveLine = Waveform->DTrace1;        /// First Digital Trace (DIGITALPROBE1)
+         WaveLine1[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
+         WaveLine2[ch] = Waveform[ch]->Trace2;           /// Second trace (ANALOG_TRACE_2)
+         
+         ///for( int i = 0; i < waveformLength[ch]; i++){
+         ///  printf("%d , %d , %d \n", i, WaveLine1[ch][i], WaveLine2[ch][i]);
+         ///}
+         
+         ///DigitalWaveLine[ch] = Waveform[ch]->DTrace1;    /// First Digital Trace (DIGITALPROBE1)
       }
     } /// loop on events
   } /// loop on channels

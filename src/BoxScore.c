@@ -101,7 +101,7 @@ void PrintTrapezoidCommands(){
   printf("\e[96m=============  Trapezoid Setting  ===================\e[0m\n");
   printf("r) rise time[ns]        l) set wave record Length\n");
   printf("t) flat-top [ns]        b) base line end time [ns]\n");
-  printf("f) decay time[ns]\n");
+  printf("f) decay time[ns]       u) set probe type\n");
   printf("------------------------------------------------------------\n");
   ///printf("s ) Start acquisition  \n");
   ///printf("a ) Stop acquisition   \n");
@@ -625,7 +625,20 @@ int main(int argc, char *argv[]){
         dig.SetAcqMode("mixed", length);
         uncooked();
       }
-      
+      if( c == 'u' && dig.GetAcqMode() == "mixed"){  ////========== Set Virtual Probe type
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("\n\n##################################\n");
+        cooked();
+        int probeID = 1;
+        printf("Choose probe [1 or 2]? " );
+        int temp = scanf("%d", &probeID);
+        int type = 0;
+        printf("Set probe type by [0- 31]: " );
+        temp = scanf("%d", &type);
+        dig.SetVirtualProbe(probeID, type);
+        uncooked();
+      }
       PrintCommands();
       
       if( dig.GetAcqMode() == "mixed" ) PrintTrapezoidCommands();
@@ -644,7 +657,9 @@ int main(int argc, char *argv[]){
     if( dig.GetAcqMode() == "mixed" ) {
        if( !file.isOpen() ) file.Append();
         
-       gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
+       gp->FillWaves1(dig.GetWaveFormLengths(), dig.GetWaveForms1());
+       gp->FillWaves2(dig.GetWaveFormLengths(), dig.GetWaveForms2());
+       ///gp->FillDigitWave(dig.GetWaveFormLengths(), dig.GetDigitialWaveForms()); // not working ?
        if( isIntegrateWave ){
          gp->FillWaveEnergies(gp->GetWaveEnergy());
          gp->Draw();
@@ -652,7 +667,7 @@ int main(int argc, char *argv[]){
          int * chRaw = dig.GetRawChannel();
          ULong64_t * timeRaw = dig.GetRawTimeStamp();
          int nRaw = dig.GetNumRawEvent();         
-         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
+         file.FillTreeWave(gp->GetWaveForm1(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
         gp->ClearWaveEnergies();
        }else{
          gp->DrawWaves();

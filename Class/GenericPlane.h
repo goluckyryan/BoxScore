@@ -56,7 +56,9 @@ public:
   void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
   
   void         SetWaveCanvas(int length);
-  void         FillWaves(int* length, int16_t ** wave);
+  void         FillWaves1(int* length, int16_t ** wave);
+  void         FillWaves2(int* length, int16_t ** wave);
+  void         FillDigitWave(int* length, uint8_t ** wave);
   virtual void FillWaveEnergies(double * energy);
   void         ClearWaveEnergies() { for(int i = 0; i < numChannel; i++) waveEnergy[i] = 0;}
   
@@ -97,7 +99,7 @@ public:
   TH2F * GethdEtotE()          {return hdEtotE;}
   TMultiGraph * GetRateGraph() {return rateGraph;}
   
-  TGraph ** GetWaveForm()      {return waveForm;}
+  TGraph ** GetWaveForm1()      {return waveForm1;}
   double * GetWaveEnergy()     {return waveEnergy;}
 
   TObjArray * GetCutList()  {return cutList;}
@@ -157,8 +159,9 @@ protected:
   TMultiGraph * rateGraph;
   TLegend * legend; 
   
-  TGraph * waveForm[8];
-  TGraph * waveFormDiff[8];
+  TGraph * waveForm1[8];
+  TGraph * waveForm2[8];
+  TGraph * digitForm[8];
   double waveEnergy[8];
   TGraph * trapezoid[8];
   
@@ -210,8 +213,9 @@ GenericPlane::~GenericPlane(){
   delete line;
   
   for(int i = 0; i < numChannel; i++){
-    delete waveForm[i];
-    delete waveFormDiff[i];
+    delete waveForm1[i];
+    delete waveForm2[i];
+    delete digitForm[i];
     delete trapezoid[i];
   }
   
@@ -276,11 +280,15 @@ GenericPlane::GenericPlane(){
   graphIndex = 0;
   
   for( int i = 0 ; i < 8 ; i++){
-    waveForm[i] = new TGraph();
-    waveForm[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
+    waveForm1[i] = new TGraph();
+    waveForm1[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
 
-    waveFormDiff[i] = new TGraph();
-    waveFormDiff[i]->SetLineColor(2);
+    waveForm2[i] = new TGraph();
+    waveForm2[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
+    waveForm2[i]->SetLineColor(6);
+
+    digitForm[i] = new TGraph();
+    digitForm[i]->SetLineColor(2);
    
     trapezoid[i] = new TGraph();
     trapezoid[i]->SetLineColor(4);
@@ -684,11 +692,11 @@ void GenericPlane::SetWaveCanvas(int length){
        fCanvas->cd(i)->SetGridy();
        fCanvas->cd(i)->SetGridx();
        for(int j = 0; j < length ; j++) {
-          waveForm[i-1]->SetPoint(j, j, 0);
+          waveForm1[i-1]->SetPoint(j, j, 0);
        }
-       waveForm[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
-       waveForm[i-1]->GetXaxis()->SetRangeUser(0, length);
-       waveForm[i-1]->Draw("AP");
+       waveForm1[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
+       waveForm1[i-1]->GetXaxis()->SetRangeUser(0, length);
+       waveForm1[i-1]->Draw("AP");
     }
   
    fCanvas->Modified();
@@ -697,7 +705,7 @@ void GenericPlane::SetWaveCanvas(int length){
    
 }
 
-void GenericPlane::FillWaves(int* length, int16_t ** wave){
+void GenericPlane::FillWaves1(int* length, int16_t ** wave){
   
   int integrateWindow = 400; // ch, 1ch = 2ns
   int pre_rise_start_ch = 100;
@@ -709,40 +717,28 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       continue;
     }
     
-    waveForm[ch]->Clear(); 
-    ///waveFormDiff[ch]->Clear(); // this is supposed to indicate the trigger
+    waveForm1[ch]->Clear(); 
               
     if( length[ch] > 0 ) { 
       
-      TrapezoidFilter(ch, length[ch], wave[ch]);
+      //TrapezoidFilter(ch, length[ch], wave[ch]);
       
-      //printf("ch : %d, wave[500] : %d \n", ch, wave[ch][100]); 
+      ///printf("ch : %d, wave[500] : %d \n", ch, wave[ch][100]); 
     
-    
-      for(int i = 0; i < length[ch]; i++){
-        waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
-            
-        ///if( pre_rise_start_ch <= i && i < pre_rise_start_ch + integrateWindow ){
-        ///  waveFormDiff[ch]->SetPoint(i, i, 7200-1000);
-        ///}else if( post_rise_start_ch <= i && i < post_rise_start_ch + integrateWindow ){
-        ///  waveFormDiff[ch]->SetPoint(i, i, 7200+1000);
-        ///}else{
-        ///  waveFormDiff[ch]->SetPoint(i, i, 7200);
-        ///} 
-      }
+      for(int i = 0; i < length[ch]; i++) waveForm1[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
          
       //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020         
 
-      waveForm[ch]->SetTitle(Form("channel = %d", ch));
-      waveForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
-      waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
+      waveForm1[ch]->SetTitle(Form("channel = %d", ch));
+      waveForm1[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
+      waveForm1[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
       
       ///use Trapezoid energy at halfway of flattop
       ///waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
       
-      int yMax = waveForm[ch]->GetYaxis()->GetXmax();
-      //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
-      int yMin = waveForm[ch]->Eval(3500);
+      int yMax = waveForm1[ch]->GetYaxis()->GetXmax();
+      //int yMin = waveForm1[ch]->GetYaxis()->GetXmin();
+      int yMin = waveForm1[ch]->Eval(3500);
       waveEnergy[ch] = (yMax - yMin)/2.;
       
     }
@@ -769,16 +765,53 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
 }
 
 
+void GenericPlane::FillWaves2(int* length, int16_t ** wave){
+  
+  for( int ch = 0 ; ch < 8; ch ++){
+    if (!(ChannelMask & (1<<ch))) continue;
+    
+    waveForm2[ch]->Clear(); 
+    
+    if( length[ch] > 0 ) { 
+      for(int i = 0; i < length[ch]; i++) waveForm2[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
+
+      waveForm2[ch]->SetTitle(Form("channel = %d", ch));
+      waveForm2[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
+      waveForm2[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
+
+    }
+  }
+}
+
+void GenericPlane::FillDigitWave(int* length, uint8_t ** wave){
+  for( int ch = 0 ; ch < 8; ch ++){
+    if (!(ChannelMask & (1<<ch))) continue;
+    
+    digitForm[ch]->Clear(); 
+    
+    if( length[ch] > 0 ) { 
+      for(int i = 0; i < length[ch]; i++) digitForm[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
+
+      digitForm[ch]->SetTitle(Form("channel = %d", ch));
+      digitForm[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
+      digitForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
+
+    }
+  }
+}
+
+
 void GenericPlane::DrawWaves(){
   int padID = 0;
   for( int ch = 0 ; ch < 8; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
-    padID ++;
     
+    padID ++;
     fCanvas->cd(padID);
-    if( waveForm[ch]->GetN() > 0 ) waveForm[ch]->Draw("AP");
-    if( waveFormDiff[ch]->GetN() > 0 ) waveFormDiff[ch]->Draw("same");
-    if( trapezoid[ch]->GetN() > 0 ) trapezoid[ch]->Draw("same");
+    if( waveForm1[ch]->GetN() > 0 ) waveForm1[ch]->Draw("AP");
+    if( waveForm2[ch]->GetN() > 0 ) waveForm2[ch]->Draw("same");
+    ///if( digitForm[ch]->GetN() > 0 ) digitForm[ch]->Draw("same"); not working??
+    ///if( trapezoid[ch]->GetN() > 0 ) trapezoid[ch]->Draw("same");
     
   }
   
@@ -790,10 +823,9 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
    ///Trapezoid filter https://doi.org/10.1016/0168-9002(94)91652-7
 
    trapezoid[ch]->Clear();
-   waveFormDiff[ch]->Clear();
    
    ///find baseline;
-   double baseline;
+   double baseline = 0;
    for( int i = 0; i < baseLineEnd[ch]; i++){
       baseline += wave[i];
    }
@@ -817,12 +849,7 @@ void GenericPlane::TrapezoidFilter(int ch, int length, int16_t * wave){
       }    
       
       trapezoid[ch]->SetPoint(i, i, sn / decayTime[ch] / riseTime[ch]);
-      
-      if( i < 900 + riseTime[ch] + flatTop[ch]/2){
-        waveFormDiff[ch]->SetPoint(i, i, 0 );
-      }else{
-        waveFormDiff[ch]->SetPoint(i, i, 1000);
-      }
+    
    }
    
 }
