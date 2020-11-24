@@ -12,7 +12,7 @@
 960     // Peak holdoff (ns)
 //============= Input
 3       // Ns baseline, number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
-1     //input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
+0     //input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 //============= Others
 0.7     // DC offset ( from 0 to 1 )
 2000    // pre trigger size [ch];
@@ -25,6 +25,6 @@ true   // is pulse positive parity;
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
-0.05      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
-5000     //plot min
-25000     //plot max
+1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
+0     //plot min
+6000     //plot max

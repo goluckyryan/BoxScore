@@ -180,8 +180,9 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(0,0,0,1,0,0,1,0);
+    gp->SetChannelMask(1,0,0,1,0,0,1,0);
     gp->SetdEEChannels(1, 4);
+    gp->SetTChannels(7);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "ZD" ) {
     gp = new GenericPlane();
@@ -608,7 +609,7 @@ int main(int argc, char *argv[]){
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp->Fill(dig.GetEnergy(i), dig.GetTimeStamp(i));//eithe add GetTimeStamp to this fill
+          gp->Fill(dig.GetEnergy(i), dig.GetTimeStamp(i));//crh
           //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }

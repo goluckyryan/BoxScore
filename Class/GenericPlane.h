@@ -239,6 +239,7 @@ GenericPlane::GenericPlane(){
 
   chdE = 2;  chdEGain = 1;
   chE = 5;   chEGain = 1;
+  chT = 7; ///default timing channel
   mode = 1; ///default channel Gain is equal
 
   hdE     = NULL;
@@ -365,8 +366,8 @@ void GenericPlane::SetGenericHistograms(){
 
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, rangeTime);
 
-  hdEdT = new TH2F("hdEdT", "dE - TOF; raw dE; TOF [ch or ns?]",
-  histBins, -1000,1000,histBins, rangeDE[0], rangeDE[1]); //rangeT needed
+  hdEdT = new TH2F("hdEdT", "dE - TOF; TOF [ns]; dE [ch]",
+  histBins,-1000,1000, histBins,rangeDE[0], rangeDE[1]); //rangeT needed
 
   hE->GetXaxis()->SetLabelSize(labelSize);
   hE->GetXaxis()->SetNdivisions(405);
@@ -452,18 +453,21 @@ void GenericPlane::Fill(UInt_t * energy, ULong64_t * times){
 
   int E = energy[chE] ;// + gRandom->Gaus(0, 500);
   int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-  ULong64_t ET = times[chE]; //
-  ULong64_t dET = times[chdE]; //
-  ULong64_t T = times[chT]; //
-  ULong64_t dEdT = T - dET; // dE - T time diff only for now
-  float chan2ns = 1000000000.0;
+  unsigned long long int ET = times[chE]; //
+  unsigned long long int dET = times[chdE]; //
+  //~ printf("chT %d",chT);
+  unsigned long long int T = times[chT]; //
+  float chan2ns = 2.0 * 1.0e-9; //converts times to seconds
+  float dEdT = (float)T*chan2ns - (float)dET*chan2ns; // dE - T time diff only for now
+  //~ printf("T: %1.10f, dET: %1.10f dEdT: %1.10f\n",
+  //(float)T*chan2ns,(float)dET*chan2ns, dEdT);
 
   hE->Fill(E);
   hdE->Fill(dE);
   hdEE->Fill(E, dE);
   float totalE = (float)dE * chdEGain + (float)E * chEGain;
   hdEtotE->Fill(totalE, (float)dE * chdEGain);
-  hdEdT->Fill((float)dEdT*chan2ns, dE);//
+  hdEdT->Fill(dEdT/(1.0e-9), dE);//
 
   int lower = hE->GetXaxis()->FindBin(4500);
   int upper =  hE->GetXaxis()->FindBin(5500);
@@ -509,7 +513,9 @@ void GenericPlane::Draw(){
   }
 
   //hdEtotE
-  fCanvas->cd(3); hdEtotE->Draw("colz");
+  //~ fCanvas->cd(3); hdEtotE->Draw("colz");
+  //hdEdT instead
+  fCanvas->cd(3); hdEdT->Draw("colz");
 
   //hE & hdE
   fCanvas->cd(2)->cd(1); hE->Draw();
