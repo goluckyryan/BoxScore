@@ -1,2 +1,3 @@
 4096  // Num of samples of the waveforms (only for waveform mode)
 150    // nano-sec (int), coincident time for event building
+18    // experiment number
