@@ -367,7 +367,7 @@ void GenericPlane::SetGenericHistograms(){
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, rangeTime);
 
   hdEdT = new TH2F("hdEdT", "dE - TOF; TOF [ns]; dE [ch]",
-  histBins,-1000,1000, histBins,rangeDE[0], rangeDE[1]); //rangeT needed
+  200,-200,200, histBins,rangeDE[0], rangeDE[1]); //rangeT needed
 
   hE->GetXaxis()->SetLabelSize(labelSize);
   hE->GetXaxis()->SetNdivisions(405);
@@ -457,21 +457,23 @@ void GenericPlane::Fill(UInt_t * energy, ULong64_t * times){
   unsigned long long int dET = times[chdE]; //
   //~ printf("chT %d",chT);
   unsigned long long int T = times[chT]; //
-  float chan2ns = 2.0 * 1.0e-9; //converts times to seconds
-  float dEdT = (float)T*chan2ns - (float)dET*chan2ns; // dE - T time diff only for now
-  //~ printf("T: %1.10f, dET: %1.10f dEdT: %1.10f\n",
-  //(float)T*chan2ns,(float)dET*chan2ns, dEdT);
+  float chan2ns = 2.0e-9; //converts times to seconds
+  //~ float dEdT = (float)T*chan2ns - (float)dET*chan2ns; // dE - T time diff only for now
+  float dEdT = (float)(T - dET);// dE - T time diff only for now
+  dEdT = dEdT*2.0; //ch2ns
+  //~ printf("T: %1.12f, dET: %1.12f dEdT: %12.12f\n",
+  //~ (float)T*chan2ns,(float)dET*chan2ns, dEdT);
 
   hE->Fill(E);
-  hdE->Fill(dE);
+  hdE->Fill(dE);  
   hdEE->Fill(E, dE);
   float totalE = (float)dE * chdEGain + (float)E * chEGain;
   hdEtotE->Fill(totalE, (float)dE * chdEGain);
-  hdEdT->Fill(dEdT/(1.0e-9), dE);//
+  hdEdT->Fill(dEdT, dE);//
 
-  int lower = hE->GetXaxis()->FindBin(4500);
-  int upper =  hE->GetXaxis()->FindBin(5500);
-  int integral = hE->Integral(lower,upper);
+  //~ int lower = hE->GetXaxis()->FindBin(4500);
+  //~ int upper =  hE->GetXaxis()->FindBin(5500);
+  //~ int integral = hE->Integral(lower,upper);
 
   if( numCut > 0  ){
     for( int i = 0; i < numCut; i++){
@@ -518,8 +520,8 @@ void GenericPlane::Draw(){
   fCanvas->cd(3); hdEdT->Draw("colz");
 
   //hE & hdE
-  fCanvas->cd(2)->cd(1); hE->Draw();
-  fCanvas->cd(2)->cd(2); hdE->Draw();
+  fCanvas->cd(2)->cd(1); hdE->Draw();
+  fCanvas->cd(2)->cd(2); hE->Draw();
 
   //TDiff
   fCanvas->cd(4)->cd(1); hTDiff->Draw(); line->Draw();
