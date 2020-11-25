@@ -82,6 +82,8 @@ static void raw(void);
 int getch(void);
 int keyboardhit();
 void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, TString value);
+
 bool isIntegrateWave = false;
 bool isTimedACQ = false;
 int timeLimitSec ;
@@ -241,6 +243,7 @@ int main(int argc, char *argv[]){
 
   /* DB push of general settings info */
   WriteToDataBase(databaseName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
+  WriteToDataBase(databaseName, "Location", "tag=general", location.c_str());
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
@@ -777,6 +780,15 @@ void WriteToDataBase(TString databaseName, TString seriesName, TString tag, floa
   if( value >= 0 ){
     TString databaseStr;
     databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+    //printf("%s \n", databaseStr.Data());
+    system(databaseStr.Data());
+  }
+}
+
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, TString value){
+  if( value >= 0 ){
+    TString databaseStr;
+    databaseStr.Form("influx -execute \'insert %s,%s value=%s\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
