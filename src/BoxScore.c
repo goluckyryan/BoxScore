@@ -788,7 +788,7 @@ void WriteToDataBase(TString databaseName, TString seriesName, TString tag, floa
 void WriteToDataBaseString(TString databaseName, TString seriesName, TString tag, TString value){
   if( value >= 0 ){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%s\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
+    databaseStr.Form("influx -execute \'insert %s,%s value=\"%s\"\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
