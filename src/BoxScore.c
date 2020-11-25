@@ -240,7 +240,7 @@ int main(int argc, char *argv[]){
   gp->SetGenericHistograms(); ///must be after SetChannelGain
 
   /* DB push of general settings info */
-  WriteToDataBase(databaseName, "ExpNumber", "general", (float)dig.GetExpNumber());
+  WriteToDataBase(databaseName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
