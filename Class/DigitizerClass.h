@@ -913,7 +913,7 @@ void Digitizer::LoadGeneralSetting(string fileName){
         if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());// Num of samples of the waveforms (only for waveform mode)
         if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());// nano-sec (int), coincident time for event building
         if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());// experiment number [XX]
-		if( count == 3  )   Primeeam = line.substr(0, 4).c_str();// primary beam [AAZZ]
+		if( count == 3  )   PrimBeam = line.substr(0, 4).c_str();// primary beam [AAZZ]
 		if( count == 4  )   PrimBeamQ = atoi(line.substr(0, pos).c_str());// primary beam charge state [X]
 		if( count == 5  )   PrimBeamE = atof(line.substr(0, pos).c_str());// primary beam total energy [MeV]
 		if( count == 6  )   ScaleFactor = atof(line.substr(0, pos).c_str());// secondary beam scale factor [X.XX], e.g., 5% = 1.05
