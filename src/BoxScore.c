@@ -244,6 +244,7 @@ int main(int argc, char *argv[]){
   /* DB push of general settings info */
   WriteToDataBase(databaseName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
   WriteToDataBaseString(databaseName, "Location", "tag=general", location);
+  WriteToDataBaseString(databaseName, "PrimBeam", "tag=general", dig.GetPrimBeam());
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();

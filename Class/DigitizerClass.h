@@ -96,6 +96,14 @@ public:
   unsigned long long int Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
   int      GetExpNumber()               {return ExpNumber;}
+  string   GetPrimBeam()               {return PrimBeam;}
+  int      GetPrimBeamQ()              {return PrimBeamQ;}
+  float    GetPrimBeamE()              {return PrimBeamE;}
+  float    GetScaleFactor()             {return ScaleFactor;}
+  float    GetPrimBeamCurrent()        {return PrimBeamCurrent;}
+
+
+
   uint32_t GetChannelMask() const       {return ChannelMask;}
   string   GetChannelMaskString();
 
@@ -199,8 +207,13 @@ private:
   int EventAggr;                             /// number of events in one aggregate (0=automatic), number of event acculated for read-off
 
   int CoincidentTimeWindow;  /// nano-sec
-  int ExpNumber; //infl##
-
+  int ExpNumber; /// infl##
+  string PrimBeam;
+  int PrimBeamQ;
+  float PrimBeamE;
+  float ScaleFactor;
+  float PrimBeamCurrent;
+  
   //==================== retreved data
   int ECnt[MaxNChannels];
   int TrgCnt[MaxNChannels];
@@ -897,10 +910,24 @@ void Digitizer::LoadGeneralSetting(string fileName){
       getline(file_in, line);
       size_t pos = line.find("//");
       if( pos > 1 ){
-        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
-        if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
-        if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());
-        count++;
+        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());// Num of samples of the waveforms (only for waveform mode)
+        if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());// nano-sec (int), coincident time for event building
+        if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());// experiment number [XX]
+		if( count == 3  )   Primeeam = line.substr(0, 4).c_str();// primary beam [AAZZ]
+		if( count == 4  )   PrimBeamQ = atoi(line.substr(0, pos).c_str());// primary beam charge state [X]
+		if( count == 5  )   PrimBeamE = atof(line.substr(0, pos).c_str());// primary beam total energy [MeV]
+		if( count == 6  )   ScaleFactor = atof(line.substr(0, pos).c_str());// secondary beam scale factor [X.XX], e.g., 5% = 1.05
+		if( count == 7  )   PrimBeamCurrent = atof(line.substr(0, pos).c_str());// primary beam current on FCA001 [enA]
+// RF-Sweeper On/Off [On/Off]
+// RF Sweeper (R501) Phase [deg]
+// RF Sweeper (R501) Amplitude [V]
+// Re-Buncher On/Off [On/Off]
+// Re-Buncher (R401) Phase [deg]
+// Re-Buncher (R401) Amplitude [V]
+// RAISOR midplane top vertical slit [mm]
+// RAISOR midplane bottome verical slit [mm]
+// target information, Gas/Solid, Type, Thick, Pressure, Temp, Strip. foil thick/position
+		count++;
       }
     }
 
