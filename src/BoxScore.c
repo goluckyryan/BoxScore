@@ -603,8 +603,10 @@ int main(int argc, char *argv[]){
       }
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
-        ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
-        gp->FillTimeDiff((float)timeDiff * ch2ns);
+        //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
+        float timeDiff = (float)(dig.GetTimeStamp(i+1) - dig.GetTimeStamp(i));
+        //~ printf("timeDiff: %12.12f \n",timeDiff);
+        gp->FillTimeDiff((float)timeDiff * 2.0);
       }
 
       file.Append();
