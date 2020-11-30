@@ -632,6 +632,13 @@ int main(int argc, char *argv[]){
       printf("Database             : %s\n", databaseName.Data());
 
       printf("\n");
+      
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
+
+	  for (int ch = 0; ch < MaxNChannels; ch++) {
+	    if (!(ChannelMask & (1<<ch))) continue;
+	    WriteToDataBase(expName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+	  }
 
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);

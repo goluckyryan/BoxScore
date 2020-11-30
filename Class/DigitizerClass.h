@@ -81,6 +81,7 @@ public:
   int      GetChannelToNanoSec()        {return ch2ns;}
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
+  int      GetChannelGet(int ch)        {return ECnt[ch];}
 
   int **   GetChannelsPlotRange()       {return plotRange;}
 
