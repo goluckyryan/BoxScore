@@ -524,20 +524,23 @@ void GenericPlane::Draw(){
   }
 
   //hdEtotE
-  //~ fCanvas->cd(3); hdEtotE->Draw("colz");
+  fCanvas->cd(3); hdEtotE->Draw("colz");
   //hdEdT instead
-  fCanvas->cd(3); hdEdT->Draw("colz");
+  //~ fCanvas->cd(3); hdEdT->Draw("colz");
 
   //hE & hdE
   fCanvas->cd(2)->cd(1); hdE->Draw();
   fCanvas->cd(2)->cd(2); hE->Draw();
 
   //TDiff
-  fCanvas->cd(4)->cd(1); hTDiff->Draw(); line->Draw(); //hdT->Draw();//
+  fCanvas->cd(4)->cd(1); hTDiff->Draw(); line->Draw(); 
+  
 
   //rateGraph
   fCanvas->cd(4)->cd(2);
-  rateGraph->Draw("AP"); legend->Draw();
+  //~ rateGraph->Draw("AP"); legend->Draw();
+  hdT->Draw(); ///
+  
   fCanvas->Modified();
   fCanvas->Update();
   gSystem->ProcessEvents();
