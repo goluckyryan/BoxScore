@@ -632,22 +632,21 @@ int main(int argc, char *argv[]){
       printf("Database             : %s\n", databaseName.Data());
 
       printf("\n");
-      
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-
-	  for (int ch = 0; ch < MaxNChannels; ch++) {
-	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(expName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
-	  }
-
-      dig.PrintReadStatistic();
-      dig.PrintEventBuildingStat(updatePeriod);
-
+      	  
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
       string tag = "tag=" + location;
 
       double totalRate = 0;
       double aveRate = 0; //ave rate over run
+      
+      for (int ch = 0; ch < MaxNChannels; ch++) {
+	    if (!(ChannelMask & (1<<ch))) continue;
+	    WriteToDataBase(databaseName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+	  }
+
+      dig.PrintReadStatistic();
+      dig.PrintEventBuildingStat(updatePeriod);
+
 
       if( gp->GetClassID() == 2 ){
         totalRate = gp->GetdEECount()/timeRangeSec;
@@ -661,6 +660,7 @@ int main(int argc, char *argv[]){
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
+
 
       /// for isomer
       if( gp->GetClassID() == 2 ) {
