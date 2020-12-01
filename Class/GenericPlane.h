@@ -538,8 +538,8 @@ void GenericPlane::Draw(){
 
   //rateGraph
   fCanvas->cd(4)->cd(2);
-  //~ rateGraph->Draw("AP"); legend->Draw();
-  hdT->Draw(); ///
+  rateGraph->Draw("AP"); legend->Draw();
+  //~ hdT->Draw(); ///
   
   fCanvas->Modified();
   fCanvas->Update();
