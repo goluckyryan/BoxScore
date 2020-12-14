@@ -371,7 +371,7 @@ void GenericPlane::SetGenericHistograms(){
   rangeDE[1] * chdEGain + rangeE[1]* chEGain, histBins, rangeDE[0] * chdEGain,
   rangeDE[1] * chdEGain);
 
-  hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, 1000 /*rangeTime*/);
+  hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, 2000 /*rangeTime*/);
 
   hdEdT = new TH2F("hdEdT", "dE - TOF; TOF [ns]; dE [ch]",
   200,-200,200, histBins,rangeDE[0], rangeDE[1]); //rangeT needed
@@ -451,6 +451,7 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
   hdE->Fill(dE);
   hdEE->Fill(E, dE);
   float totalE = dE * chdEGain + E * chEGain;
+  htotE->Fill(totalE);
   hdEtotE->Fill(totalE, dE);
 
 }
@@ -478,6 +479,7 @@ void GenericPlane::Fill(UInt_t * energy, ULong64_t * times){
   hdEE->Fill(E, dE);
   float totalE = (float)dE * chdEGain + (float)E * chEGain;
   hdEtotE->Fill(totalE, (float)dE * chdEGain);
+  htotE->Fill(totalE);
   hdEdT->Fill(dEdT, dE);//
 
   //~ int lower = hE->GetXaxis()->FindBin(4500);
@@ -538,7 +540,8 @@ void GenericPlane::Draw(){
 
   //rateGraph
   fCanvas->cd(4)->cd(2);
-  rateGraph->Draw("AP"); legend->Draw();
+  htotE->Draw();
+  //~ rateGraph->Draw("AP"); legend->Draw();
   //~ hdT->Draw(); ///
   
   fCanvas->Modified();
