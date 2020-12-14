@@ -524,9 +524,9 @@ void GenericPlane::Draw(){
   }
 
   //hdEtotE
-  fCanvas->cd(3); hdEtotE->Draw("colz");
+  //~ fCanvas->cd(3); hdEtotE->Draw("colz");
   //hdEdT instead
-  //~ fCanvas->cd(3); hdEdT->Draw("colz");
+  fCanvas->cd(3); hdEdT->Draw("colz");
 
   //hE & hdE
   fCanvas->cd(2)->cd(1); hdE->Draw();
