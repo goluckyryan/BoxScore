@@ -58,6 +58,8 @@ public:
   void         SetWaveCanvas(int length);
   void         FillWaves(int* length, int16_t ** wave);
   virtual void FillWaveEnergies(double * energy);
+  void         ClearWaveEnergies() { for(int i = 0; i < numChannel; i++) waveEnergy[i] = 0;}
+  void         ClearWaves() { for(int i=0; i < numChannel; i++) waveForm[i]->Clear();}
   
   void         TrapezoidFilter(int ch, int length, int16_t * wave);
   void         SetRiseTime(int ch, int temp)    { this->riseTime[ch]    = temp;} /// in ch, 1 ch = 2 ns
@@ -714,6 +716,9 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
     if( length[ch] > 0 ) { 
       
       TrapezoidFilter(ch, length[ch], wave[ch]);
+      
+      //printf("ch : %d, wave[500] : %d \n", ch, wave[ch][100]); 
+    
     
       for(int i = 0; i < length[ch]; i++){
         waveForm[ch]->SetPoint(i, i, wave[ch][i]); // 2 for 1ch = 2 ns
@@ -734,11 +739,12 @@ void GenericPlane::FillWaves(int* length, int16_t ** wave){
       waveForm[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
       
       ///use Trapezoid energy at halfway of flattop
-      waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
+      ///waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
       
-      ///int yMax = waveForm[ch]->GetYaxis()->GetXmax();
-      ///int yMin = waveForm[ch]->GetYaxis()->GetXmin();
-      ///waveEnergy[ch] = (yMax - yMin)/2.;
+      int yMax = waveForm[ch]->GetYaxis()->GetXmax();
+      //int yMin = waveForm[ch]->GetYaxis()->GetXmin();
+      int yMin = waveForm[ch]->Eval(3500);
+      waveEnergy[ch] = (yMax - yMin)/2.;
       
     }
     

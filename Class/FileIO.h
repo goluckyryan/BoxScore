@@ -166,11 +166,19 @@ void FileIO::FillTree(int * Channel, UInt_t * Energy, ULong64_t * TimeStamp){
 
 void FileIO::FillTreeWave(TGraph ** wave, double * waveEnergy, int nRaw, int * chRaw, ULong64_t * timeStampRaw){
 
+// save whenever event
+//  if( nRaw < 4 ) return;
+//  if( !(waveEnergy[0] > 0 && waveEnergy[2]>0 && waveEnergy[4] > 0 && waveEnergy[6] > 0) ) return;
+
   waveList->Clear();
+  ///printf("==============\n");
   for( int ch = 0; ch < NumChannel; ch++){
     channel[ch] = ch;
     energy[ch] = waveEnergy[ch];
     waveList->Add(wave[ch]);
+    
+    ///printf("ch %d, e : %d, waveLen : %d, w[100]: %f \n", ch, energy[ch], wave[ch]->GetN(), wave[ch]->Eval(100));
+    
     timeStamp[ch] = 0;
     for( int ev = 0; ev < nRaw; ev ++){
       if( ch == chRaw[ev]){

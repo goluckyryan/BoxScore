@@ -217,6 +217,8 @@ int main(int argc, char *argv[]){
     gp = new HelioArray();
   }else if ( location == "MCP"){
     gp = new MicroChannelPlate();
+    gp->SetChannelMask(0,1,0,1,0,1,0,1);
+    gp->SetNChannelForRealEvent(4);
   }else{
     printf(" no such plane. exit. \n");
     return 0;
@@ -638,12 +640,14 @@ int main(int argc, char *argv[]){
          ///Get Raw ch, energy, timestamp
          int * chRaw = dig.GetRawChannel();
          ULong64_t * timeRaw = dig.GetRawTimeStamp();
-         int nRaw = dig.GetNumRawEvent();         
-         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
+         int nRaw = dig.GetNumRawEvent();     
+         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw); 
+         gp->ClearWaveEnergies();
        }else{
          gp->DrawWaves();
        }
        dig.ClearRawData(); /// clean up raw data, as no event build, the raw data accumulate, that will reflect the actual trigger rate
+       gp->ClearWaves();
     }
 
     if( isSaveRaw ) {
