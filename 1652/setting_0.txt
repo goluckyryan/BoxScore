@@ -1,5 +1,5 @@
 //============= Discriminator
-400     //Tigger Threshold (in LSB)
+210     //Tigger Threshold (in LSB)
 496     // Trigger Hold Off
 32      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
 100     // Input Signal Rise time (ns)
@@ -25,6 +25,6 @@ true   // is pulse positive parity;
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
-1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
+0.25      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
 0     //plot min
-10000     //plot max
+3000     //plot max
