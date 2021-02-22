@@ -27,4 +27,4 @@ true   // is pulse positive parity;
 //============= software channel gain
 1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
 0     //plot min
-4000     //plot max
+8000     //plot max

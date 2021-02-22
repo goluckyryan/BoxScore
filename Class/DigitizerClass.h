@@ -39,7 +39,7 @@ enum DigiReg {
   trapRiseTime = 0x105C,
   trapFlatTop  = 0x1060,
   trapFallTime = 0x1068,
-  peakingTime  = 0x1064, 
+  peakingTime  = 0x1064,
   peakHoldOff  = 0x1078, ///starts at the end of the trapezoid flat top and defines how close must be two trapezoids to be considered piled-up
   fineGaie     = 0x10C4
 };
@@ -56,7 +56,7 @@ public:
   void SetDCOffset(int ch , float offset);
   void SetCoincidentTimeWindow(int nanoSec) {
     CoincidentTimeWindow = nanoSec;
-    
+
     TString command;
     command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
     system(command.Data());
@@ -68,7 +68,7 @@ public:
   int  SetChannelDynamicRange(int ch, string folder, int dyRange);
   void SetChannelPlotRange(int ch, string folder, int min, int max);
   int  SetAcqMode(string mode, int recordLength);
-  
+
   void SetRegister(uint32_t address, int ch, uint32_t value);
 
   bool     IsConnected()                {return isConnected;} /// can connect and retrieve Digitizer Info.
@@ -84,14 +84,7 @@ public:
   int      GetChannelToNanoSec()        {return ch2ns;}
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
-  
-  int      GetChannelRiseTime(int ch) {return DPPParams.k[ch];}
-  int      GetChannelFlatTop(int ch) {return DPPParams.m[ch];}
-  int      GetChannelDecay(int ch) {return DPPParams.M[ch];}
-
-  int      SetChannelRiseTime(int ch, string folder, int temp);
-  int      SetChannelFlatTop(int ch, string folder, int temp);
-  int      SetChannelDecay(int ch, string folder, int temp);
+  int      GetChannelGet(int ch)        {return ECnt[ch];}
 
   int **   GetChannelsPlotRange()       {return plotRange;}
 
@@ -107,6 +100,14 @@ public:
   int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
   int      GetExpNumber()               {return ExpNumber;}
+  string   GetPrimBeam()               {return PrimBeam;}
+  int      GetPrimBeamQ()              {return PrimBeamQ;}
+  float    GetPrimBeamE()              {return PrimBeamE;}
+  float    GetScaleFactor()             {return ScaleFactor;}
+  float    GetPrimBeamCurrent()        {return PrimBeamCurrent;}
+
+
+
   uint32_t GetChannelMask() const       {return ChannelMask;}
   string   GetChannelMaskString();
 
@@ -208,9 +209,14 @@ private:
   int EventAggr;                             /// number of events in one aggregate (0=automatic), number of event acculated for read-off
 
   int CoincidentTimeWindow;  /// nano-sec
-  int ExpNumber; //infl##
+  int ExpNumber; /// infl##
+  string PrimBeam;
+  int PrimBeamQ;
+  float PrimBeamE;
+  float ScaleFactor;
+  float PrimBeamCurrent;
 
-  ///==================== retreved data
+  //==================== retreved data
   int ECnt[MaxNChannels];
   int TrgCnt[MaxNChannels];
   int PurCnt[MaxNChannels];
@@ -351,7 +357,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
   }
 
   if( isDetected ) {
-    
+
     /** WARNING: The mallocs MUST be done after the digitizer programming,
     because the following functions needs to know the digitizer configuration
     to allocate the right memory amount */
@@ -418,12 +424,12 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
 Digitizer::~Digitizer(){
 
   /** stop the acquisition, close the device and free the buffers */
-  
+
   printf("closing digitizer \n");
-  
+
   CAEN_DGTZ_SWStopAcquisition(handle);
   CAEN_DGTZ_CloseDigitizer(handle);
-  CAEN_DGTZ_FreeReadoutBuffer(&buffer); 
+  CAEN_DGTZ_FreeReadoutBuffer(&buffer);
   CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
   CAEN_DGTZ_FreeDPPWaveforms(handle, Waveform);
 
@@ -451,7 +457,7 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
    }else if ( recordLength >= 8192 ){
       this->RecordLength = 8192;
    }
-   
+
    if( mode == "list"){
       AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;           /// enables the acquisition of time stamps and energy value
    }else if ( mode == "mixed"){
@@ -468,12 +474,12 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          CAEN_DGTZ_DPP_SAVE_PARAM_TimeOnly        Only time is returned
          CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime    Both energy/charge and time are returned
          CAEN_DGTZ_DPP_SAVE_PARAM_None            No histogram data is returned */
-      
+
       ret = CAEN_DGTZ_SetDPPAcquisitionMode(handle, AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_1, CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2);
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, ANALOG_TRACE_2, CAEN_DGTZ_DPP_VIRTUALPROBE_Input);
       ///ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle, DIGITAL_TRACE_1, CAEN_DGTZ_DPP_DIGITALPROBE_Peaking);
-      
+
       if( AcqMode ==  CAEN_DGTZ_DPP_ACQ_MODE_List){
          /// Set Extras 2 to enable, this override Accusition mode, focring list mode
          uint32_t value = 0x10E0114;
@@ -483,21 +489,21 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          /// Set the number of samples for each waveform
          ret |= CAEN_DGTZ_SetRecordLength(handle, RecordLength);
          printf("Setting digitizer to \e[33m%s\e[0m mode with recordLenght = \e[33m %d \e[0mch.\n", mode.c_str(), RecordLength);
-         
+
          /// Allocate memory for the waveforms
          for( int i = 0 ; i < MaxNChannels; i++){
            ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
          }
       }
-           
+
    }
    return ret;
 }
 
 int Digitizer::SetChannelRiseTime(int ch, string folder, int temp){
-  
+
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x105C +  (ch<<8), temp/8);
-  
+
   if( ret == 0 ) {
     TString command;
     command.Form("sed -i '7s/.*/%d     \\/\\/Trapezoid Rise Time (ch)/' %s/setting_%d.txt", temp, folder.c_str(), ch);
@@ -508,11 +514,11 @@ int Digitizer::SetChannelRiseTime(int ch, string folder, int temp){
     printf("fail. something wrong.\n");
   }
   return ret;
-  
+
 }
 
 int Digitizer::SetChannelFlatTop(int ch, string folder, int temp){
-  
+
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x1060 +  (ch<<8), temp/8);
 
   if( ret == 0 ) {
@@ -528,9 +534,9 @@ int Digitizer::SetChannelFlatTop(int ch, string folder, int temp){
 }
 
 int Digitizer::SetChannelDecay(int ch, string folder, int temp){
-  
+
   ret |= CAEN_DGTZ_WriteRegister(handle, 0x1068 +  (ch<<8), temp/8);
-    
+
   if( ret == 0 ) {
     TString command;
     command.Form("sed -i '9s/.*/%d     \\/\\/Decay Time Constant (ch)/' %s/setting_%d.txt", temp, folder.c_str(), ch);
@@ -583,11 +589,11 @@ int Digitizer::SetChannelDynamicRange(int ch, string folder, int dyRange){
 }
 
 void Digitizer::SetRegister(uint32_t address, int ch, uint32_t value){
-  
+
   ret != CAEN_DGTZ_WriteRegister(handle, address +  (ch<<8), value);
-  
+
   if( ret != 0 ) printf("fail. something wrong.\n");
-  
+
 }
 
 void Digitizer::SetChannelPlotRange(int ch, string folder, int min, int max){
@@ -964,10 +970,24 @@ void Digitizer::LoadGeneralSetting(string fileName){
       getline(file_in, line);
       size_t pos = line.find("//");
       if( pos > 1 ){
-        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
-        if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
-        if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());
-        count++;
+        if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());// Num of samples of the waveforms (only for waveform mode)
+        if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());// nano-sec (int), coincident time for event building
+        if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());// experiment number [XX]
+		if( count == 3  )   PrimBeam = line.substr(0, 4).c_str();// primary beam [AAZZ]
+		if( count == 4  )   PrimBeamQ = atoi(line.substr(0, pos).c_str());// primary beam charge state [X]
+		if( count == 5  )   PrimBeamE = atof(line.substr(0, pos).c_str());// primary beam total energy [MeV]
+		if( count == 6  )   ScaleFactor = atof(line.substr(0, pos).c_str());// secondary beam scale factor [X.XX], e.g., 5% = 1.05
+		if( count == 7  )   PrimBeamCurrent = atof(line.substr(0, pos).c_str());// primary beam current on FCA001 [enA]
+// RF-Sweeper On/Off [On/Off]
+// RF Sweeper (R501) Phase [deg]
+// RF Sweeper (R501) Amplitude [V]
+// Re-Buncher On/Off [On/Off]
+// Re-Buncher (R401) Phase [deg]
+// Re-Buncher (R401) Amplitude [V]
+// RAISOR midplane top vertical slit [mm]
+// RAISOR midplane bottome verical slit [mm]
+// target information, Gas/Solid, Type, Thick, Pressure, Temp, Strip. foil thick/position
+		count++;
       }
     }
 
@@ -1025,16 +1045,16 @@ void Digitizer::ReadData(bool debug){
   }*/
 
   /** Analyze data */
-  
+
   for (int ch = 0; ch < MaxNChannels; ch++) {
     if (!(ChannelMask & (1<<ch))) continue;
     ///printf("------------------------ %d \n", ch);
 
     for (int ev = 0; ev < NumEvents[ch]; ev++) {
       TrgCnt[ch]++;
-      
+
       if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev > 0) break;
-      
+
       if (Events[ch][ev].Energy > 0 && Events[ch][ev].TimeTag > 0 ) {
         ECnt[ch]++;
 
@@ -1059,7 +1079,7 @@ void Digitizer::ReadData(bool debug){
            ClearRawData();
            ClearData();
         }
-      } else { /// PileUp 
+      } else { /// PileUp
           PurCnt[ch]++;
       }
 
@@ -1169,7 +1189,7 @@ int Digitizer::BuildEvent(bool debug = false){
   ///################################################################
   int nRawData = rawEvCount + rawEvLeftCount;
   if( nRawData < 2 ) return 0; /// too few event to build;
-  
+
   countEventBuilt = 0;
 
   int sortIndex[nRawData];
