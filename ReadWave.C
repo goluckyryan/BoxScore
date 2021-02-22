@@ -5,16 +5,16 @@
 #include <TGraph.h>
 #include <TCanvas.h>
 #include <TSystem.h>
+#include <TRandom.h>
 #include <TH2.h>
 #include <TAxis.h>
 #include <iostream>
 
-bool isDisplay = false;
-bool isDataProcess = true;
+bool isDisplay = false; // false = DataProcess
 
 void ReadWave(){
 
-  TFile * file = new TFile("testing_8hr.root");
+  TFile * file = new TFile("test.root");
   TTree * tree = (TTree *) file->FindObjectAny("tree");
   
   int numEvent = tree->GetEntries();
@@ -28,7 +28,7 @@ void ReadWave(){
   
   if( isDisplay ) canvas->Divide(2,2);
   
-  TH2F * hXY = new TH2F("hXY", "hXY", 300, 0, 1, 300, 0, 1);
+  TH2F * hXY = new TH2F("hXY", "hXY", 300, 0, 3000, 300, 0, 3000);
   TGraph * g = NULL;
   
   for( int ev = 0 ; ev < numEvent; ev ++ ){
@@ -44,9 +44,8 @@ void ReadWave(){
     if( isDisplay ){
       for( int i = 0; i < size; i+= 2){
         g = (TGraph *) wave->At(i);
-        
+        if( g->GetN() == 0 ) continue;
         g->GetYaxis()->SetRangeUser(4000, 10000);
-        
         canvas->cd(i/2+1);
         
         //if( g->GetN() == 0 ) continue;
@@ -55,8 +54,6 @@ void ReadWave(){
         double yMin = g->GetYaxis()->GetXmin();
         
         double z1 = g->Integral(100, 200);
-        
-      
         
         g->SetTitle(Form("ev: %d, ch: %d, (%f, %f, %f)", ev, i, yMax, yMin, (yMax-yMin)/2.));
         
@@ -75,8 +72,22 @@ void ReadWave(){
     
     }
     
-    if( isDataProcess ){
+    if( !isDisplay ){
       
+      double A= 0, B = 0;
+      for( int i = 0; i < size; i+=2){
+        g = (TGraph *) wave->At(i);
+        
+        double p1 = g->Eval(500) + gRandom->Gaus(0, 10);
+        double p2 = g->Eval(1500) + gRandom->Gaus(0, 10);
+        
+        if( i == 0 ) A = p2-p1;
+        if( i == 4 ) B = p2-p1;
+      }
+      
+      hXY->Fill(A,B);
+      
+      /**
       double A = 0 ,B = 0,C = 0,D = 0;
       
       for( int i = 0; i < size; i+= 2){
@@ -110,6 +121,7 @@ void ReadWave(){
         hXY->Fill(X,Y);
         
       }
+      * */
       
       if( ev%1000 == 0 ){
         canvas->cd();

@@ -42,8 +42,8 @@ int main(int argc, char* argv[] ){
   }
 
   // mode = 0 ; gain_dE   = gain_E
-  // mode = 1 ; gain_dE   = gain_E/4
-  // mode = 2 ; gain_dE/4 = gain_E
+  // mode = 2 ; gain_dE   = gain_E/4
+  // mode = 1 ; gain_dE/4 = gain_E
   // mode = 3 ; custom gain
 
   string rootFile = argv[1];
