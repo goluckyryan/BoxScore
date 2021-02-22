@@ -106,6 +106,7 @@ public:
 
   int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
+  int      GetExpNumber()               {return ExpNumber;}
   uint32_t GetChannelMask() const       {return ChannelMask;}
   string   GetChannelMaskString();
 
@@ -207,6 +208,7 @@ private:
   int EventAggr;                             /// number of events in one aggregate (0=automatic), number of event acculated for read-off
 
   int CoincidentTimeWindow;  /// nano-sec
+  int ExpNumber; //infl##
 
   ///==================== retreved data
   int ECnt[MaxNChannels];
@@ -964,12 +966,14 @@ void Digitizer::LoadGeneralSetting(string fileName){
       if( pos > 1 ){
         if( count == 0  )   RecordLength = atoi(line.substr(0, pos).c_str());
         if( count == 1  )   CoincidentTimeWindow = atoi(line.substr(0, pos).c_str());
+        if( count == 2  )   ExpNumber = atoi(line.substr(0, pos).c_str());
         count++;
       }
     }
 
     printf(" %-25s  %5d ch\n", "Coincident Time Window", CoincidentTimeWindow);
-    printf(" %-25s  %5d ch\n", "Record Lenght", RecordLength);
+    printf(" %-25s  %5d ch\n", "Record Length", RecordLength);
+    printf(" %-21s  infl%2d ch\n", "Experiment Number", ExpNumber);
     printf("====================================== \n");
 
   }

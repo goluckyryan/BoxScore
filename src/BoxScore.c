@@ -138,12 +138,14 @@ int main(int argc, char *argv[]){
     printf("                         +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
     printf("                         +-- array (single Helios array) \n");
     printf("                         +-- MCP (Micro Channel Plate) \n");
+    printf("                         +-- music (MUSIC at SPS) \n");
     return -1;
   }
 
   TString cutopt = "RECREATE";   /// by default
   TString cutFileName; cutFileName = "data/cutsFile.root"; /// default
   TString archiveCutFile;
+
 
   const int nInput = argc;
   const int boardID = atoi(argv[1]);
@@ -198,6 +200,7 @@ int main(int argc, char *argv[]){
     gp = new GenericPlane();
     gp->SetChannelMask(0,0,0,1,0,0,1,0);
     gp->SetdEEChannels(1, 4);
+    //~ gp->SetTChannels(7);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "ZD" ) {
     gp = new GenericPlane();
@@ -217,6 +220,12 @@ int main(int argc, char *argv[]){
     gp = new HelioArray();
   }else if ( location == "MCP"){
     gp = new MicroChannelPlate();
+  }else if ( location == "music" ) {
+    gp = new GenericPlane();
+    gp->SetChannelMask(1,0,1,0,0,1,0,0);
+    gp->SetdEEChannels(2, 5);
+    gp->SetTChannels(7);
+    gp->SetNChannelForRealEvent(2);
   }else{
     printf(" no such plane. exit. \n");
     return 0;
@@ -247,11 +256,9 @@ int main(int argc, char *argv[]){
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp->SetChannelsPlotRange(dig.GetChannelsPlotRange());
   gp->SetGenericHistograms(); ///must be after SetChannelGain
-  for( int ch = 0; ch < MaxNChannels ; ch++){
-    gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
-    gp->SetFlatTop(ch, dig.GetChannelFlatTop(ch));
-    gp->SetFallTime(ch, dig.GetChannelDecay(ch));
-  }
+
+  /* DB push of general settings info */
+  WriteToDataBase(databaseName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
@@ -503,8 +510,8 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
 
         cooked();
-        int opt;
-        printf("Do you want to [1] update the current cut file or [2] create a new one?\n"); //GLW
+        int opt; int ctfl; char ctflnm[100]; char rcl[100];
+        printf("Do you want to [1] update the current cut file, [2] create a new one, or [3] reload an old one?\n");
         int temp = scanf("%d", &opt);
         if(opt==1){
            cutopt = "UPDATE";
@@ -514,14 +521,35 @@ int main(int argc, char *argv[]){
            if(cutcheck != nullptr){
               if(cutcheck->IsOpen()){
                  cutcheck->Close();
+		 printf("Do you want to [1] name old cuts file,[2] set it to a default name with current timestamp?\n");
+		 int tmp = scanf("%d",&ctfl);
+		 if(ctfl==1){
+		   printf("Enter name XXX; file will be called ArchiveCut_XXX.root:");
+		   tmp = scanf("%s",ctflnm);
+		   system(("cp "+cutFileName+" data/ArchiveCut_"+ctflnm+".root"));
+		 }else{
                  archiveCutFile.Form("data/ArchiveCut_%4d%02d%02d_%02d%02d.root", year, month, day, hour, minute);
                  system(("cp "+cutFileName+" "+archiveCutFile));
-                 printf("\n Save the old cutFile.root to %s \n", archiveCutFile.Data());
+                 printf("\n Save the old cutFile.root to %s \n", archiveCutFile.Data());}
               }else{
                  printf("cutsFile.root isn't open.\n");
               }
               printf("No cutsFile.root is open.\n");
            }
+	}else if(opt==3){
+	   TFile * cutcheck = (TFile *)gROOT->GetListOfFiles()->FindObject(cutFileName);
+           if(cutcheck != nullptr){
+              if(cutcheck->IsOpen()){
+                 cutcheck->Close();
+		 archiveCutFile.Form("data/ArchiveCut_%4d%02d%02d_%02d%02d.root", year, month, day, hour, minute);
+		 system(("cp "+cutFileName+" "+archiveCutFile));
+		 printf("Saving current file to %s\n",archiveCutFile.Data()); 
+		 system(("ls data/"));
+		 printf("Which file? Enter XXX of ArchiveCut_XXX.root\n");
+		 int tmp = scanf("%s",rcl);
+		 system(("cp "+cutFileName+" "+archiveCutFile+"; cp data/ArchiveCut_"+rcl+".root "+cutFileName));
+		  cutopt = "UPDATE";
+	      }}
         }else{
            cutopt = "UPDATE";
            printf("defaulting to updating the previous cutfile.\n");
@@ -533,6 +561,8 @@ int main(int argc, char *argv[]){
         int * rangeDE = gp->GetdERange();
         int chE = gp->GetEChannel();
         int chDE = gp->GetdEChannel();
+        int chT = gp->GetTChannel();
+
 
         string expression = "./CutsCreator " + (string)rootFileName + " " ;
         expression = expression + (string)cutopt + " ";
@@ -678,8 +708,10 @@ int main(int argc, char *argv[]){
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
       ///======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
-        ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
-        gp->FillTimeDiff((float)timeDiff * ch2ns);
+        //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
+        float timeDiff = (float)(dig.GetTimeStamp(i+1) - dig.GetTimeStamp(i));
+        //~ printf("timeDiff: %12.12f \n",timeDiff);
+        gp->FillTimeDiff((float)timeDiff * 2.0);
       }
 
       file.Append();
@@ -700,7 +732,8 @@ int main(int argc, char *argv[]){
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
-          gp->Fill(dig.GetEnergy(i));
+          gp->Fill(dig.GetEnergy(i), dig.GetTimeStamp(i));//crh
+          //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }
 
@@ -736,7 +769,7 @@ int main(int argc, char *argv[]){
       }
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0.) gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
+      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(databaseName, "totalRate", tag, totalRate);
 
       /// for isomer
@@ -768,6 +801,7 @@ int main(int argc, char *argv[]){
       file.WriteHistogram(gp->GethtotE());
       file.WriteHistogram(gp->GethdEE());
       file.WriteHistogram(gp->GethTDiff());
+      file.WriteHistogram(gp->GethdEdT());
       file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
 
       file.Close();

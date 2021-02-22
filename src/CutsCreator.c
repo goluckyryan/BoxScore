@@ -64,7 +64,7 @@ int main(int argc, char* argv[] ){
   float gainDE = 1, gainE = 1;
   if( argc >= 11) gainDE = atof(argv[10]);
   if( argc >= 12) gainE = atof(argv[11]);
-
+  //float gainDE = 1, gainE = 1;
   printf("========================\n");
   printf("   mode = %d\n", mode);
   printf("dE range (%d, %d)\n", rangeDE_min, rangeDE_max);
