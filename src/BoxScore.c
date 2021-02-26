@@ -555,16 +555,16 @@ int main(int argc, char *argv[]){
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
-       gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
-       if( isIntegrateWave ){
-         gp->FillEnergies(gp->GetWaveEnergy());
-         gp->Draw();
-         file.Append();
-         file.FillTreeWave(gp->GetWaveForm(), gp->GetWaveEnergy());
-         file.Close();
-       }else{
-         gp->DrawWaves();
-       }
+       //gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
+       //if( isIntegrateWave ){
+         //gp->FillWaveEnergies(gp->GetWaveEnergy());
+         //gp->Draw();
+         //file.Append();
+         //file.FillTreeWave(gp->GetWaveForm1(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
+         //file.Close();
+       //}else{
+         //gp->DrawWaves();
+       //}
 
     }
 

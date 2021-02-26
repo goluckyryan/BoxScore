@@ -85,27 +85,41 @@ public:
   uint32_t GetChannelThreshold(int ch);
   int      GetChannelDynamicRange(int ch);
   int      GetChannelGet(int ch)        {return ECnt[ch];}
+  int *    GetChannelsGet()             {return ECnt;}
+
+  int      GetChannelRiseTime(int ch) {return DPPParams.k[ch];}
+  int      GetChannelFlatTop(int ch) {return DPPParams.m[ch];}
+  int      GetChannelDecay(int ch) {return DPPParams.M[ch];}
+
+  int      SetChannelRiseTime(int ch, string folder, int temp);
+  int      SetChannelFlatTop(int ch, string folder, int temp);
+  int      SetChannelDecay(int ch, string folder, int temp);
+
+  void     SetVirtualProbe(int id, int type);
 
   int **   GetChannelsPlotRange()       {return plotRange;}
 
-  string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
+string   GetAcqMode()                 { return AcqMode == 1  ?  "list" :  "mixed" ;}
   uint32_t GetRecordLength()            { return RecordLength;}
   int      GetWaveFormLength(int ch)    { return waveformLength[ch];}
-  int16_t* GetWaveForm(int ch)          { return WaveLine[ch];}
-  uint8_t* GetDigitalWaveLine(int ch)   { return DigitalWaveLine[ch];} // not used
+  int16_t* GetWaveForm1(int ch)         { return WaveLine1[ch];}
+  int16_t* GetWaveForm2(int ch)         { return WaveLine2[ch];}
+  uint8_t* GetDigitalWaveForm(int ch)   { return DigitalWaveLine[ch];} // not used
 
   int*      GetWaveFormLengths()        { return waveformLength;}
-  int16_t** GetWaveForms()              { return WaveLine;}
+  int16_t** GetWaveForms1()             { return WaveLine1;}
+  int16_t** GetWaveForms2()             { return WaveLine2;}
+  uint8_t** GetDigitialWaveForms()       { return DigitalWaveLine;}
 
   int      Getch2ns()     {return ch2ns;}
   int      GetCoincidentTimeWindow()    {return CoincidentTimeWindow;}
+  
   int      GetExpNumber()               {return ExpNumber;}
   string   GetPrimBeam()               {return PrimBeam;}
   int      GetPrimBeamQ()              {return PrimBeamQ;}
   float    GetPrimBeamE()              {return PrimBeamE;}
   float    GetScaleFactor()             {return ScaleFactor;}
   float    GetPrimBeamCurrent()        {return PrimBeamCurrent;}
-
 
 
   uint32_t GetChannelMask() const       {return ChannelMask;}
@@ -182,8 +196,21 @@ private:
   uint32_t AllocatedSize, BufferSize;
   CAEN_DGTZ_DPP_PHA_Event_t  *Events[MaxNChannels];  /// events buffer
   CAEN_DGTZ_DPP_PHA_Waveforms_t   *Waveform[MaxNChannels];     /// waveforms buffer
+///======== the struct of CAEN_DGTZ_DPP_PHA_Waveforms_t
+///typedef struct{
+///uint32_t Ns;
+///    uint8_t  DualTrace;
+///    uint8_t  VProbe1;
+///    uint8_t  VProbe2;
+///    uint8_t  VDProbe;
+///    int16_t *Trace1;
+///    int16_t *Trace2;
+///    uint8_t  *DTrace1;
+///    uint8_t  *DTrace2;
+///} CAEN_DGTZ_DPP_PHA_Waveforms_t;
 
-  int16_t *WaveLine[MaxNChannels];
+  int16_t *WaveLine1[MaxNChannels];
+  int16_t *WaveLine2[MaxNChannels];
   uint8_t *DigitalWaveLine[MaxNChannels];
   int waveformLength[MaxNChannels];
 
@@ -216,7 +243,7 @@ private:
   float ScaleFactor;
   float PrimBeamCurrent;
 
-  //==================== retreved data
+  //==================== retreived data
   int ECnt[MaxNChannels];
   int TrgCnt[MaxNChannels];
   int PurCnt[MaxNChannels];
@@ -245,12 +272,16 @@ private:
   UInt_t ** Energy;
   ULong64_t ** TimeStamp;
 
+
+
   void ZeroSingleEvent();
 
   int CalNOpenChannel(uint32_t mask);
 };
 
 Digitizer::Digitizer(int ID, uint32_t ChannelMask){
+
+
 
   ///================== initialization
   boardID  = ID;
@@ -355,6 +386,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask){
       isDetected = false;
     }
   }
+
+
 
   if( isDetected ) {
 
@@ -1085,11 +1118,19 @@ void Digitizer::ReadData(bool debug){
 
       if( AcqMode != CAEN_DGTZ_DPP_ACQ_MODE_List && ev == 0) {
          /// only get the 0th event
+        // ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
+         /// Use waveform data here...
+        // waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
+       //  WaveLine[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
+         ///DigitalWaveLine = Waveform->DTrace1;        /// First Digital Trace (DIGITALPROBE1)
+       if ( Events[ch][ev].TimeTag > 0 ) ECnt[ch]++;
+         /// only get the 0th event
          ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
          /// Use waveform data here...
          waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
-         WaveLine[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
-         ///DigitalWaveLine = Waveform->DTrace1;        /// First Digital Trace (DIGITALPROBE1)
+         WaveLine1[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
+         WaveLine2[ch] = Waveform[ch]->Trace2;           /// Second trace (ANALOG_TRACE_2)
+      
       }
     } /// loop on events
   } /// loop on channels
