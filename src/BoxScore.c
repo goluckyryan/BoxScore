@@ -263,9 +263,9 @@ int main(int argc, char *argv[]){
   gp->SetGenericHistograms(); ///must be after SetChannelGain
 
   /* DB push of general settings info */
-  WriteToDataBase(databaseName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
-  WriteToDataBaseString(databaseName, "Location", "tag=general", location);
-  WriteToDataBaseString(databaseName, "PrimBeam", "tag=general", dig.GetPrimBeam());
+  WriteToDataBase(expName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
+  WriteToDataBaseString(expName, "Location", "tag=general", location);
+  WriteToDataBaseString(expName, "PrimBeam", "tag=general", dig.GetPrimBeam());
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
@@ -753,7 +753,7 @@ int main(int argc, char *argv[]){
 
       for (int ch = 0; ch < MaxNChannels; ch++) {
 	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(databaseName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+	    WriteToDataBase(expName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
 	  }
 
       dig.PrintReadStatistic();
@@ -771,15 +771,15 @@ int main(int argc, char *argv[]){
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(databaseName, "totalRate", tag, totalRate);
+      WriteToDataBase(expName, "totalRate", tag, totalRate);
 
 
       /// for isomer
       if( gp->GetClassID() == 2 ) {
-        WriteToDataBase( databaseName, "G1", tag, gp->GetG1Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G2", tag, gp->GetG2Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G3", tag, gp->GetG3Count()/timeRangeSec);
-        WriteToDataBase( databaseName, "G4", tag, gp->GetG4Count()/timeRangeSec);
+        WriteToDataBase( expName, "G1", tag, gp->GetG1Count()/timeRangeSec);
+        WriteToDataBase( expName, "G2", tag, gp->GetG2Count()/timeRangeSec);
+        WriteToDataBase( expName, "G3", tag, gp->GetG3Count()/timeRangeSec);
+        WriteToDataBase( expName, "G4", tag, gp->GetG4Count()/timeRangeSec);
         gp->SetCountZero();
       }
 
@@ -788,7 +788,7 @@ int main(int argc, char *argv[]){
           double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
           printf(" Rate(%4s) :%7.2f pps\n", gp->GetCutName(i).Data(), count);
           //----------------- write to database
-          WriteToDataBase(databaseName, gp->GetCutName(i).Data(), tag, count);
+          WriteToDataBase(expName, gp->GetCutName(i).Data(), tag, count);
         }
       }
 
@@ -913,12 +913,11 @@ void WriteToDataBase(string databaseName, TString seriesName, TString tag, float
     TString databaseStr;
 
     if( !isDataBaseExist ) {
-		databaseStr.Form("influx -execute \'create database %s\'", databaseName.c_str());
-		system(databaseStr.Data());
-		isDataBaseExist = true;
-	}
+  		databaseStr.Form("influx -execute \'create database %s\'", databaseName.c_str());
+  		system(databaseStr.Data());
+  		isDataBaseExist = true;
+	  }
     databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.c_str());
-    //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
 }
@@ -927,7 +926,6 @@ void WriteToDataBaseString(TString databaseName, TString seriesName, TString tag
   if( value >= 0 ){
     TString databaseStr;
     databaseStr.Form("influx -execute \'insert %s,%s value=\"%s\"\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
-    //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
 }
