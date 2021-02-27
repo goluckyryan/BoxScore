@@ -908,7 +908,7 @@ int keyboardhit(){
   return (status);
 }
 
-void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value){
+void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
   if( value >= 0 ){
     TString databaseStr;
 
