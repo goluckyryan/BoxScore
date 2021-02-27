@@ -81,8 +81,8 @@ static void uncooked(void);  ///set keyboard behaviour as immediate repsond
 static void raw(void);
 int getch(void);
 int keyboardhit();
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value);
-void WriteToDataBaseString(TString databaseName, TString seriesName, TString tag, TString value);
+void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value);
+void WriteToDataBaseString(string databaseName, TString seriesName, TString tag, TString value);
 
 bool isIntegrateWave = false;
 bool isTimedACQ = false;
@@ -908,7 +908,7 @@ int keyboardhit(){
   return (status);
 }
 
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value){
   if( value >= 0 ){
     TString databaseStr;
 
@@ -922,7 +922,7 @@ void WriteToDataBase(TString databaseName, TString seriesName, TString tag, floa
   }
 }
 
-void WriteToDataBaseString(TString databaseName, TString seriesName, TString tag, TString value){
+void WriteToDataBaseString(string databaseName, TString seriesName, TString tag, TString value){
   if( value >= 0 ){
     TString databaseStr;
     databaseStr.Form("influx -execute \'insert %s,%s value=\"%s\"\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
