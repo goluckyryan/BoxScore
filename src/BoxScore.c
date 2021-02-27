@@ -65,8 +65,8 @@ using namespace std;
 
 //========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; ///Table, tree, Plots update period in mili-sec.
-bool isSaveRaw = false;  /// saving Raw data
-TString databaseName="RAISOR_exit"; ///database
+///bool isSaveRaw = false;  /// saving Raw data
+bool isDataBaseExist = false;
 string location;
 bool  QuitFlag = false;
 
@@ -102,6 +102,18 @@ void PrintCommands(){
   printf("i ) integrate-wave      T ) timed ACQ\n");
 }
 
+void PrintTrapezoidCommands(){
+  printf("\n");
+  printf("\e[96m=============  Trapezoid Setting  ===================\e[0m\n");
+  printf("r) rise time[ns]        l) set wave record Length\n");
+  printf("t) flat-top [ns]        b) base line end time [ns]\n");
+  printf("f) decay time[ns]       u) set probe type\n");
+  printf("------------------------------------------------------------\n");
+  ///printf("s ) Start acquisition  \n");
+  ///printf("a ) Stop acquisition   \n");
+  ///printf("d ) List Mode           p ) Print Channel setting\n");
+}
+
 void paintCanvas(){
   ///This function is running in a parrellel thread.
   ///This continously update the Root system with user input
@@ -117,9 +129,13 @@ void paintCanvas(){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
 
-  if( argc != 3 && argc != 4 && argc != 5 ) {
+  if( argc != 3 && argc != 4 && argc != 5 && argc != 6 ) {
     printf("usage:\n");
-    printf("$./BoxScoreXY boardID location (tree.root) (debug)\n");
+    printf("                + use DetectDigitizer   \n");
+    printf("                |\n");
+    printf("                |                + setting folder, database name \n");
+    printf("                |                |\n");
+    printf("$./BoxScore  boardID location expName (tree.root) (debug)\n");
     printf("                         | \n");
     printf("                         +-- testing (all ch)\n");
     printf("                         +-- exit (dE = 0 ch, E = 3 ch)\n");
@@ -142,10 +158,12 @@ int main(int argc, char *argv[]){
   const int boardID = atoi(argv[1]);
   string location = argv[2];
 
+  string expName = argv[3];
+
   TString rootFileName;
-  if( argc >= 4 ) rootFileName = argv[3];
+  if( argc >= 5 ) rootFileName = argv[4];
   bool isDebug= false;
-  if( argc >= 5 ) isDebug = atoi(argv[4]);
+  if( argc >= 6 ) isDebug = atoi(argv[5]);
 
   char hostname[100];
   gethostname(hostname, 100);
@@ -159,8 +177,8 @@ int main(int argc, char *argv[]){
   int minute = ltm->tm_min;
   int secound = ltm->tm_sec;
 
-  //==== default root file name based on datetime and plane
-  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  ///==== default root file name based on datetime and plane
+  if( argc == 4 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
 
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
 
@@ -225,6 +243,7 @@ int main(int argc, char *argv[]){
   printf("   Location :\e[33m %s \e[0m\n", location.c_str() );
   printf("      Class :\e[33m %s \e[0m\n", gp->GetClassName().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
+  printf("   Exp Name :\e[33m %s \e[0m, same as database name \n", expName.c_str());
 
   /* *************************************************************************************** */
   /* Canvas and Digitzer                                                                               */
@@ -232,8 +251,10 @@ int main(int argc, char *argv[]){
 
   uint ChannelMask = gp->GetChannelMask();
 
-  Digitizer dig(boardID, ChannelMask);
+  Digitizer dig(boardID, ChannelMask, expName);
   if( !dig.IsConnected() ) return -1;
+
+  string tag = "tag=" + location; //tag for database
 
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());
@@ -257,22 +278,26 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
 
-  string folder = to_string(dig.GetSerialNumber());
+  string folder = "setting/" +  expName;
   FileIO file(rootFileName);
-  file.WriteMacro(folder + "/generalSetting.txt");
+
+  ///==== Save setting into the root file
+  TMacro gSetting((folder + "/generalSetting.txt").c_str());
+  gSetting.Write("generalSetting");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-      file.WriteMacro(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  TMacro chSetting(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  chSetting.Write(Form("setting_%i", i));
     }
   }
   file.SetTree("tree", MaxNChannels);
   file.Close();
 
   FileIO * rawFile = NULL ;
-  if( isSaveRaw ) {
+  ///if( isSaveRaw ) {
     ///rawFile = new FileIO("raw.root");
     ///rawFile->SetTree("rawTree", 1);
-  }
+  ///}
 
   thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
@@ -543,6 +568,81 @@ int main(int argc, char *argv[]){
         gp->Draw();
         uncooked();
       }
+      if( (c == 'r' || c == 't' || c == 'f' ) && dig.GetAcqMode() == "mixed"){  ////========== Set Trapezoid rise time, only for wave mode
+        dig.StopACQ();
+        dig.ClearRawData();
+        cooked();
+        int ch;
+        printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
+        int temp = scanf("%d", &ch);
+        int old_setting ;
+        int setting;
+        string settingType;
+        if( c == 'r') {
+          settingType = "Rise Time";
+          old_setting = gp->GetRiseTime(ch);
+        }else if( c == 't') {
+          settingType = "Flat Top";
+          old_setting = gp->GetFlatTop(ch);
+        }else if( c == 'f') {
+          settingType = "Decay/Pole-Zero";
+          old_setting = gp->GetFallTime(ch);
+        }
+
+        printf("Present %s %d [ch] = %d [ns], New setting in [ch] ?", settingType.c_str(), old_setting, old_setting * 2);
+        temp = scanf("%d", &setting);
+        setting = setting/8*8;
+        if( c == 'r') {
+          gp->SetRiseTime(ch, setting);
+          dig.SetChannelRiseTime(ch, folder, setting);
+        }else if( c == 't') {
+          gp->SetFlatTop(ch, setting);
+          dig.SetChannelFlatTop(ch, folder, setting);
+        }else if( c == 'f') {
+          gp->SetFallTime(ch, setting);
+          dig.SetChannelDecay(ch, folder, setting);
+        }
+
+        uncooked();
+        dig.StartACQ();
+      }
+      if( c == 'b' && dig.GetAcqMode() == "mixed"){  ////========== Set Trapezoid baseline estimation, only for wave mode
+        cooked();
+        int ch;
+        printf("Which Channel [%s] ? ", dig.GetChannelMaskString().c_str());
+        int temp = scanf("%d", &ch);
+        int old_setting = gp->GetBaseLineEnd(ch);
+        int setting;
+        printf("Present Base-Line-End %d [ch] = %d [ns], New setting in [ch] ?", old_setting, old_setting * 2);
+        temp = scanf("%d", &setting);
+        gp->SetBaseLineEnd(ch, setting);
+        uncooked();
+      }
+      if( c == 'l' && dig.GetAcqMode() == "mixed"){  ////========== Set wave form record length, only for wave mode
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("\n\n##################################\n");
+        cooked();
+        int length = dig.GetRecordLength(); /// in ch
+        printf("Set Record Length in [ns] ( present : %d [ch])? ", dig.GetRecordLength());
+        int temp = scanf("%d", &length);
+        dig.SetAcqMode("mixed", length);
+        uncooked();
+      }
+      if( c == 'u' && dig.GetAcqMode() == "mixed"){  ////========== Set Virtual Probe type
+        dig.StopACQ();
+        dig.ClearRawData();
+        printf("\n\n##################################\n");
+        cooked();
+        int probeID = 1;
+        printf("Choose probe [1 or 2]? " );
+        int temp = scanf("%d", &probeID);
+        int type = 0;
+        printf("Set probe type by [0- 31]: " );
+        temp = scanf("%d", &type);
+        dig.SetVirtualProbe(probeID, type);
+        uncooked();
+      }
       PrintCommands();
     }//------------ End of keyboardHit
 
@@ -555,24 +655,31 @@ int main(int argc, char *argv[]){
     ///so data should be read as fast as possible, that the digitizer will not store any data.
     dig.ReadData(isDebug);
     if( dig.GetAcqMode() == "mixed" ) {
-       //gp->FillWaves(dig.GetWaveFormLengths(), dig.GetWaveForms());
-       //if( isIntegrateWave ){
-         //gp->FillWaveEnergies(gp->GetWaveEnergy());
-         //gp->Draw();
-         //file.Append();
-         //file.FillTreeWave(gp->GetWaveForm1(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
-         //file.Close();
-       //}else{
-         //gp->DrawWaves();
-       //}
+       if( !file.isOpen() ) file.Append();
 
+       gp->FillWaves1(dig.GetWaveFormLengths(), dig.GetWaveForms1());
+       gp->FillWaves2(dig.GetWaveFormLengths(), dig.GetWaveForms2());
+       ///gp->FillDigitWave(dig.GetWaveFormLengths(), dig.GetDigitialWaveForms()); // not working ?
+       if( isIntegrateWave ){
+         gp->FillWaveEnergies(gp->GetWaveEnergy());
+         gp->Draw();
+         ///Get Raw ch, energy, timestamp
+         int * chRaw = dig.GetRawChannel();
+         ULong64_t * timeRaw = dig.GetRawTimeStamp();
+         int nRaw = dig.GetNumRawEvent();
+         file.FillTreeWave(gp->GetWaveForm1(), gp->GetWaveEnergy(), nRaw, chRaw, timeRaw);
+        gp->ClearWaveEnergies();
+       }else{
+         gp->DrawWaves();
+       }
+       dig.ClearRawData(); /// clean up raw data, as no event build, the raw data accumulate, that will reflect the actual trigger rate
     }
 
-    if( isSaveRaw ) {
+    ///if( isSaveRaw ) {
       ///for( int i = 0 ; i < dig.GetNumRawEvent(); i++){
       ///  rawFile.FillTree();
       ///}
-    }
+    ///}
 
     //##################################################################
     CurrentTime = get_time();
@@ -592,6 +699,8 @@ int main(int argc, char *argv[]){
         break;
       }
     }
+
+
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
     //if (ElapsedTime > updatePeriod ) {
@@ -621,6 +730,7 @@ int main(int argc, char *argv[]){
           //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }
+      file.Close();
 
       gp->FillHit(dig.GetNChannelEventCount());
 
@@ -631,7 +741,7 @@ int main(int argc, char *argv[]){
       printf("Time Elapsed         = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
       printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size            : %.4f MB \n", fileSize );
-      printf("Database             : %s\n", databaseName.Data());
+      printf("Database             : %s\n", expName.c_str());
 
       printf("\n");
 
@@ -697,7 +807,6 @@ int main(int argc, char *argv[]){
       file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
 
       file.Close();
-
       dig.ClearData();
 
       PreviousTime = CurrentTime;
@@ -706,9 +815,22 @@ int main(int argc, char *argv[]){
 
   } //============== End of readout loop
 
-  if( isSaveRaw ) {
+  ///if( isSaveRaw ) {
     ///rawFile->Close();
-  }
+  ///}
+
+
+///============ wirte histogram into tree
+// TODO, a generic method for saving all histogram even in derivative class
+  file.Append();
+  file.WriteHistogram(gp->GethdEtotE());
+  file.WriteHistogram(gp->GethE());
+  file.WriteHistogram(gp->GethdE());
+  file.WriteHistogram(gp->GethtotE());
+  file.WriteHistogram(gp->GethdEE());
+  file.WriteHistogram(gp->GethTDiff());
+  file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
+  file.Close();
 
   paintCanvasThread.detach();
 
@@ -786,10 +908,16 @@ int keyboardhit(){
   return (status);
 }
 
-void WriteToDataBase(TString databaseName, TString seriesName, TString tag, float value){
+void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value){
   if( value >= 0 ){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.Data());
+
+    if( !isDataBaseExist ) {
+		databaseStr.Form("influx -execute \'create database %s\'", databaseName.c_str());
+		system(databaseStr.Data());
+		isDataBaseExist = true;
+	}
+    databaseStr.Form("influx -execute \'insert %s,%s value=%f\' -database=%s", seriesName.Data(), tag.Data(), value, databaseName.c_str());
     //printf("%s \n", databaseStr.Data());
     system(databaseStr.Data());
   }
