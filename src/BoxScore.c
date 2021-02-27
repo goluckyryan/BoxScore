@@ -925,7 +925,7 @@ void WriteToDataBase(string databaseName, TString seriesName, TString tag, float
 void WriteToDataBaseString(string databaseName, TString seriesName, TString tag, TString value){
   if( value >= 0 ){
     TString databaseStr;
-    databaseStr.Form("influx -execute \'insert %s,%s value=\"%s\"\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.Data());
+    databaseStr.Form("influx -execute \'insert %s,%s value=\"%s\"\' -database=%s", seriesName.Data(), tag.Data(), value.Data(), databaseName.c_str());
     system(databaseStr.Data());
   }
 }
