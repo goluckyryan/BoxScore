@@ -167,6 +167,12 @@ int main(int argc, char *argv[]){
 
   char hostname[100];
   gethostname(hostname, 100);
+  
+    /// some variable use in the programs
+  bool isIntegrateWave = false;
+  bool isTimedACQ = false;
+  int ZeroEventBuildCount = 0;
+  int timeLimitSec = -1;
 
   time_t now = time(0);
   tm *ltm = localtime(&now);
@@ -266,6 +272,12 @@ int main(int argc, char *argv[]){
   WriteToDataBase(expName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
   WriteToDataBaseString(expName, "Location", "tag=general", location);
   WriteToDataBaseString(expName, "PrimBeam", "tag=general", dig.GetPrimBeam());
+  
+  for( int ch = 0; ch < MaxNChannels ; ch++){
+    gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
+    gp->SetFlatTop(ch, dig.GetChannelFlatTop(ch));
+    gp->SetFallTime(ch, dig.GetChannelDecay(ch));
+  }
 
   ///things for derivative of GenericPlane
   if( gp->GetClassID() != 0  ) gp->SetOthersHistograms();
@@ -342,7 +354,9 @@ int main(int argc, char *argv[]){
       if (c == 'a')  { //========== stop acquisition
         dig.StopACQ();
         dig.ClearRawData();
+        dig.ClearData();
         StopTime = get_time();
+        if( file.isOpen() ) file.Close();
         printf("========== Duration : %u msec\n", StopTime - StartTime);
       }
       if ( c == 'T'){ //============ Timed acquisition
@@ -355,7 +369,6 @@ int main(int argc, char *argv[]){
         StartTime = get_time();
         isTimedACQ  = true;
         printf("ACQ for %d sec\n", timeLimitSec);
-
         dig.StartACQ();
       }
       if (c == 'z')  { //========== Change threshold
@@ -404,7 +417,7 @@ int main(int argc, char *argv[]){
         dig.ClearRawData();
         dig.PrintThresholdAndDynamicRange();
       }
-      if ( c == 'l'){ // load channel setting from a file
+      if( c == 'l' && dig.GetAcqMode() == "list"){ ////========== load channel setting from a file
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
@@ -414,7 +427,7 @@ int main(int argc, char *argv[]){
         int temp = scanf("%d", &ch);
         char loadfile[100];
         if( dig.GetChannelMask() & ( 1 << ch) ){
-           printf("Change channel-%d from file (serie No. %d)? ", ch, dig.GetSerialNumber());
+           printf("Change channel-%d from file (e.g. %d/setting_0.txt)? ", ch, dig.GetSerialNumber());
            temp = scanf("%s", loadfile);
            printf("----> load from %s\n", loadfile);
            dig.LoadChannelSetting(ch, loadfile);
@@ -426,7 +439,7 @@ int main(int argc, char *argv[]){
         }
         uncooked();
       }
-      if( c == 't' ){ //========== Change coincident time window
+        if( c == 't' && dig.GetAcqMode() == "list"){ ////========== Change coincident time window
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
@@ -439,31 +452,33 @@ int main(int argc, char *argv[]){
         gp->Draw();
         uncooked();
       }
-      if( c == 'w' ){ //========== wave form mode
-
+if( c == 'w'){ ////========== wave form mode
         if( dig.GetAcqMode() == "mixed" && isIntegrateWave == false){
            printf("Already in mixed mode\n");
         }else{
            dig.StopACQ();
            dig.ClearRawData();
            printf("\n\n##################################\n");
-           //cooked();
-           int length = 4000;
-           //printf("Change to read Wave Form, Set Record Length [ns]? ");
-           //int temp = scanf("%d", &length);
-           dig.SetAcqMode("mixed", length/2); //becasue 1ch = 2 ns
-           gp->SetWaveCanvas(length/2);
-           dig.StartACQ();
+           ///cooked();
+           ///int length = 4000; /// in ch
+           ///printf("Change to read Wave Form, Set Record Length [ns]? ");
+           ///int temp = scanf("%d", &length);
+           ///dig.SetAcqMode("mixed", length);
+           dig.SetAcqMode("mixed"); /// if no length input, the record length is same as genernal setting
+           gp->SetWaveCanvas((int) dig.GetRecordLength());
+           ///dig.StartACQ();
            isIntegrateWave = false;
-           //uncooked();
+           ///uncooked();
         }
+        StartTime = get_time();
       }
-      if( c == 'i'  ) { //============= integrate waveform mode
+      if( c == 'i'){ ////========== integrate waveform mode
         dig.StopACQ();
         dig.ClearRawData();
         printf("\n\n###############################\n");
-        int length = 4000;
-        dig.SetAcqMode("mixed", length/2);
+        dig.SetAcqMode("mixed");
+        gp->SetCanvasTitleDivision(location + " | " + rootFileName);
+        gp->Draw();
         isIntegrateWave = true;
       }
       if( c == 'd' ){ //========== Change coincident time window
@@ -477,6 +492,10 @@ int main(int argc, char *argv[]){
            gp->SetCanvasTitleDivision(rootFileName);
            gp->Draw();
         }
+      }
+      if( c == 'y' && dig.GetAcqMode() == "list"){ ////========== reset histograms, only for list mode
+        gp->ClearHistograms();
+        gp->Draw();
       }
       if( c == 'r' ){ //========== Change dE E range
         dig.StopACQ();
@@ -512,7 +531,7 @@ int main(int argc, char *argv[]){
         PrintCommands();
         uncooked();
       }
-      if( c == 'c' ){ //========== pause and make cuts
+      if( c == 'c' && dig.GetAcqMode() == "list"){ ////========== pause and make cuts, only for list mode
         dig.StopACQ();
         dig.ClearRawData();
 
