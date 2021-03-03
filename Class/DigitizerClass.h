@@ -1293,13 +1293,6 @@ void Digitizer::ReadData(bool debug){
 
          if ( Events[ch][ev].TimeTag > 0 ) ECnt[ch]++;
          /// only get the 0th event
-        // ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
-         /// Use waveform data here...
-        // waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
-       //  WaveLine[ch] = Waveform[ch]->Trace1;           /// First trace (ANALOG_TRACE_1)
-         ///DigitalWaveLine = Waveform->DTrace1;        /// First Digital Trace (DIGITALPROBE1)
-       if ( Events[ch][ev].TimeTag > 0 ) ECnt[ch]++;
-         /// only get the 0th event
          ret = CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events[ch][ev], Waveform[ch]);
          /// Use waveform data here...
          waveformLength[ch] = (int)(Waveform[ch]->Ns);  /// Number of samples
