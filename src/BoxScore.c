@@ -167,7 +167,7 @@ int main(int argc, char *argv[]){
 
   char hostname[100];
   gethostname(hostname, 100);
-  
+
     /// some variable use in the programs
   bool isIntegrateWave = false;
   bool isTimedACQ = false;
@@ -272,7 +272,7 @@ int main(int argc, char *argv[]){
   WriteToDataBase(expName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
   WriteToDataBaseString(expName, "Location", "tag=general", location);
   WriteToDataBaseString(expName, "PrimBeam", "tag=general", dig.GetPrimBeam());
-  
+
   for( int ch = 0; ch < MaxNChannels ; ch++){
     gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
     gp->SetFlatTop(ch, dig.GetChannelFlatTop(ch));
@@ -485,19 +485,19 @@ if( c == 'w'){ ////========== wave form mode
         if( dig.GetAcqMode() == "list" ) {
            printf("Already in list mode\n");
         }else{
-           dig.StopACQ();
-           dig.ClearRawData();
-           printf("Change to List mode.\n");
-           dig.SetAcqMode("list", 2000);
-           gp->SetCanvasTitleDivision(rootFileName);
-           gp->Draw();
+          dig.StopACQ();
+          dig.ClearRawData();
+          printf("Change to List mode.\n");
+          dig.SetAcqMode("list");
+          gp->SetCanvasTitleDivision(location + " | " + rootFileName);
+          gp->Draw();
         }
       }
       if( c == 'y' && dig.GetAcqMode() == "list"){ ////========== reset histograms, only for list mode
         gp->ClearHistograms();
         gp->Draw();
       }
-      if( c == 'r' ){ //========== Change dE E range
+      if( c == 'r' && dig.GetAcqMode() == "list"){ //========== Change dE E range
         dig.StopACQ();
         dig.ClearRawData();
         cooked();
@@ -663,6 +663,8 @@ if( c == 'w'){ ////========== wave form mode
         uncooked();
       }
       PrintCommands();
+
+      if( dig.GetAcqMode() == "mixed" ) PrintTrapezoidCommands();
     }//------------ End of keyboardHit
 
     if (!dig.IsRunning()) {
@@ -705,30 +707,27 @@ if( c == 'w'){ ////========== wave form mode
     ElapsedTime = CurrentTime - PreviousTime; /// milliseconds
 
     if ( ElapsedTime > updatePeriod && dig.GetAcqMode() == "mixed" )  {
-       system("clear");
-       PrintCommands();
-       printf("\n\n");
-       printf("Time elapsed: %f sec\n", (CurrentTime - StartTime)/1000. );
-       dig.PrintReadStatistic();
-       PreviousTime = CurrentTime;
+      system("clear");
+      PrintCommands();
+      printf("\n");
+      PrintTrapezoidCommands();
+      printf("\n\n");
+      printf("Time elapsed: %f sec\n", (CurrentTime - StartTime)/1000. );
 
-      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
-        dig.StopACQ();
-        dig.ClearRawData();
-        break;
-      }
+      PreviousTime = CurrentTime;
+
+      double fileSize = file.GetFileSize() ;
+      printf("Built-event save to  : %s \n", rootFileName.Data());
+      printf("File size            : %.4f MB \n", fileSize );
+      printf("\n");
+
+      dig.PrintReadStatistic();
+
     }
 
 
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
-    //if (ElapsedTime > updatePeriod ) {
-
-      if( isTimedACQ && CurrentTime - StartTime > timeLimitSec) {
-        dig.StopACQ();
-        dig.ClearRawData();
-        break;
-      }
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
@@ -741,12 +740,21 @@ if( c == 'w'){ ////========== wave form mode
       double fileSize = file.GetFileSize() ;
 
       int buildID = dig.BuildEvent(isDebug);
+
+      ///After 5 cycle and number of build event is zero, flush the remain data.
+      if( dig.GetEventBuiltCount() == 0 ) {
+        ZeroEventBuildCount ++;
+      }else{
+        ZeroEventBuildCount = 0;
+      }
+
+      if( ZeroEventBuildCount > 4 ) dig.ClearRawData();
+
       gp->ZeroCountOfCut();
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
           gp->Fill(dig.GetEnergy(i), dig.GetTimeStamp(i));//crh
-          //or do a second gp->Fill(dig.GetTimeStamp(i))
         }
       }
       file.Close();
@@ -814,22 +822,18 @@ if( c == 'w'){ ////========== wave form mode
       //============ Draw histogram
       gp->Draw();
 
-      //============ wirte histogram into tree
-      // TODO, a generic method for saving all histogram even in derivative class
-      file.WriteHistogram(gp->GethdEtotE());
-      file.WriteHistogram(gp->GethE());
-      file.WriteHistogram(gp->GethdE());
-      file.WriteHistogram(gp->GethtotE());
-      file.WriteHistogram(gp->GethdEE());
-      file.WriteHistogram(gp->GethTDiff());
-      file.WriteHistogram(gp->GethdEdT());
-      file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
-
-      file.Close();
       dig.ClearData();
 
       PreviousTime = CurrentTime;
 
+    }
+
+    if( isTimedACQ && CurrentTime - StartTime > timeLimitSec * 1000) {
+      dig.StopACQ();
+      dig.ClearRawData();
+      if( file.isOpen() ) file.Close();
+      PrintCommands();
+      printf("=========== time-up.\n");
     }
 
   } //============== End of readout loop
@@ -852,6 +856,8 @@ if( c == 'w'){ ////========== wave form mode
   file.Close();
 
   paintCanvasThread.detach();
+
+  printf("========== bye bye =========== \n");
 
   return 0;
 }
