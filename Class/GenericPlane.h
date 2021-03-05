@@ -256,7 +256,7 @@ GenericPlane::GenericPlane(){
 
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
 
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1200, 600);
+  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1000, 1000);
   gStyle->SetOptStat("neiou");
 
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
