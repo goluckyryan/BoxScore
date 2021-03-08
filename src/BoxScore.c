@@ -140,6 +140,7 @@ int main(int argc, char *argv[]){
     printf("                         +-- testing (all ch)\n");
     printf("                         +-- exit (dE = 0 ch, E = 3 ch)\n");
     printf("                         +-- cross (dE = 1 ch, E = 4 ch)\n");
+    printf("                         +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
     printf("                         +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
     printf("                         +-- XY (Helios target XY) \n");
     printf("                         +-- iso (isomer with Glover Ge detector) \n");
@@ -206,10 +207,15 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
+    gp->SetChannelMask(0,0,0,1,0,0,1,0);
+    gp->SetdEEChannels(1, 4);
+    gp->SetNChannelForRealEvent(2);
+  }else if ( location == "crosstime" ) {
+    gp = new GenericPlane();
     gp->SetChannelMask(1,0,0,1,0,0,1,0);
     gp->SetdEEChannels(1, 4);
     gp->SetTChannels(7);
-    gp->SetNChannelForRealEvent(2);
+    gp->SetNChannelForRealEvent(3);
   }else if ( location == "ZD" ) {
     gp = new GenericPlane();
     gp->SetChannelMask(0,0,1,0,0,1,0,0);

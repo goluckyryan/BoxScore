@@ -1,5 +1,5 @@
 4096    // Num of samples of the waveforms (only for waveform mode)
-200     // nano-sec (int), coincident time for event building
+400     // nano-sec (int), coincident time for event building
 20      // experiment number [XX]
 40Ar	// primary beam [AAZZ]
 14		// primary beam charge state [X]
