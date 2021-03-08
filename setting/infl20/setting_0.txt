@@ -1,23 +1,23 @@
 //============= Discriminator
-210     //Tigger Threshold (in LSB)
+100     //Tigger Threshold (in LSB)
 496     // Trigger Hold Off
 32      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
-100     // Input Signal Rise time (ns)
+48     // Input Signal Rise time (ch)
 //============= Trapezoid
-500    // Trapezoid Rise Time (ch)
-500    // Trapezoid Flat Top  (ch)
-50000   // Decay Time Constant (ns)
-250    // Flat top delay (peaking time) (ns)
-1       // Ns peak, Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
-960     // Peak holdoff (ns)
+496     //Trapezoid Rise Time (ch)
+496     //Trapezoid Flat Top  (ch)
+5000     //Decay Time Constant (ch)
+250    // Flat top delay (peaking time) (ch)
+3       // Ns peak, Peak mean (number of samples to average for trapezoid height calculation). Options: 0-> 1 sample; 1->4 samples; 2->16 samples; 3->64 samples
+400     // Peak holdoff (ch), start at the end of flat-top, defines how close must be two trapezoid to be considered as piled up
 //============= Input
 3       // Ns baseline, number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
-1     //input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
+0     //input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 //============= Others
-0.7     // DC offset ( from 0 to 1 )
-2000    // pre trigger size [ch];
-true   // is pulse positive parity;
-10000       // Energy fine gain , may be address is incorrect? seem no effect
+0.5     // DC offset ( from 0 to 1,  for positive pulse, 1 = baseline bottom )
+1000    // pre trigger size [ch];
+true    // is pulse positive parity;
+30000   // Energy fine gain, 33900 is roughly equal Compass 10x, 30000 is roughly equal to real voltage at Vpp=2.0x
 500     // Baseline holdoff (ns)
 1.00     // Energy Normalization Factor
 0       // decimation (the input signal samples are averaged within this number of samples): 0 ->disabled; 1->2 samples; 2->4 samples; 3->8 samples
@@ -25,6 +25,6 @@ true   // is pulse positive parity;
 0       // Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
-0.25      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
-0     //plot min
-3000     //plot max
+1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
+0        // plot range min
+8000    // plot range max
