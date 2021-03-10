@@ -133,21 +133,19 @@ int main(int argc, char *argv[]){
     printf("usage:\n");
     printf("                + use DetectDigitizer   \n");
     printf("                |\n");
-    printf("                |                + setting folder, database name \n");
-    printf("                |                |\n");
-    printf("$./BoxScore  boardID location expName (tree.root) (debug)\n");
-    printf("                         | \n");
-    printf("                         +-- testing (all ch)\n");
-    printf("                         +-- exit (dE = 0 ch, E = 3 ch)\n");
-    printf("                         +-- cross (dE = 1 ch, E = 4 ch)\n");
-    printf("                         +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
-    printf("                         +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
-    printf("                         +-- XY (Helios target XY) \n");
-    printf("                         +-- iso (isomer with Glover Ge detector) \n");
-    printf("                         +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
-    printf("                         +-- array (single Helios array) \n");
-    printf("                         +-- MCP (Micro Channel Plate) \n");
-    printf("                         +-- music (MUSIC at SPS) \n");
+    printf("$./BoxScore  boardID location (tree.root) (debug)\n");
+    printf("                        | \n");
+    printf("                        +-- testing (all ch)\n");
+    printf("                        +-- exit (dE = 0 ch, E = 3 ch)\n");
+    printf("                        +-- cross (dE = 1 ch, E = 4 ch)\n");
+    printf("                        +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
+    printf("                        +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
+    printf("                        +-- XY (Helios target XY) \n");
+    printf("                        +-- iso (isomer with Glover Ge detector) \n");
+    printf("                        +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
+    printf("                        +-- array (single Helios array) \n");
+    printf("                        +-- MCP (Micro Channel Plate) \n");
+    printf("                        +-- music (MUSIC at SPS) \n");
     return -1;
   }
 
@@ -159,12 +157,13 @@ int main(int argc, char *argv[]){
   const int boardID = atoi(argv[1]);
   string location = argv[2];
 
-  string expName = argv[3];
+  //string expName = argv[3];
+  string dbName = "db";
 
   TString rootFileName;
-  if( argc >= 5 ) rootFileName = argv[4];
+  if( argc >= 4 ) rootFileName = argv[3];
   bool isDebug= false;
-  if( argc >= 6 ) isDebug = atoi(argv[5]);
+  if( argc >= 5 ) isDebug = atoi(argv[4]);
 
   char hostname[100];
   gethostname(hostname, 100);
@@ -245,6 +244,9 @@ int main(int argc, char *argv[]){
     return 0;
   }
 
+//pull from FileIO not dig...
+  string expName = "infl20";
+
   printf("******************************************** \n");
   printf("****          BoxScoreXY                **** \n");
   printf("******************************************** \n");
@@ -255,8 +257,9 @@ int main(int argc, char *argv[]){
   printf("   Location :\e[33m %s \e[0m\n", location.c_str() );
   printf("      Class :\e[33m %s \e[0m\n", gp->GetClassName().c_str() );
   printf("    save to : %s \n", rootFileName.Data() );
-  printf("   Exp Name :\e[33m %s \e[0m, same as database name \n", expName.c_str());
-
+  printf("   Exp Name :\e[33m %s \e[0m, NOT same as database name \n", expName.c_str());
+  printf("   DataBase Name :\e[33m RAISOR_%s \e[0m\n", dbName.c_str());
+ 
   /* *************************************************************************************** */
   /* Canvas and Digitzer                                                                               */
   /* *************************************************************************************** */
@@ -265,7 +268,6 @@ int main(int argc, char *argv[]){
 
   Digitizer dig(boardID, ChannelMask, expName);
   if( !dig.IsConnected() ) return -1;
-
   string tag = "tag=" + location; //tag for database
 
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
@@ -273,11 +275,14 @@ int main(int argc, char *argv[]){
   gp->SetCoincidentTimeWindow(dig.GetCoincidentTimeWindow());
   gp->SetChannelsPlotRange(dig.GetChannelsPlotRange());
   gp->SetGenericHistograms(); ///must be after SetChannelGain
+  
+  
+
 
   /* DB push of general settings info */
-  WriteToDataBase(expName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
-  WriteToDataBaseString(expName, "Location", "tag=general", location);
-  WriteToDataBaseString(expName, "PrimBeam", "tag=general", dig.GetPrimBeam());
+  WriteToDataBase(dbName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
+  WriteToDataBaseString(dbName, "Location", "tag=general", location);
+  WriteToDataBaseString(dbName, "PrimBeam", "tag=general", dig.GetPrimBeam());
 
   for( int ch = 0; ch < MaxNChannels ; ch++){
     gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
@@ -774,7 +779,7 @@ if( c == 'w'){ ////========== wave form mode
       printf("Time Elapsed         = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
       printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size            : %.4f MB \n", fileSize );
-      printf("Database             : %s\n", expName.c_str());
+      printf("Database             : %s\n", dbName.c_str());
 
       printf("\n");
 
@@ -786,7 +791,7 @@ if( c == 'w'){ ////========== wave form mode
 
       for (int ch = 0; ch < MaxNChannels; ch++) {
 	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(expName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+	    WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
 	  }
 
       dig.PrintReadStatistic();
@@ -804,24 +809,14 @@ if( c == 'w'){ ////========== wave form mode
 
       printf(" Rate( all) :%7.2f pps\n", totalRate);
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(expName, "totalRate", tag, totalRate);
-
-
-      /// for isomer
-      if( gp->GetClassID() == 2 ) {
-        WriteToDataBase( expName, "G1", tag, gp->GetG1Count()/timeRangeSec);
-        WriteToDataBase( expName, "G2", tag, gp->GetG2Count()/timeRangeSec);
-        WriteToDataBase( expName, "G3", tag, gp->GetG3Count()/timeRangeSec);
-        WriteToDataBase( expName, "G4", tag, gp->GetG4Count()/timeRangeSec);
-        gp->SetCountZero();
-      }
+      WriteToDataBase(dbName, "totalRate", tag, totalRate);
 
       if(gp->IsCutFileOpen()){
         for( int i = 0 ; i < gp->GetNumCut(); i++ ){
           double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
           printf(" Rate(%4s) :%7.2f pps\n", gp->GetCutName(i).Data(), count);
           //----------------- write to database
-          WriteToDataBase(expName, gp->GetCutName(i).Data(), tag, count);
+          WriteToDataBase(dbName, gp->GetCutName(i).Data(), tag, count);
         }
       }
 
