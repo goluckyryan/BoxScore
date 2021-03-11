@@ -245,7 +245,7 @@ int main(int argc, char *argv[]){
   }
 
 //pull from FileIO not dig...
-  string expName = "infl20";
+  string expName = "infl21";
 
   printf("******************************************** \n");
   printf("****          BoxScoreXY                **** \n");

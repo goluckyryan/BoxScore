@@ -11,11 +11,12 @@ public:
   ~HeliosTarget();
   
   void SetOthersHistograms();
-  void SetCanvasDivision();
+  void SetCanvasTitleDivision(TString titleExtra);
   
-  void Fill(vector<UInt_t> energy);
-  void Fill(vector<vector<UInt_t>> energy);
-  
+///  void Fill(vector<UInt_t> energy); //old
+///  void Fill(vector<vector<UInt_t>> energy);//old
+  virtual void Fill(UInt_t * energy, ULong64_t * times);
+
   void Draw();
 
   void ClearHistograms();
@@ -54,7 +55,7 @@ HeliosTarget::HeliosTarget(){
   rangeTime =    500; /// range for Tdiff, nano-sec
   
   //chdE = 1;  chdEGain = 0; 
-  chE = 7;   chEGain = 1.0;
+  chE = 1;   chEGain = 1.0;
   mode = 5; ///default channel Gain is equal
   
   NChannelForRealEvent = 5;
@@ -75,13 +76,13 @@ HeliosTarget::HeliosTarget(){
   hY1 = NULL;
   hY2 = NULL;
   
-  chX1 = 1;
-  chX2 = 5;
+  chX1 = 0;
+  chX2 = 4;
   
   chY1 = 2;
-  chY2 = 4;
+  chY2 = 6;
   
-  GenericPlane::SetChannelMask(1,0,1,1, 0,1,1,0);
+  GenericPlane::SetChannelMask(0,1,0,1,0,1,0,1);
   
 }
 
@@ -153,10 +154,10 @@ void HeliosTarget::SetOthersHistograms(){
   
 }
 
-void HeliosTarget::SetCanvasDivision(){
+void HeliosTarget::SetCanvasTitleDivision(TString titleExtra = ""){
  
   //GenericPlane::SetCanvasDivision();
-  
+  fCanvas->Clear();
   fCanvas->Divide(1,2);
   fCanvas->cd(1)->Divide(2,1); 
   fCanvas->cd(1)->cd(1)->SetLogz();
@@ -213,7 +214,7 @@ void HeliosTarget::Draw(){
 }
 
 
-void HeliosTarget::Fill(vector<UInt_t> energy){
+void HeliosTarget::Fill(UInt_t * energy, ULong64_t * times){
   
   //GenericPlane::Fill(energy);
   
@@ -221,9 +222,8 @@ void HeliosTarget::Fill(vector<UInt_t> energy){
   
   int E = energy[chE] ;//+ gRandom->Gaus(0, 500);
   int dE = energy[chY1] + energy[chY2] ;//+ gRandom->Gaus(0, 500);
-  
-  float X = ((float)energy[chX1] - (float)energy[chX2])*1.0/(energy[chX1] + energy[chX2]);
-  float Y = ((float)energy[chY1] - (float)energy[chY2])*1.0/(energy[chY1] + energy[chY2]);
+  float X = ((float)energy[chX1] - (float)energy[chX2])/(energy[chX1] + energy[chX2]);
+  float Y = ((float)energy[chY1] - (float)energy[chY2])/(energy[chY1] + energy[chY2]);
 
   hX1->Fill(energy[chX1]);
   hX2->Fill(energy[chX2]);
@@ -260,15 +260,12 @@ void HeliosTarget::Fill(vector<UInt_t> energy){
 }
 
 
-void HeliosTarget::Fill(vector<vector<UInt_t>> Energy){
-  
-  for( int i = 0 ; i < Energy.size() ; i++){
-    vector<UInt_t> energy = Energy[i];
-    Fill(energy);
-  }
-  
-  
-}
+///void HeliosTarget::Fill(vector<vector<UInt_t>> Energy){
+ /// for( int i = 0 ; i < Energy.size() ; i++){
+///    vector<UInt_t> energy = Energy[i];
+///    Fill(energy);
+///  }
+///}
 
 void HeliosTarget::ClearHistograms(){
   
