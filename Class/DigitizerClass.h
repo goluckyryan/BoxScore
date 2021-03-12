@@ -372,13 +372,16 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   if( isDetected ){
 
     //LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
-    LoadGeneralSetting("setting/" + expName + "/generalSetting.txt");
+    //LoadGeneralSetting("setting/" + expName + "/generalSetting.txt");
+    LoadGeneralSetting("setting/generalSetting.txt");
+
 
     printf("---- reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
         //LoadChannelSetting(ch, to_string(serialNumber) +"/setting_" + to_string(ch) + ".txt");
-        LoadChannelSetting(ch, "setting/" + expName +  "/setting_" + to_string(ch) + ".txt");
+        //LoadChannelSetting(ch, "setting/" + expName +  "/setting_" + to_string(ch) + ".txt");
+        LoadChannelSetting(ch, "setting/setting_" + to_string(ch) + ".txt");
       }
     }
     printf("====================================== \n");

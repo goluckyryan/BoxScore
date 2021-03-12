@@ -457,15 +457,13 @@ void GenericPlane::SetGenericHistograms(){
 void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->Clear();
   fCanvas->SetTitle(titleExtra);
-  fCanvas->Divide(2,1); //divides
-  fCanvas->cd(1)->Divide(1,3);
-  fCanvas->cd(2)->Divide(1,4);
+  fCanvas->Divide(2,2); //divides
+  fCanvas->cd(2)->Divide(1,2);
+  fCanvas->cd(4)->Divide(1,2);
 
-  fCanvas->cd(1)->cd(1)->SetLogz();//hdEE
-  fCanvas->cd(1)->cd(2)->SetLogz();//hdEtotE
-  fCanvas->cd(1)->cd(3)->SetLogz();//hdEdT
-
-  fCanvas->cd(2)->cd(4)->SetLogy(); //hTDiff
+  fCanvas->cd(1)->SetLogz();//hdEE
+  fCanvas->cd(3)->SetLogz();//hdEtotE
+  fCanvas->cd(4)->cd(2)->SetLogy(); //hTDiff
 }
 
 void GenericPlane::Fill(UInt_t dE, UInt_t E){
@@ -558,19 +556,19 @@ void GenericPlane::Draw(){
   //1D - hdE, hE, htotE, hDt
   fCanvas->cd(2)->cd(1); hdE->Draw();
   fCanvas->cd(2)->cd(2); hE->Draw();
-  fCanvas->cd(2)->cd(3); htotE->Draw();
-  fCanvas->cd(2)->cd(4); hdT->Draw();
+  fCanvas->cd(4)->cd(1); htotE->Draw();
+  fCanvas->cd(4)->cd(2); hdT->Draw();
   
   //2D hdEE, hdEtotE, hdEdT 
-///  fCanvas->cd(1)->cd(1); 
-///  hdEE->Draw("col");
-///  if( numCut > 0 ){
-///    for( int i = 0; i < numCut; i++){
-///      cutG = (TCutG *) cutList->At(i);
-///      cutG->Draw("same");
-///    }
-///  }
- fCanvas->cd(1)->cd(2); hdEtotE->Draw("col");
+  fCanvas->cd(1); 
+  hdEE->Draw("col");
+  if( numCut > 0 ){
+    for( int i = 0; i < numCut; i++){
+      cutG = (TCutG *) cutList->At(i);
+      cutG->Draw("same");
+    }
+  }
+ fCanvas->cd(3); hdEtotE->Draw("col");
 ///  fCanvas->cd(1)->cd(3); hdEdT->Draw("col");
 ///
   fCanvas->Modified();

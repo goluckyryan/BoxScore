@@ -2,18 +2,9 @@
 *  This program is built upon the sample from CAEN. The use of CERN/ROOT
 *  Library is written by myself.
 *
-*
 *  Tsz Leung (Ryan) TANG, Oct 1st, 2019
 *  ttang@anl.gov
 ******************************************************************************/
-
-//TODO loading setting for detector (save as some files?)
-//TODO write waveForm into File
-//TODO push signal channel to Grafana
-//TODO waveform display, polarity seems reverse.
-//TODO digitizer output array of channel setting, feed to GenericPlan, trapezoidal filter
-//TODO more online control of the digitizer.
-//TODO FULL GUI? Qt? EPICS+EDM?
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -109,9 +100,6 @@ void PrintTrapezoidCommands(){
   printf("t) flat-top [ns]        b) base line end time [ns]\n");
   printf("f) decay time[ns]       u) set probe type\n");
   printf("------------------------------------------------------------\n");
-  ///printf("s ) Start acquisition  \n");
-  ///printf("a ) Stop acquisition   \n");
-  ///printf("d ) List Mode           p ) Print Channel setting\n");
 }
 
 void paintCanvas(){
@@ -201,13 +189,13 @@ int main(int argc, char *argv[]){
     rootFileName = "test.root";
   }else if( location == "exit") {
     gp = new GenericPlane();
-    gp->SetChannelMask(0,0,0,0,1,0,0,1);
-    gp->SetdEEChannels(0, 3);
+    gp->SetChannelMask(0,0,0,0,1,0,1,0);
+    gp->SetdEEChannels(1, 3);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(0,0,0,1,0,0,1,0);
-    gp->SetdEEChannels(1, 4);
+    gp->SetChannelMask(0,0,0,0,1,0,1,0);
+    gp->SetdEEChannels(1, 3);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "crosstime" ) {
     gp = new GenericPlane();
@@ -222,6 +210,7 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
+    updatePeriod=5000;
   }else if ( location == "iso" ) {
   //  gp = new IsoDetect();
   }else if ( location == "IonCh"){
@@ -301,7 +290,7 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
 
-  string folder = "setting/" +  expName;
+  string folder = "setting/";/// +  expName;
   FileIO file(rootFileName);
 
   ///==== Save setting into the root file
