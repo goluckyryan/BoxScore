@@ -10,17 +10,13 @@ public:
   HeliosTarget();
   ~HeliosTarget();
   
-  void SetOthersHistograms();
-  void SetCanvasTitleDivision(TString titleExtra);
+  void          SetOthersHistograms();
+  void          SetCanvasTitleDivision(TString titleExtra);
+  virtual void  Fill(UInt_t * energy, ULong64_t * times);
+  void          Draw();
+  void          ClearHistograms();
+  void          SetCanvasID(int canID) {printf("here");};
   
-///  void Fill(vector<UInt_t> energy); //old
-///  void Fill(vector<vector<UInt_t>> energy);//old
-  virtual void Fill(UInt_t * energy, ULong64_t * times);
-
-  void Draw();
-
-  void ClearHistograms();
-
 private:
   
   TH1F * hX;
@@ -155,17 +151,20 @@ void HeliosTarget::SetOthersHistograms(){
 
 void HeliosTarget::SetCanvasTitleDivision(TString titleExtra = ""){
  
-  //GenericPlane::SetCanvasDivision();
   fCanvas->Clear();
-  fCanvas->Divide(1,2);
-  fCanvas->cd(1)->Divide(2,1); 
-  fCanvas->cd(1)->cd(1)->SetLogz();
-  fCanvas->cd(1)->cd(2)->Divide(2,2);
-  
-  
-  fCanvas->cd(2)->Divide(2,1); 
-  fCanvas->cd(2)->cd(1)->Divide(2,2);
-  fCanvas->cd(2)->cd(2)->Divide(2,2);
+  if (canID==0) {
+    fCanvas->Divide(1,2);
+    fCanvas->cd(1)->Divide(2,1); 
+    fCanvas->cd(1)->cd(1)->SetLogz();
+    fCanvas->cd(1)->cd(2)->Divide(2,2);
+    fCanvas->cd(2)->Divide(2,1); 
+    fCanvas->cd(2)->cd(1)->Divide(2,2);
+    fCanvas->cd(2)->cd(2)->Divide(2,2);
+  } else
+  {
+    fCanvas->Divide(2,1);//ede 2D
+    fCanvas->cd(2)->Divide(1,2);//1-D
+  }
 
 }
 
@@ -175,34 +174,35 @@ void HeliosTarget::Draw(){
   
   //fCanvas->cd(1)->cd(1); hdEtotE->Draw("colz");
   fCanvas->cd(1)->cd(1); hdEE->Draw("colz");
-
   if( numCut > 0 ){
     for( int i = 0; i < numCut; i++){
       cutG = (TCutG *) cutList->At(i);
       cutG->Draw("same");
     }
   }
-
-  fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
-  fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
-  ///fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
-  ///fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
-  
-  fCanvas->cd(2)->cd(2)->cd(1); hX1->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(2); hX2->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(3); hY1->Draw("");
-  fCanvas->cd(2)->cd(2)->cd(4); hY2->Draw("");
-  
-  fCanvas->cd(2)->cd(1)->cd(2); hHit->Draw("HIST");
-  fCanvas->cd(2)->cd(1)->cd(3); gStyle->SetOptStat("neiour"); hX->Draw("");
-  if( numCut > 0  ) hXg->Draw("same");
-  fCanvas->cd(2)->cd(1)->cd(4); gStyle->SetOptStat("neiour"); hY->Draw("");
-  if( numCut > 0  ) hYg->Draw("same");
-  fCanvas->cd(2)->cd(1)->cd(1); 
-  fCanvas->cd(2)->cd(1)->cd(1)->SetGrid(); 
-  gStyle->SetOptStat("neiou"); hXY->Draw("colz"); 
-  if( numCut > 0  ) hXYg->Draw("box same");
-  fCanvas->cd(2)->cd(1)->cd(1)->SetLogz();
+  if (canID==0) {
+    fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
+    fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
+    ///fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
+    ///fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
+    fCanvas->cd(2)->cd(2)->cd(1); hX1->Draw("");
+    fCanvas->cd(2)->cd(2)->cd(2); hX2->Draw("");
+    fCanvas->cd(2)->cd(2)->cd(3); hY1->Draw("");
+    fCanvas->cd(2)->cd(2)->cd(4); hY2->Draw("");
+    fCanvas->cd(2)->cd(1)->cd(2); hHit->Draw("HIST");
+    fCanvas->cd(2)->cd(1)->cd(3); gStyle->SetOptStat("neiour"); hX->Draw("");
+    if( numCut > 0  ) hXg->Draw("same");
+    fCanvas->cd(2)->cd(1)->cd(4); gStyle->SetOptStat("neiour"); hY->Draw("");
+    if( numCut > 0  ) hYg->Draw("same");
+    fCanvas->cd(2)->cd(1)->cd(1); 
+    fCanvas->cd(2)->cd(1)->cd(1)->SetGrid(); 
+    gStyle->SetOptStat("neiou"); hXY->Draw("colz"); 
+    if( numCut > 0  ) hXYg->Draw("box same");
+    fCanvas->cd(2)->cd(1)->cd(1)->SetLogz();
+  } else {
+    fCanvas->cd(2)->cd(1); hE->Draw();
+    fCanvas->cd(2)->cd(2); hdE->Draw();
+  }
   
   fCanvas->Modified();
   fCanvas->Update();
@@ -286,5 +286,4 @@ void HeliosTarget::ClearHistograms(){
   hHit->Reset();
   
 }
-
 #endif

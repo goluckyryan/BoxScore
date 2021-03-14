@@ -46,7 +46,7 @@ public:
   virtual void SetCanvasTitleDivision(TString titleExtra);
   void         SetERange(int x1, int x2)  { rangeE[0] = x1; this->rangeE[1] = x2; };
   void         SetdERange(int x1, int x2) { rangeDE[0] = x1; this->rangeDE[1] = x2; };
-  void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;}
+  void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;};
   void         SetHistogramsRange();
   void         SetChannelsPlotRange(int ** range);
 
@@ -54,14 +54,14 @@ public:
   virtual void Fill(UInt_t * energy, ULong64_t * times);
   void         FillTimeDiff(float nanoSec){ if( hTDiff == NULL ) return; hTDiff->Fill(nanoSec); }
   void         FillRateGraph(float x, float y);
-  void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} }
+  void         FillHit(int * hit){ for( int i = 0; i < 8; i++){ hHit->Fill(i+1, hit[i]);} };
 
   void         SetWaveCanvas(int length);
   void         FillWaves1(int* length, int16_t ** wave);
   void         FillWaves2(int* length, int16_t ** wave);
   void         FillDigitWave(int* length, uint8_t ** wave);
   virtual void FillWaveEnergies(double * energy);
-  void         ClearWaveEnergies() { for(int i = 0; i < numChannel; i++) waveEnergy[i] = 0;}
+  void         ClearWaveEnergies() { for(int i = 0; i < numChannel; i++) waveEnergy[i] = 0;};
   void         TrapezoidFilter(int ch, int length, int16_t * wave);
   void         SetRiseTime(int ch, int temp)    { this->riseTime[ch]    = temp;} /// in ch, 1 ch = 2 ns
   void         SetFlatTop(int ch, int temp)     { this->flatTop[ch]     = temp;} /// in ch, 1 ch = 2 ns
@@ -71,6 +71,7 @@ public:
   int          GetFlatTop(int ch)     { return flatTop[ch]; }
   int          GetFallTime(int ch)    { return decayTime[ch]; }
   int          GetBaseLineEnd(int ch) { return baseLineEnd[ch]; }
+  void         SetCanvasID(int id) { this->canID = id; }
 
   virtual void Draw();
   virtual void DrawWaves();
@@ -173,6 +174,7 @@ protected:
   int flatTop[8]; /// in ch
   int decayTime[8]; /// in ch
   int baseLineEnd[8]; /// in ch
+  int canID=0;//XY canvas
 
   TObjArray * cutList;
   int numCut;

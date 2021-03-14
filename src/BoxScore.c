@@ -129,6 +129,7 @@ int main(int argc, char *argv[]){
     printf("                        +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
     printf("                        +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
     printf("                        +-- XY (Helios target XY) \n");
+    printf("                        +-- XYede (XY de-e only) \n");
     printf("                        +-- iso (isomer with Glover Ge detector) \n");
     printf("                        +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
     printf("                        +-- array (single Helios array) \n");
@@ -211,6 +212,10 @@ int main(int argc, char *argv[]){
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
     updatePeriod=5000;
+  }else if ( location == "XYede" ) {
+    gp = new HeliosTarget();
+    gp->SetCanvasID(1);
+    updatePeriod=1000;
   }else if ( location == "iso" ) {
   //  gp = new IsoDetect();
   }else if ( location == "IonCh"){
