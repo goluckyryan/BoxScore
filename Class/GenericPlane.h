@@ -143,6 +143,7 @@ protected:
   double rangeTime;  // range for Tdiff, nano-sec
 
   TCanvas *fCanvas;
+///  TCanvas *gCanvas;
 
   TH1F * hE;
   TH1F * hdE;
@@ -202,6 +203,7 @@ GenericPlane::~GenericPlane(){
   printf("cleaning up GenericPlane \n");
 
   delete fCanvas;
+///  delete gCanvas;
   delete hE;
   delete hdE;
   delete hdT;
@@ -256,11 +258,14 @@ GenericPlane::GenericPlane(){
 
   NChannelForRealEvent = 8;  /// this is the number of channel for a real event;
 
-  fCanvas = new TCanvas("fCanvas", "testing", 0, 0, 1000, 1000);
+  fCanvas = new TCanvas("fCanvas", "Main Canvas (Generic Plane)", 0, 0, 1000, 1000);
   gStyle->SetOptStat("neiou");
-
   if( fCanvas->GetShowEditor() ) fCanvas->ToggleEditor();
   if( fCanvas->GetShowToolBar() ) fCanvas->ToggleToolBar();
+ /// gCanvas = new TCanvas("gCanvas", "testing", 0, 0, 1000, 1000);
+ /// gStyle->SetOptStat("neiou");
+ /// if( gCanvas->GetShowEditor() ) gCanvas->ToggleEditor();
+ /// if( gCanvas->GetShowToolBar() ) gCanvas->ToggleToolBar();
 
   chdE = 2;  chdEGain = 1;
   chE = 5;   chEGain = 1;
@@ -464,6 +469,8 @@ void GenericPlane::SetCanvasTitleDivision(TString titleExtra = ""){
   fCanvas->cd(1)->SetLogz();//hdEE
   fCanvas->cd(3)->SetLogz();//hdEtotE
   fCanvas->cd(4)->cd(2)->SetLogy(); //hTDiff
+  
+ /// gCanvas->Clear();
 }
 
 void GenericPlane::Fill(UInt_t dE, UInt_t E){
@@ -560,19 +567,24 @@ void GenericPlane::Draw(){
   fCanvas->cd(4)->cd(2); hdT->Draw();
   
   //2D hdEE, hdEtotE, hdEdT 
-  fCanvas->cd(1); 
-  hdEE->Draw("col");
-  if( numCut > 0 ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      cutG->Draw("same");
-    }
-  }
- fCanvas->cd(3); hdEtotE->Draw("col");
+///  fCanvas->cd(1); 
+///  hdEE->Draw("col");
+///  if( numCut > 0 ){
+///    for( int i = 0; i < numCut; i++){
+///      cutG = (TCutG *) cutList->At(i);
+///      cutG->Draw("same");
+///    }
+///  }
+/// fCanvas->cd(3); hdEtotE->Draw("col");
 ///  fCanvas->cd(1)->cd(3); hdEdT->Draw("col");
 ///
   fCanvas->Modified();
   fCanvas->Update();
+  
+///  gCanvas->cd(); hdEdT->Draw("col");
+///  gCanvas->Modified();
+///  gCanvas->Update();
+///  
   gSystem->ProcessEvents();
 }
 

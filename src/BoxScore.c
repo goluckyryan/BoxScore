@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
   int secound = ltm->tm_sec;
 
   ///==== default root file name based on datetime and plane
-  if( argc == 4 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
 
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
 

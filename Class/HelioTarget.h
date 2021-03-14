@@ -54,8 +54,7 @@ HeliosTarget::HeliosTarget(){
   rangeE[1] =  60000; /// max range for E
   rangeTime =    500; /// range for Tdiff, nano-sec
   
-  //chdE = 1;  chdEGain = 0; 
-  chE = 1;   chEGain = 1.0;
+  chE = 7;   chEGain = 1.0;
   mode = 5; ///default channel Gain is equal
   
   NChannelForRealEvent = 5;
@@ -107,13 +106,13 @@ HeliosTarget::~HeliosTarget(){
 
 void HeliosTarget::SetOthersHistograms(){
   
-  int bin = 200;
-  float labelSize = 0.08;
+  int bin = 100; //2cm / 100 bins = 2 mm / bin
+  float labelSize = 0.04;
   
-  float xMin = -0.9;
-  float xMax =  0.9;
-  float yMin = -0.9;
-  float yMax =  0.9;
+  float xMin = -1.0;
+  float xMax =  1.0;
+  float yMin = -1.0;
+  float yMax =  1.0;
   
   hX = new TH1F("hX", "X; X[ch]; count", bin, xMin, xMax);
   hY = new TH1F("hY", "Y; Y[ch]; count", bin, yMin, yMax);  
@@ -138,7 +137,7 @@ void HeliosTarget::SetOthersHistograms(){
 
   hXY->SetMinimum(1);
   hXYg->SetMinimum(1);
-  
+  bin = bin*2.0;
   hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 1000, 26000);
   hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 1000, 26000);
   hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 1000, 26000);
@@ -186,8 +185,8 @@ void HeliosTarget::Draw(){
 
   fCanvas->cd(1)->cd(2)->cd(1); hE->Draw();
   fCanvas->cd(1)->cd(2)->cd(2); hdE->Draw();
-  fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
-  fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
+  ///fCanvas->cd(1)->cd(2)->cd(4); hTDiff->Draw(); line->Draw();
+  ///fCanvas->cd(1)->cd(2)->cd(3); rateGraph->Draw("AP"); legend->Draw();
   
   fCanvas->cd(2)->cd(2)->cd(1); hX1->Draw("");
   fCanvas->cd(2)->cd(2)->cd(2); hX2->Draw("");
