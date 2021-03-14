@@ -124,17 +124,15 @@ int main(int argc, char *argv[]){
     printf("$./BoxScore  boardID location (tree.root) (debug)\n");
     printf("                        | \n");
     printf("                        +-- testing (all ch)\n");
-    printf("                        +-- exit (dE = 0 ch, E = 3 ch)\n");
-    printf("                        +-- cross (dE = 1 ch, E = 4 ch)\n");
-    printf("                        +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
-    printf("                        +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
-    printf("                        +-- XY (Helios target XY) \n");
+    printf("                        +-- exit \n");
+    printf("                        +-- cross \n");
+    printf("                        +-- crosstime \n");
+    printf("                        +-- ZD (zero-degree) \n");
+    printf("                        +-- XY \n");
     printf("                        +-- XYede (XY de-e only) \n");
-    printf("                        +-- iso (isomer with Glover Ge detector) \n");
-    printf("                        +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
-    printf("                        +-- array (single Helios array) \n");
+    printf("                        +-- XYpos (X,Y 1-D only) \n");
+    printf("                        +-- IonCh (IonChamber)  \n");
     printf("                        +-- MCP (Micro Channel Plate) \n");
-    printf("                        +-- music (MUSIC at SPS) \n");
     return -1;
   }
 
@@ -200,8 +198,8 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "crosstime" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(1,0,0,1,0,0,1,0);
-    gp->SetdEEChannels(1, 4);
+    gp->SetChannelMask(1,0,0,0,1,0,1,0);
+    gp->SetdEEChannels(1, 3);
     gp->SetTChannels(7);
     gp->SetNChannelForRealEvent(3);
   }else if ( location == "ZD" ) {
@@ -215,24 +213,20 @@ int main(int argc, char *argv[]){
   }else if ( location == "XYede" ) {
     gp = new HeliosTarget();
     gp->SetCanvasID(1);
+    gp->SetChannelMask(1,0,0,0,0,1,0,1);
     updatePeriod=1000;
-  }else if ( location == "iso" ) {
-  //  gp = new IsoDetect();
+  }else if ( location == "XYpos" ) {
+    gp = new HeliosTarget();
+    gp->SetCanvasID(2);
+    gp->SetChannelMask(1,1,0,1,0,1,0,1);
+    updatePeriod=5000;
   }else if ( location == "IonCh"){
     gp = new GenericPlane();
     gp->SetChannelMask(1,0,0,1,0,0,0,0);
     gp->SetdEEChannels(4, 7);
     gp->SetNChannelForRealEvent(2);
-  }else if ( location == "array" ){
-    gp = new HelioArray();
   }else if ( location == "MCP"){
     gp = new MicroChannelPlate();
-  }else if ( location == "music" ) {
-    gp = new GenericPlane();
-    gp->SetChannelMask(1,0,1,0,0,1,0,0);
-    gp->SetdEEChannels(2, 5);
-    gp->SetTChannels(7);
-    gp->SetNChannelForRealEvent(2);
   }else{
     printf(" no such plane. exit. \n");
     return 0;
