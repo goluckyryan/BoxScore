@@ -58,7 +58,7 @@ public:
     CoincidentTimeWindow = nanoSec;
 
     TString command;
-    command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
+    command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' setting/generalSetting.txt", nanoSec);
     system(command.Data());
     printf("Done. time-coincident is %d ns now.\n", nanoSec);
   }
