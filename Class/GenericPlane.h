@@ -72,6 +72,7 @@ public:
   int          GetFallTime(int ch)    { return decayTime[ch]; }
   int          GetBaseLineEnd(int ch) { return baseLineEnd[ch]; }
   void         SetCanvasID(int id) { this->canID = id; }
+  int          GetCanvasID() { return canID; }
 
   virtual void Draw();
   virtual void DrawWaves();

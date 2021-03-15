@@ -209,16 +209,19 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
+    gp->SetNChannelForRealEvent(5);
     updatePeriod=5000;
   }else if ( location == "XYede" ) {
     gp = new HeliosTarget();
     gp->SetCanvasID(1);
     gp->SetChannelMask(1,0,0,0,0,1,0,1);
+    gp->SetNChannelForRealEvent(3);
     updatePeriod=1000;
   }else if ( location == "XYpos" ) {
     gp = new HeliosTarget();
     gp->SetCanvasID(2);
     gp->SetChannelMask(1,1,0,1,0,1,0,1);
+    gp->SetNChannelForRealEvent(5);
     updatePeriod=5000;
   }else if ( location == "IonCh"){
     gp = new GenericPlane();
@@ -727,6 +730,7 @@ if( c == 'w'){ ////========== wave form mode
 
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
+      if (gp->GetCanvasID() == 2) gp->ClearHistograms();
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
