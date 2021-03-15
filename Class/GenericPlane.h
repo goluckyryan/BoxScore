@@ -570,15 +570,15 @@ void GenericPlane::Draw(){
   fCanvas->cd(4)->cd(2); hdT->Draw();
   
   //2D hdEE, hdEtotE, hdEdT 
-///  fCanvas->cd(1); 
-///  hdEE->Draw("col");
-///  if( numCut > 0 ){
-///    for( int i = 0; i < numCut; i++){
-///      cutG = (TCutG *) cutList->At(i);
-///      cutG->Draw("same");
-///    }
-///  }
-/// fCanvas->cd(3); hdEtotE->Draw("col");
+ fCanvas->cd(1); 
+ hdEE->Draw("col");
+ if( numCut > 0 ){
+   for( int i = 0; i < numCut; i++){
+     cutG = (TCutG *) cutList->At(i);
+     cutG->Draw("same");
+   }
+ }
+fCanvas->cd(3); hdEtotE->Draw("col");
 ///  fCanvas->cd(1)->cd(3); hdEdT->Draw("col");
 ///
   fCanvas->Modified();
