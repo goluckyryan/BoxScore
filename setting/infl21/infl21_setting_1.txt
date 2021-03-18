@@ -1,0 +1,6 @@
+//Trig Thresh//Trigger Hold Off//Smooth//In Rise//TrapRise//TrapFlat//Decay//PeakTime//PeakSamples//Holdoff//BaseSamples//Dynamic//
+//DC off//PreTrig//Polarity//FineGain//BaseHold//EnergyNorm//Decimation//DecimationGain//RiseTimeDisc//RTValidation//gain/plotmin//plotmax
+100   496   32  48  496   496    5000   250   3   0   0.5   1000  true  30000   500   1.0   0   0   0   100   1.0   0   8000
+
+//TrigThresh //
+100          

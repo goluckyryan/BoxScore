@@ -58,7 +58,7 @@ public:
     CoincidentTimeWindow = nanoSec;
 
     TString command;
-    command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' %d/generalSetting.txt", nanoSec, serialNumber);
+    command.Form("sed -i '2s/.*/%d     \\/\\/nano-sec (int), coincident time for event building ' setting/generalSetting.txt", nanoSec);
     system(command.Data());
     printf("Done. time-coincident is %d ns now.\n", nanoSec);
   }
@@ -372,13 +372,16 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   if( isDetected ){
 
     //LoadGeneralSetting(to_string(serialNumber) + "/generalSetting.txt");
-    LoadGeneralSetting("setting/" + expName + "/generalSetting.txt");
+    //LoadGeneralSetting("setting/" + expName + "/generalSetting.txt");
+    LoadGeneralSetting("setting/generalSetting.txt");
+
 
     printf("---- reading Channel setting \n");
     for(int ch = 0; ch < NChannel; ch ++ ) {
       if ( ChannelMask & ( 1 << ch) ) {
         //LoadChannelSetting(ch, to_string(serialNumber) +"/setting_" + to_string(ch) + ".txt");
-        LoadChannelSetting(ch, "setting/" + expName +  "/setting_" + to_string(ch) + ".txt");
+        //LoadChannelSetting(ch, "setting/" + expName +  "/setting_" + to_string(ch) + ".txt");
+        LoadChannelSetting(ch, "setting/setting_" + to_string(ch) + ".txt");
       }
     }
     printf("====================================== \n");
@@ -1226,13 +1229,11 @@ void Digitizer::StartACQ(){
 void Digitizer::ReadData(bool debug){
   /** Read data from the board */
   ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-
+  if (ret) {
+    printf("Error when reading data %d\n", ret);
+    return;
+  }
   Nb = BufferSize;
-  ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
-  ///ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
-
-  ///printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize);
-
   if (Nb == 0 || ret) {
      if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed ){
         for(int i = 0 ; i < MaxNChannels; i++ ){
@@ -1243,14 +1244,9 @@ void Digitizer::ReadData(bool debug){
      }
      return;
   }
-
+  ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   if (ret) {
-    printf("Error when reading data %d\n", ret);
-    //CAEN_DGTZ_SWStopAcquisition(handle);
-    //CAEN_DGTZ_CloseDigitizer(handle);
-    //CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-    //CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-    //for(int i = 0 ; i < MaxNChannels; i++ ) waveformLength[i] = 0;
+    printf("Error when getting events from data %d\n", ret);
     return;
   }
 
