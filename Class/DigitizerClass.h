@@ -1229,13 +1229,11 @@ void Digitizer::StartACQ(){
 void Digitizer::ReadData(bool debug){
   /** Read data from the board */
   ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, buffer, &BufferSize);
-
+  if (ret) {
+    printf("Error when reading data %d\n", ret);
+    return;
+  }
   Nb = BufferSize;
-  ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
-  ///ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, Events, NumEvents);
-
-  ///printf("Nb : %d, BufferSize: %d \n", Nb, BufferSize);
-
   if (Nb == 0 || ret) {
      if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed ){
         for(int i = 0 ; i < MaxNChannels; i++ ){
@@ -1246,14 +1244,9 @@ void Digitizer::ReadData(bool debug){
      }
      return;
   }
-
+  ret |= (CAEN_DGTZ_ErrorCode) CAEN_DGTZ_GetDPPEvents(handle, buffer, BufferSize, reinterpret_cast<void**>(&Events), NumEvents);
   if (ret) {
-    printf("Error when reading data %d\n", ret);
-    //CAEN_DGTZ_SWStopAcquisition(handle);
-    //CAEN_DGTZ_CloseDigitizer(handle);
-    //CAEN_DGTZ_FreeReadoutBuffer(&buffer);
-    //CAEN_DGTZ_FreeDPPEvents(handle, reinterpret_cast<void**>(&Events));
-    //for(int i = 0 ; i < MaxNChannels; i++ ) waveformLength[i] = 0;
+    printf("Error when getting events from data %d\n", ret);
     return;
   }
 
