@@ -71,11 +71,11 @@ HeliosTarget::HeliosTarget(){
   hY1 = NULL;
   hY2 = NULL;
   
-  chX1 = 4;
-  chX2 = 6;
+  chX1 = 0; // left 
+  chX2 = 6; // right
   
-  chY1 = 0;
-  chY2 = 2;
+  chY1 = 2; // top
+  chY2 = 4; // bottom
   
   GenericPlane::SetChannelMask(1,1,0,1,0,1,0,1);
   
@@ -134,10 +134,10 @@ void HeliosTarget::SetOthersHistograms(){
   hXY->SetMinimum(1);
   hXYg->SetMinimum(1);
   bin = bin*2.0;
-  hX1 = new TH1F("hX1", Form("X1 (ch=%d)", chX1), bin, 10, 26000);
-  hX2 = new TH1F("hX2", Form("X2 (ch=%d)", chX2), bin, 10, 26000);
-  hY1 = new TH1F("hY1", Form("Y1 (ch=%d)", chY1), bin, 10, 26000);
-  hY2 = new TH1F("hY2", Form("Y2 (ch=%d)", chY2), bin, 10, 26000);
+  hX1 = new TH1F("hX1", Form("X1 LEFT (ch=%d)", chX1), bin, 10, 26000);
+  hX2 = new TH1F("hX2", Form("X2 RIGHT (ch=%d)", chX2), bin, 10, 26000);
+  hY1 = new TH1F("hY1", Form("Y1 TOP (ch=%d)", chY1), bin, 10, 26000);
+  hY2 = new TH1F("hY2", Form("Y2 BOTTOM (ch=%d)", chY2), bin, 10, 26000);
   
   hdE->SetTitle("raw dE(Y1+Y2)");;
   

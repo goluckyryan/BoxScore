@@ -214,7 +214,7 @@ int main(int argc, char *argv[]){
   }else if ( location == "XYede" ) {
     gp = new HeliosTarget();
     gp->SetCanvasID(1);
-    gp->SetChannelMask(1,0,0,0,0,1,0,1);
+    gp->SetChannelMask(1,0,0,1,0,1,0,0);
     gp->SetNChannelForRealEvent(3);
     updatePeriod=1000;
   }else if ( location == "XYpos" ) {
