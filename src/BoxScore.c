@@ -764,6 +764,29 @@ if( c == 'w'){ ////========== wave form mode
 
       gp->FillHit(dig.GetNChannelEventCount());
 
+     
+
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
+      string tag = "tag=" + location;
+
+      double totalRate = 0;
+      double aveRate = 0; //ave rate over run
+
+      for (int ch = 0; ch < MaxNChannels; ch++) {
+        if (!(ChannelMask & (1<<ch))) continue;
+        WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+      }
+      if( gp->GetClassID() == 2 ){
+        totalRate = gp->GetdEECount()/timeRangeSec;
+        //aveRate = gp->GetdEECount(10.0);
+      }else{
+         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
+         //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
+      }
+      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
+      WriteToDataBase(dbName, "totalRate", tag, totalRate);
+
       //=========================== Display
       if( !isDebug) system("clear");
       PrintCommands();
@@ -774,35 +797,9 @@ if( c == 'w'){ ////========== wave form mode
       printf("Database             : %s\n", dbName.c_str());
 
       printf("\n");
-
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      string tag = "tag=" + location;
-
-      double totalRate = 0;
-      double aveRate = 0; //ave rate over run
-
-      for (int ch = 0; ch < MaxNChannels; ch++) {
-	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
-	  }
-
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
-
-
-      if( gp->GetClassID() == 2 ){
-        totalRate = gp->GetdEECount()/timeRangeSec;
-        //aveRate = gp->GetdEECount(10.0);
-      }else{
-         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
-         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
-         //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
-      }
-
       printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(dbName, "totalRate", tag, totalRate);
-
       if(gp->IsCutFileOpen()){
         for( int i = 0 ; i < gp->GetNumCut(); i++ ){
           double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
