@@ -2,18 +2,9 @@
 *  This program is built upon the sample from CAEN. The use of CERN/ROOT
 *  Library is written by myself.
 *
-*
 *  Tsz Leung (Ryan) TANG, Oct 1st, 2019
 *  ttang@anl.gov
 ******************************************************************************/
-
-//TODO loading setting for detector (save as some files?)
-//TODO write waveForm into File
-//TODO push signal channel to Grafana
-//TODO waveform display, polarity seems reverse.
-//TODO digitizer output array of channel setting, feed to GenericPlan, trapezoidal filter
-//TODO more online control of the digitizer.
-//TODO FULL GUI? Qt? EPICS+EDM?
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -109,9 +100,6 @@ void PrintTrapezoidCommands(){
   printf("t) flat-top [ns]        b) base line end time [ns]\n");
   printf("f) decay time[ns]       u) set probe type\n");
   printf("------------------------------------------------------------\n");
-  ///printf("s ) Start acquisition  \n");
-  ///printf("a ) Stop acquisition   \n");
-  ///printf("d ) List Mode           p ) Print Channel setting\n");
 }
 
 void paintCanvas(){
@@ -136,16 +124,15 @@ int main(int argc, char *argv[]){
     printf("$./BoxScore  boardID location (tree.root) (debug)\n");
     printf("                        | \n");
     printf("                        +-- testing (all ch)\n");
-    printf("                        +-- exit (dE = 0 ch, E = 3 ch)\n");
-    printf("                        +-- cross (dE = 1 ch, E = 4 ch)\n");
-    printf("                        +-- crosstime (dE = 1 ch, E = 4 ch, T = 7 ch)\n");
-    printf("                        +-- ZD (zero-degree) (dE = 2 ch, E = 5 ch)\n");
-    printf("                        +-- XY (Helios target XY) \n");
-    printf("                        +-- iso (isomer with Glover Ge detector) \n");
-    printf("                        +-- IonCh (IonChamber) (dE = 4 ch, E = 7 ch) \n");
-    printf("                        +-- array (single Helios array) \n");
+    printf("                        +-- exit \n");
+    printf("                        +-- cross \n");
+    printf("                        +-- crosstime \n");
+    printf("                        +-- ZD (zero-degree) \n");
+    printf("                        +-- XY \n");
+    printf("                        +-- XYede (XY de-e only) \n");
+    printf("                        +-- XYpos (X,Y 1-D only) \n");
+    printf("                        +-- IonCh (IonChamber)  \n");
     printf("                        +-- MCP (Micro Channel Plate) \n");
-    printf("                        +-- music (MUSIC at SPS) \n");
     return -1;
   }
 
@@ -201,8 +188,8 @@ int main(int argc, char *argv[]){
     rootFileName = "test.root";
   }else if( location == "exit") {
     gp = new GenericPlane();
-    gp->SetChannelMask(0,0,0,0,1,0,0,1);
-    gp->SetdEEChannels(0, 3);
+    gp->SetChannelMask(0,0,0,0,1,0,1,0);
+    gp->SetdEEChannels(1, 3);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
@@ -222,30 +209,34 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "XY" ) {
     gp = new HeliosTarget();
-  }else if ( location == "iso" ) {
-  //  gp = new IsoDetect();
+    gp->SetNChannelForRealEvent(5);
+    updatePeriod=5000;
+  }else if ( location == "XYede" ) {
+    gp = new HeliosTarget();
+    gp->SetCanvasID(1);
+    gp->SetChannelMask(1,0,0,1,0,1,0,0);
+    gp->SetNChannelForRealEvent(3);
+    updatePeriod=1000;
+  }else if ( location == "XYpos" ) {
+    gp = new HeliosTarget();
+    gp->SetCanvasID(2);
+    gp->SetChannelMask(1,1,0,1,0,1,0,1);
+    gp->SetNChannelForRealEvent(5);
+    updatePeriod=5000;
   }else if ( location == "IonCh"){
     gp = new GenericPlane();
     gp->SetChannelMask(1,0,0,1,0,0,0,0);
     gp->SetdEEChannels(4, 7);
     gp->SetNChannelForRealEvent(2);
-  }else if ( location == "array" ){
-    gp = new HelioArray();
   }else if ( location == "MCP"){
     gp = new MicroChannelPlate();
-  }else if ( location == "music" ) {
-    gp = new GenericPlane();
-    gp->SetChannelMask(1,0,1,0,0,1,0,0);
-    gp->SetdEEChannels(2, 5);
-    gp->SetTChannels(7);
-    gp->SetNChannelForRealEvent(2);
   }else{
     printf(" no such plane. exit. \n");
     return 0;
   }
 
 //pull from FileIO not dig...
-  string expName = "infl20";
+  string expName = "infl21";
 
   printf("******************************************** \n");
   printf("****          BoxScoreXY                **** \n");
@@ -301,7 +292,7 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
 
-  string folder = "setting/";
+  string folder = "setting/";/// +  expName;
   FileIO file(rootFileName);
 
   ///==== Save setting into the root file
@@ -322,7 +313,7 @@ int main(int argc, char *argv[]){
     ///rawFile->SetTree("rawTree", 1);
   ///}
 
-  thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
+ // thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
@@ -739,6 +730,7 @@ if( c == 'w'){ ////========== wave form mode
 
 
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
+      if (gp->GetCanvasID() == 2) gp->ClearHistograms();
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
         //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
@@ -772,6 +764,29 @@ if( c == 'w'){ ////========== wave form mode
 
       gp->FillHit(dig.GetNChannelEventCount());
 
+     
+
+      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
+      string tag = "tag=" + location;
+
+      double totalRate = 0;
+      double aveRate = 0; //ave rate over run
+
+      for (int ch = 0; ch < MaxNChannels; ch++) {
+        if (!(ChannelMask & (1<<ch))) continue;
+        WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+      }
+      if( gp->GetClassID() == 2 ){
+        totalRate = gp->GetdEECount()/timeRangeSec;
+        //aveRate = gp->GetdEECount(10.0);
+      }else{
+         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
+         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
+         //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
+      }
+      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
+      WriteToDataBase(dbName, "totalRate", tag, totalRate);
+
       //=========================== Display
       if( !isDebug) system("clear");
       PrintCommands();
@@ -782,35 +797,9 @@ if( c == 'w'){ ////========== wave form mode
       printf("Database             : %s\n", dbName.c_str());
 
       printf("\n");
-
-      float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
-      string tag = "tag=" + location;
-
-      double totalRate = 0;
-      double aveRate = 0; //ave rate over run
-
-      for (int ch = 0; ch < MaxNChannels; ch++) {
-	    if (!(ChannelMask & (1<<ch))) continue;
-	    WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
-	  }
-
       dig.PrintReadStatistic();
       dig.PrintEventBuildingStat(updatePeriod);
-
-
-      if( gp->GetClassID() == 2 ){
-        totalRate = gp->GetdEECount()/timeRangeSec;
-        //aveRate = gp->GetdEECount(10.0);
-      }else{
-         int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
-         totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
-         //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
-      }
-
       printf(" Rate( all) :%7.2f pps\n", totalRate);
-      if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(dbName, "totalRate", tag, totalRate);
-
       if(gp->IsCutFileOpen()){
         for( int i = 0 ; i < gp->GetNumCut(); i++ ){
           double count = gp->GetCountOfCut(i)*1.0/timeRangeSec;
@@ -856,7 +845,7 @@ if( c == 'w'){ ////========== wave form mode
   file.WriteHistogram(gp->GetRateGraph(), "rateGraph");
   file.Close();
 
-  paintCanvasThread.detach();
+  //paintCanvasThread.detach();
 
   printf("========== bye bye =========== \n");
 

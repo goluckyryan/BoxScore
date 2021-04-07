@@ -1265,7 +1265,8 @@ void Digitizer::ReadData(bool debug){
         rollOver = rollOver << 31;
         timetag  += rollOver ;
 
-        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy, Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
+        //printf("%d, %6d, %13lu | %5u | %13llu | %13llu \n", ch, Events[ch][ev].Energy,\
+        // Events[ch][ev].TimeTag, Events[ch][ev].Extras2 , rollOver >> 32, timetag);
 
         rawChannel[rawEvCount + rawEvLeftCount] = ch;
         rawEnergy[rawEvCount + rawEvLeftCount]  = Events[ch][ev].Energy;
@@ -1385,7 +1386,7 @@ int Digitizer::BuildEvent(bool debug = false){
   /// flushData = Build Event for the remaining data.
 
   ///################################################################
-  ///  Sorrting raw event timeStamp
+  ///  Sorting raw event timeStamp
   ///################################################################
   int nRawData = rawEvCount + rawEvLeftCount;
   if( nRawData < 2 ) return 0; /// too few event to build;
