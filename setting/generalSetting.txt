@@ -1,0 +1,18 @@
+4096    // Num of samples of the waveforms (only for waveform mode)
+400     // nano-sec (int), coincident time for event building
+21      // experiment number [XX]
+14C	    // primary beam [AAZZ]
+6		    // primary beam charge state [X]
+119.8	  // primary beam total energy [MeV]
+1.022		// secondary beam scale factor [X.XX], e.g., 5% = 1.05
+1.0		  // primary beam current on FCA001 [enA]
+0		    // RF-Sweeper On/Off [1 - On/0 - Off]
+0.0		  // RF Sweeper (R501) Phase [deg]
+0.0		  // RF Sweeper (R501) Amplitude [V]
+0		    // Re-Buncher On/Off [1 - On/0 - Off]
+0.0		  // Re-Buncher (R401) Phase [deg]
+0.0		  // Re-Buncher (R401) Amplitude [V]
+-270.0  // RAISOR midplane top vertical slit [mm]
+-290.0  // RAISOR midplane bottom verical slit [mm]
+1       // Tar type
+// target information, Gas/Solid, Type, Thick, Pressure, Temp, Strip. foil thick/position
