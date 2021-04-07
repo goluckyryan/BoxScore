@@ -184,7 +184,7 @@ int main(int argc, char *argv[]){
   int secound = ltm->tm_sec;
 
   ///==== default root file name based on datetime and plane
-  if( argc == 4 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
+  if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
 
   TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
 
@@ -301,15 +301,15 @@ int main(int argc, char *argv[]){
   /* ROOT TREE                                                                               */
   /* *************************************************************************************** */
 
-  string folder = "setting/" +  expName;
+  string folder = "setting/";
   FileIO file(rootFileName);
 
   ///==== Save setting into the root file
-  TMacro gSetting((folder + "/generalSetting.txt").c_str());
+  TMacro gSetting((folder + "generalSetting.txt").c_str());
   gSetting.Write("generalSetting");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-	  TMacro chSetting(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  TMacro chSetting(Form("%ssetting_%i.txt", folder.c_str(), i));
 	  chSetting.Write(Form("setting_%i", i));
     }
   }
