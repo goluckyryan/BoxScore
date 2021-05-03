@@ -402,7 +402,7 @@ void GenericPlane::SetGenericHistograms(){
   hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d, gain=%.2f) ; dE [ch]; count",
   chdE, chdEGain), histBins, rangeDE[0], rangeDE[1]);
   hdT   = new TH1F(  "hdT", Form("raw dT (ch=%d, gain=%.2f) ; dT [ch]; count",
-  chT, 1.0), 200, 0, 200);
+  chT, 1.0), 500, 0, 1000);
   hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ",
   histBins, rangeE[0], rangeE[1], histBins, rangeDE[0], rangeDE[1]);
   
@@ -564,7 +564,7 @@ void GenericPlane::Draw(){
   if ( !isHistogramSet ) return;
  
   //1D - hdE, hE, htotE, hDt
-  fCanvas->cd(2)->cd(1); hdE->Draw();
+ fCanvas->cd(2)->cd(1); hdE->Draw();
   fCanvas->cd(2)->cd(2); hE->Draw();
   fCanvas->cd(4)->cd(1); htotE->Draw();
   fCanvas->cd(4)->cd(2); hdT->Draw();

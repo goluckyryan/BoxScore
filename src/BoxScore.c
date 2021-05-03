@@ -193,13 +193,13 @@ int main(int argc, char *argv[]){
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "cross" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(0,0,0,0,1,0,1,0);
-    gp->SetdEEChannels(1, 3);
+    gp->SetChannelMask(0,0,0,1,0,0,1,0);
+    gp->SetdEEChannels(1, 4);
     gp->SetNChannelForRealEvent(2);
   }else if ( location == "crosstime" ) {
     gp = new GenericPlane();
-    gp->SetChannelMask(1,0,0,0,1,0,1,0);
-    gp->SetdEEChannels(1, 3);
+    gp->SetChannelMask(1,0,0,1,0,0,1,0);
+    gp->SetdEEChannels(1, 4);
     gp->SetTChannels(7);
     gp->SetNChannelForRealEvent(3);
   }else if ( location == "ZD" ) {
@@ -296,11 +296,11 @@ int main(int argc, char *argv[]){
   FileIO file(rootFileName);
 
   ///==== Save setting into the root file
-  TMacro gSetting((folder + "/generalSetting.txt").c_str());
+  TMacro gSetting((folder + "generalSetting.txt").c_str());
   gSetting.Write("generalSetting");
   for( int i = 0 ; i < MaxNChannels; i++){
     if (ChannelMask & (1<<i)) {
-	  TMacro chSetting(Form("%s/setting_%i.txt", folder.c_str(), i));
+	  TMacro chSetting(Form("%ssetting_%i.txt", folder.c_str(), i));
 	  chSetting.Write(Form("setting_%i", i));
     }
   }

@@ -26,5 +26,5 @@ true    // is pulse positive parity;
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
 1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
-10        // plot range min
-16000    // plot range max
+10     //plot min
+3000     //plot max
