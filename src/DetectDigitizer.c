@@ -85,6 +85,7 @@ int main(int argc, char* argv[])
     CAEN_DGTZ_BoardInfo_t BoardInfo;
     CAEN_DGTZ_EventInfo_t eventInfo;
     CAEN_DGTZ_UINT16_EVENT_t *Evt = NULL;
+    int NCHANNELS = 8;
     char *buffer = NULL;
     int MajorNumber;
     int i,b;
@@ -119,14 +120,20 @@ int main(int argc, char* argv[])
         ...
         <VMEBaseAddress>[b-1] = <0xZZZZZZZZ> (address of last board)
         See the manual for details */
-        printf("------- checking boardID = %d / %d \n", b, MAXNB-1);
+        
+        printf("========================= boardID = %d / %d \n", b, MAXNB-1);
         ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_USB, b,0,0,&handle[b]);
-        //printf("----------- %d \n", ret);
+        
+        if ( ret != CAEN_DGTZ_Success) printf("          USD : can't open digitizer. probably not connected.\n");
+		        
+        ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_PCI_OpticalLink, b,0,0,&handle[b]);
         if(ret != CAEN_DGTZ_Success) {
-            printf("Can't open digitizer, Probably not connected.\n");
+			printf(" Optical Link : can't open digitizer. probably not connected.\n");
             continue;
             if( b == MAXNB-1 ) goto QuitProgram;
         }
+       
+        
         /* Once we have the handler to the digitizer, we use it to call the other functions */
         ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);
         printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
@@ -135,10 +142,14 @@ int main(int argc, char* argv[])
         printf("\tR0C (Read-out-Controller) FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
         printf("\tAMC (ADC & Memory Controller) FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
         
+        NCHANNELS = BoardInfo.Channels;
+        printf("\tmNumber of channels : \e[31m%d \e[0m\n", BoardInfo.Channels);
+        
         // Check firmware revision (DPP firmwares cannot be used with this demo */
         sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
         if (MajorNumber >= 128) {
           printf("\t==== This digitizer has a DPP firmware!\n");
+          printf("\e[32m");
           switch (MajorNumber){
             case 0x80: printf("\tDPP-PHA for x724 boards \n"); break;
             case 0x82: printf("\tDPP-CI for x720 boards  \n"); break;
@@ -152,6 +163,7 @@ int main(int argc, char* argv[])
             case 0x8C: printf("\tDPP-ZLE for x730 boards \n"); break;
             case 0x8D: printf("\tDPP-DAW for x730 boards \n"); break;
           }
+          printf("\e[0m");
           //goto QuitProgram;
         }
         
@@ -252,17 +264,17 @@ int main(int argc, char* argv[])
       
       printf(" Address : 0x%04x \n", regAddress);
       
-      for( int ch = 0 ; ch < 8 ; ch++){
-        uint32_t * value = new uint32_t[8];
+      for( int ch = 0 ; ch < NCHANNELS ; ch++){
+        uint32_t * value = new uint32_t[NCHANNELS];
         //ret = CAEN_DGTZ_ReadRegister(handle[1], 0x10A0 + (ch << 8), value);
         //printf(" DPP Algorithm Control 2  (ch:%d): 0x%08x \n", ch, value[0]);
         //uint32_t regAddressInput = 0x106c + (ch << 8);
         uint32_t regAddressInput = regAddress + (ch << 8);
         ret = CAEN_DGTZ_ReadRegister(handle[0], regAddressInput, value);
         if( ret  != CAEN_DGTZ_Success) {
-          printf(" Address 0x%04x (ch:%d): fail \n", regAddressInput, ch);
+          printf(" Address 0x%04x (ch:%2d): fail \n", regAddressInput, ch);
         }else{
-          printf(" Address 0x%04x (ch:%d): 0x%08x  = %d \n", regAddressInput, ch, value[0], value[0]);
+          printf(" Address 0x%04x (ch:%2d): 0x%08x  = %d \n", regAddressInput, ch, value[0], value[0]);
         }
       }
       
@@ -272,7 +284,7 @@ int main(int argc, char* argv[])
     
     if( c == 4 ){
       printf(" Get from Board 0 \n");
-      for( int ch = 0; ch < 8; ch++){
+      for( int ch = 0; ch < NCHANNELS; ch++){
         GetChannelSetting(handle[0], ch);
       }
       
