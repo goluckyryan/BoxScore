@@ -22,7 +22,7 @@
 
 #include "TMath.h"
 
-#define MaxNChannels 8
+#define MaxNChannels 16
 #define MaxDataAShot 100000 /// also limited by Timing, channel, energy pointer initialization.
 
 using namespace std;
@@ -286,8 +286,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
 
   this->expName = expName;
 
-
-
   ///================== initialization
   boardID  = ID;
   handle   = -1;
@@ -314,7 +312,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   memset(&DPPParams, 0, sizeof(CAEN_DGTZ_DPP_PHA_Params_t));
 
   ///----------------- Communication Parameters
-  LinkType = CAEN_DGTZ_USB;     /// Link Type
   VMEBaseAddress = 0;           /// For direct USB connection, VMEBaseAddress must be 0
   IOlev = CAEN_DGTZ_IOLevel_NIM;
 
@@ -337,7 +334,13 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   isConnected = false;
   isDetected = true;
 
+  ///-------- try USB
+  LinkType = CAEN_DGTZ_USB;     /// Link Type
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
+  if (ret != 0){ ///---------- try Optical link
+	LinkType = CAEN_DGTZ_PCI_OpticalLink ; 
+	ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
+  }
   if (ret != 0) {
     printf("Can't open digitizer\n");
     isDetected = false;
@@ -350,6 +353,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
       isDetected = false;
     }else{
       isConnected = true;
+      printf("Using %s \n", LinkType == CAEN_DGTZ_USB ? "USB" : "Optical Link");
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d with handle %d\n", BoardInfo.ModelName, boardID, handle);
       NChannel = BoardInfo.Channels;
       printf("Number of Channels : %d\n", NChannel);
@@ -406,7 +410,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
     /// Allocate memory for the events
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;
     /// Allocate memory for the waveforms
-    for( int i = 0 ; i < MaxNChannels; i++){
+    for( int i = 0 ; i < NChannel; i++){
       ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
     }
 
@@ -429,9 +433,9 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
 
   rawTimeRange = 999999999999999;
 
-  singleEnergy = new UInt_t[MaxNChannels];
-  singleChannel = new int[MaxNChannels];
-  singleTimeStamp = new ULong64_t [MaxNChannels];
+  singleEnergy = new UInt_t[NChannel];
+  singleChannel = new int[NChannel];
+  singleTimeStamp = new ULong64_t [NChannel];
 
   rawTimeStamp = new ULong64_t [MaxDataAShot];
   rawEnergy    = new UInt_t [MaxDataAShot];
@@ -442,9 +446,9 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   Channel   = new int * [MaxDataAShot];
 
   for( int i = 0; i < MaxDataAShot ; i++){
-    TimeStamp[i] = new ULong64_t [MaxNChannels];
-    Energy[i]    = new UInt_t [MaxNChannels];
-    Channel[i]   = new int [MaxNChannels];
+    TimeStamp[i] = new ULong64_t [NChannel];
+    Energy[i]    = new UInt_t [NChannel];
+    Channel[i]   = new int [NChannel];
   }
 
   ClearRawData();
@@ -454,7 +458,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   countEventBuilt = 0;
   totEventBuilt = 0;
 
-  for( int k = 0; k < MaxNChannels ; k++) {
+  for( int k = 0; k < NChannel ; k++) {
     countNChannelEvent[k] = 0;
     totNChannelEvent[k] = 0;
   }
@@ -541,7 +545,7 @@ int Digitizer::SetAcqMode(string mode, int recordLength = -1){
          }
          /// Allocate memory for the waveforms
          ret = 0;
-         for( int i = 0 ; i < MaxNChannels; i++){
+         for( int i = 0 ; i < NChannel; i++){
            ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
          }
          if( ret ) printf(" somethign wrong with allocateing waveform memory. \n");
@@ -858,14 +862,14 @@ void Digitizer::ClearRawData(){
 
 void Digitizer::ClearData(){
   for( int i = 0 ; i < MaxDataAShot ; i++){
-    for( int j = 0; j < MaxNChannels; j++){
+    for( int j = 0; j < NChannel; j++){
       Energy[i][j] = 0;
       Channel[i][j] = -1;
       TimeStamp[i][j] = 0;
     }
   }
 
-  for( int k = 0; k < MaxNChannels ; k++)  countNChannelEvent[k] = 0;
+  for( int k = 0; k < NChannel ; k++)  countNChannelEvent[k] = 0;
 
   countEventBuilt = 0;
   rawEvCount = 0;
@@ -873,7 +877,7 @@ void Digitizer::ClearData(){
 
 string Digitizer::GetChannelMaskString(){
   string str = "";
-  for(int i = 0; i < MaxNChannels; i++){
+  for(int i = 0; i < NChannel; i++){
      if( ChannelMask & ( 1 << i ) ) {str += to_string(i); str += " ";}
   }
   return str;
@@ -908,14 +912,14 @@ void Digitizer::SetDCOffset(int ch, float offset){
 }
 
 uint32_t Digitizer::GetChannelThreshold(int ch) {
-  uint32_t * value = new uint32_t[MaxNChannels];
+  uint32_t * value = new uint32_t[NChannel];
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value);
   return value[0];
 }
 
 
 int Digitizer::GetChannelDynamicRange(int ch) {
-  uint32_t * value = new uint32_t[MaxNChannels];
+  uint32_t * value = new uint32_t[NChannel];
   CAEN_DGTZ_ReadRegister(handle, 0x1028 + (ch << 8), value);
   return value[0];
 }
@@ -936,7 +940,7 @@ void Digitizer::GetBoardConfiguration(){
 
 void Digitizer::GetChannelSetting(int ch){
 
-  uint32_t * value = new uint32_t[MaxNChannels];
+  uint32_t * value = new uint32_t[NChannel];
   printf("\e[33m================================================\n");
   printf("================ Getting setting for channel %d \n", ch);
   printf("================================================\e[0m\n");
@@ -1046,7 +1050,7 @@ int Digitizer::ProgramChannels(){
     /// Set the DPP specific parameters for the channels in the given channelMask
     int ret = CAEN_DGTZ_SetDPPParameters(handle, ChannelMask, &DPPParams);
 
-    for(int i=0; i<MaxNChannels; i++) {
+    for(int i=0; i<NChannel; i++) {
         if (ChannelMask & (1<<i)) {
             /// Set a DC offset to the input signal to adapt it to digitizer's dynamic range
             ///ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, 0x3333); // 20%
@@ -1086,8 +1090,7 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
   file_in.open(fileName.c_str(), ios::in);
 
   if( !file_in){
-    printf("Fail to open the file : %s\n", fileName.c_str());
-    printf("channel: %d | default.\n", ch);
+    printf("channel: %2d | Fail to open the file : %s | use default.\n", ch, fileName.c_str());
     DPPParams.thr[ch]   = 100;      /// Trigger Threshold (in LSB)
     DPPParams.trgho[ch] = 1200;     /// Trigger Hold Off
     DPPParams.a[ch]     = 4;        /// Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
@@ -1116,7 +1119,7 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
     plotRange[ch][1] = 16000;
 
   }else{
-    printf("channel: %d | %s.\n", ch, fileName.c_str());
+    printf("channel: %2d | %s.\n", ch, fileName.c_str());
     string line;
     int count = 0;
     while( file_in.good()){
@@ -1233,7 +1236,7 @@ void Digitizer::ReadData(bool debug){
   Nb = BufferSize;
   if (Nb == 0 || ret) {
      if( AcqMode == CAEN_DGTZ_DPP_ACQ_MODE_Mixed ){
-        for(int i = 0 ; i < MaxNChannels; i++ ){
+        for(int i = 0 ; i < NChannel; i++ ){
           waveformLength[i] = 0;
           WaveLine1[i] = NULL;
           WaveLine2[i] = NULL;
@@ -1248,7 +1251,7 @@ void Digitizer::ReadData(bool debug){
   }
   /** Analyze data */
 
-  for (int ch = 0; ch < MaxNChannels; ch++) {
+  for (int ch = 0; ch < NChannel; ch++) {
     if (!(ChannelMask & (1<<ch))) continue;
     ///printf("------------------------ %d \n", ch);
 
@@ -1304,7 +1307,7 @@ void Digitizer::PrintReadStatistic(){
   printf(" Readout Rate = %.5f MB/s\n", (float)Nb/((float)ElapsedTime*1048.576f));
 
   printf("     | %7s| %12s| %8s\n", "Get", "TrgRate [Hz]", "PileUp");
-  for(int i = 0; i < MaxNChannels; i++) {
+  for(int i = 0; i < NChannel; i++) {
     if (!(ChannelMask & (1<<i))) continue;
     if (TrgCnt[i]>0){
       printf(" Ch %d| %7d| %12.2f| %7.2f%%\n", i, ECnt[i], (float)TrgCnt[i]/(float)ElapsedTime *1000., (float)PurCnt[i]*100/(float)TrgCnt[i]);
@@ -1319,7 +1322,7 @@ void Digitizer::PrintReadStatistic(){
   printf("-----------------------------------\n");
   printf("total| %7d \n", rawEvCount);
 
-  for (int ch = 0; ch < MaxNChannels; ch++) {
+  for (int ch = 0; ch < NChannel; ch++) {
     TrgCnt[ch] = 0;
     ECnt[ch] = 0;
     PurCnt[ch] = 0;
@@ -1333,11 +1336,11 @@ void Digitizer::PrintEventBuildingStat(int updatePeriod){
   ///printf("Number of retrieving = %d = %.2f per sec\n", rawEvCount, rawEvCount*1000./updatePeriod);
   printf(" %5s| %5s| %5s| \n", "#ch", "Built", "Total");
   ///printf("-----------------------------------\n");
-  ///for( int k = 0; k < MaxNChannels-1 ; k ++){
+  ///for( int k = 0; k < NChannel-1 ; k ++){
   for( int k = 0; k < nChannelOpen-1 ; k ++){
     printf(" %5d| %5d| %5d|\n", k+1, countNChannelEvent[k], totNChannelEvent[k]);
   }
-  ///printf(" %5d| %5d| %5d| %5s\n", MaxNChannels, countNChannelEvent[MaxNChannels-1], totNChannelEvent[MaxNChannels-1], "left");
+  ///printf(" %5d| %5d| %5d| %5s\n", NChannel, countNChannelEvent[NChannel-1], totNChannelEvent[NChannel-1], "left");
   printf(" %5d| %5d| %5d| %5s\n", nChannelOpen, countNChannelEvent[nChannelOpen-1], totNChannelEvent[nChannelOpen-1], "left");
   printf("-----------------------------------\n");
   printf(" %5s| %5d| %5d| %5d\n", "total", countEventBuilt, totEventBuilt, rawEvLeftCount);
@@ -1347,7 +1350,7 @@ void Digitizer::PrintEventBuildingStat(int updatePeriod){
 
 void Digitizer::PrintDynamicRange(){
   printf("\n Ch | Dynamic Range \n");
-  for( int i = 0 ; i < MaxNChannels; i ++ ){
+  for( int i = 0 ; i < NChannel; i ++ ){
     if ( ChannelMask & ( 1 << i) ) {
       printf(" %2d | %3.1f Vpp \n", i, GetChannelDynamicRange(i) == 0 ? 2.0: 0.5);
     }
@@ -1356,7 +1359,7 @@ void Digitizer::PrintDynamicRange(){
 
 void Digitizer::PrintThreshold(){
   printf("\n Ch | Threshold \n");
-  for( int i = 0 ; i < MaxNChannels; i ++ ){
+  for( int i = 0 ; i < NChannel; i ++ ){
     if ( ChannelMask & ( 1 << i) ) {
       printf(" %2d | %6d LSB \n", i, GetChannelThreshold(i));
     }
@@ -1365,7 +1368,7 @@ void Digitizer::PrintThreshold(){
 
 void Digitizer::PrintThresholdAndDynamicRange(){
   printf("\n Ch | %9s  | %s \n", "Threshold", "Dynamic Range");
-  for( int i = 0 ; i < MaxNChannels; i ++ ){
+  for( int i = 0 ; i < NChannel; i ++ ){
     if ( ChannelMask & ( 1 << i) ) {
       printf(" %2d | %6d LSB | %3.1f Vpp \n", i, GetChannelThreshold(i), GetChannelDynamicRange(i) == 0 ? 2.0: 0.5);
     }
@@ -1427,7 +1430,7 @@ int Digitizer::BuildEvent(bool debug = false){
   ///################################################################
 
   if (debug) printf("=============Build event============\n");
-  for( int k = 0; k < MaxNChannels ; k++) countNChannelEvent[k] = 0;
+  for( int k = 0; k < NChannel ; k++) countNChannelEvent[k] = 0;
   int endID = 0;
   ///ClearData();
   for( int i = 0; i < nRawData-1; i++){
@@ -1500,21 +1503,25 @@ int Digitizer::BuildEvent(bool debug = false){
 
     /// when chTAC is single, skip.
     /// if( numRawEventGrouped == 0 && rawChannel[i] == chTAC) continue;
-
+	
+	/**
     switch (numRawEventGrouped){
-      case 0: countNChannelEvent[0] += 1; totNChannelEvent[0] += 1; break;
-      case 1: countNChannelEvent[1] += 1; totNChannelEvent[1] += 1; break;
-      case 2: countNChannelEvent[2] += 1; totNChannelEvent[2] += 1; break;
-      case 3: countNChannelEvent[3] += 1; totNChannelEvent[3] += 1; break;
-      case 4: countNChannelEvent[4] += 1; totNChannelEvent[4] += 1; break;
-      case 5: countNChannelEvent[5] += 1; totNChannelEvent[5] += 1; break;
-      case 6: countNChannelEvent[6] += 1; totNChannelEvent[6] += 1; break;
-      case 7: countNChannelEvent[7] += 1; totNChannelEvent[7] += 1; break;
-    }
+      case  0: countNChannelEvent[0]  += 1; totNChannelEvent[0]  += 1; break;
+      case  1: countNChannelEvent[1]  += 1; totNChannelEvent[1]  += 1; break;
+      case  2: countNChannelEvent[2]  += 1; totNChannelEvent[2]  += 1; break;
+      case  3: countNChannelEvent[3]  += 1; totNChannelEvent[3]  += 1; break;
+      case  4: countNChannelEvent[4]  += 1; totNChannelEvent[4]  += 1; break;
+      case  5: countNChannelEvent[5]  += 1; totNChannelEvent[5]  += 1; break;
+      case  6: countNChannelEvent[6]  += 1; totNChannelEvent[6]  += 1; break;
+      case  7: countNChannelEvent[7]  += 1; totNChannelEvent[7]  += 1; break;
+    }**/
+    
+    countNChannelEvent[numRawEventGrouped] += 1;
+    totNChannelEvent[numRawEventGrouped] += 1;
 
     if( debug){
       printf("============");
-      for( int k = 0; k < MaxNChannels ; k++) printf(" %d, ", countNChannelEvent[k]);
+      for( int k = 0; k < NChannel ; k++) printf(" %d, ", countNChannelEvent[k]);
       printf("\n");
     }
 
@@ -1526,7 +1533,7 @@ int Digitizer::BuildEvent(bool debug = false){
       singleTimeStamp[rawChannel[j]] = rawTimeStamp[j];
     }
 
-    for(int pp = 0; pp < MaxNChannels; pp++) {
+    for(int pp = 0; pp < NChannel; pp++) {
       Channel[countEventBuilt][pp] = singleChannel[pp];
       Energy[countEventBuilt][pp] = singleEnergy[pp];
       TimeStamp[countEventBuilt][pp] = singleTimeStamp[pp];

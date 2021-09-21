@@ -52,8 +52,6 @@
 
 using namespace std;
 
-#define MaxNChannels 8
-
 //========== General setting , there are the most general setting that should be OK for all experiment.
 int updatePeriod = 1000; ///Table, tree, Plots update period in mili-sec.
 ///bool isSaveRaw = false;  /// saving Raw data
@@ -181,7 +179,8 @@ int main(int argc, char *argv[]){
   ///------Initialize the ChannelMask and histogram setting
   if( location == "testing") {
     gp = new GenericPlane();
-    gp->SetChannelMask(1,1,1,1,1,1,1,1);
+    //gp->SetChannelMask(1,1,1,1,1,1,1,1);
+    gp->SetChannelMask(0x001f);
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
@@ -259,6 +258,7 @@ int main(int argc, char *argv[]){
 
   Digitizer dig(boardID, ChannelMask, expName);
   if( !dig.IsConnected() ) return -1;
+  int NChannels = dig.GetNChannel();
   string tag = "tag=" + location; //tag for database
 
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
@@ -267,15 +267,12 @@ int main(int argc, char *argv[]){
   gp->SetChannelsPlotRange(dig.GetChannelsPlotRange());
   gp->SetGenericHistograms(); ///must be after SetChannelGain
   
-  
-
-
   /* DB push of general settings info */
   WriteToDataBase(dbName, "ExpNumber", "tag=general", (float)dig.GetExpNumber());
   WriteToDataBaseString(dbName, "Location", "tag=general", location);
   WriteToDataBaseString(dbName, "PrimBeam", "tag=general", dig.GetPrimBeam());
 
-  for( int ch = 0; ch < MaxNChannels ; ch++){
+  for( int ch = 0; ch < NChannels ; ch++){
     gp->SetRiseTime(ch, dig.GetChannelRiseTime(ch));
     gp->SetFlatTop(ch, dig.GetChannelFlatTop(ch));
     gp->SetFallTime(ch, dig.GetChannelDecay(ch));
@@ -298,13 +295,13 @@ int main(int argc, char *argv[]){
   ///==== Save setting into the root file
   TMacro gSetting((folder + "generalSetting.txt").c_str());
   gSetting.Write("generalSetting");
-  for( int i = 0 ; i < MaxNChannels; i++){
+  for( int i = 0 ; i < NChannels; i++){
     if (ChannelMask & (1<<i)) {
 	  TMacro chSetting(Form("%ssetting_%i.txt", folder.c_str(), i));
 	  chSetting.Write(Form("setting_%i", i));
     }
   }
-  file.SetTree("tree", MaxNChannels);
+  file.SetTree("tree", NChannels);
   file.Close();
 
   FileIO * rawFile = NULL ;
@@ -344,7 +341,7 @@ int main(int argc, char *argv[]){
       }
       if (c == 'p') { //==========read channel setting form digitizer
         dig.StopACQ();
-        for( int id = 0 ; id < MaxNChannels ; id++ ) {
+        for( int id = 0 ; id < NChannels ; id++ ) {
           if (ChannelMask & (1<<id)) dig.GetChannelSetting(id);
         }
       }
@@ -454,7 +451,7 @@ int main(int argc, char *argv[]){
         gp->Draw();
         uncooked();
       }
-if( c == 'w'){ ////========== wave form mode
+      if( c == 'w'){ ////========== wave form mode
         if( dig.GetAcqMode() == "mixed" && isIntegrateWave == false){
            printf("Already in mixed mode\n");
         }else{
@@ -772,7 +769,7 @@ if( c == 'w'){ ////========== wave form mode
       double totalRate = 0;
       double aveRate = 0; //ave rate over run
 
-      for (int ch = 0; ch < MaxNChannels; ch++) {
+      for (int ch = 0; ch < NChannels; ch++) {
         if (!(ChannelMask & (1<<ch))) continue;
         WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
       }

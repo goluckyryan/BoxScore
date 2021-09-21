@@ -25,7 +25,7 @@
 
 #include <thread>
 
-#define numChannel 8
+#define numChannel 16
 
 using namespace std;
 
@@ -36,7 +36,7 @@ public:
   ~GenericPlane();
 
   void         SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
-  void         SetChannelMask(uint32_t mask)       {ChannelMask = mask;}
+  void         SetChannelMask(uint32_t mask);
   void         SetLocation(string loc)             {location = loc;}        ///kind of redanance?
   virtual void SetdEEChannels( int chdE, int chE)  {this->chE = chE; this->chdE = chdE; }
   virtual void SetTChannels( int chT)  {this->chT = chT; }
@@ -165,16 +165,16 @@ protected:
 
   TMultiGraph * rateGraph;
   TLegend * legend;
-  TGraph * waveForm1[8];
-  TGraph * waveForm2[8];
-  TGraph * digitForm[8];
-  double waveEnergy[8];
-  TGraph * trapezoid[8];
+  TGraph * waveForm1[numChannel];
+  TGraph * waveForm2[numChannel];
+  TGraph * digitForm[numChannel];
+  double waveEnergy[numChannel];
+  TGraph * trapezoid[numChannel];
 
-  int riseTime[8]; /// in ch
-  int flatTop[8]; /// in ch
-  int decayTime[8]; /// in ch
-  int baseLineEnd[8]; /// in ch
+  int riseTime[numChannel]; /// in ch
+  int flatTop[numChannel]; /// in ch
+  int decayTime[numChannel]; /// in ch
+  int baseLineEnd[numChannel]; /// in ch
   int canID=0;//XY canvas
 
   TObjArray * cutList;
@@ -249,8 +249,8 @@ GenericPlane::GenericPlane(){
   location = "Generic";
 
   //=========== Channel Mask and rangeDE and rangeE is for GenericPlane
-  ChannelMask = 0xff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
-  nChannel = 8;
+  ChannelMask = 0xffff; /// Channel enable mask, 0x01, only frist channel, 0xff, all channel
+  nChannel = 16;
 
   rangeDE[0] =     0; /// min range for dE
   rangeDE[1] = 60000; /// max range for dE
@@ -298,7 +298,7 @@ GenericPlane::GenericPlane(){
 
   graphIndex = 0;
 
-  for( int i = 0 ; i < 8 ; i++){
+  for( int i = 0 ; i < numChannel ; i++){
     waveForm1[i] = new TGraph();
     waveForm1[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
     waveForm2[i] = new TGraph();
@@ -343,6 +343,18 @@ void GenericPlane::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool c
 
   ChannelMask = mask;
 
+}
+
+void GenericPlane::SetChannelMask(uint32_t mask){
+	ChannelMask = mask;
+	
+	///---nChannel from the mask
+	nChannel = 0;
+	for( int i = 0; i < 16; i++){
+		if( mask & (1 << i) ) {nChannel ++;}
+	}
+	
+	///printf(" Channel Mask : %X | number of Channel : %d \n", mask, nChannel);
 }
 
 void GenericPlane::SetCoincidentTimeWindow(int nanoSec){
@@ -731,18 +743,34 @@ void GenericPlane::LoadCuts(TString cutFileName){
 
 void GenericPlane::SetWaveCanvas(int length){
 
-   fCanvas->Clear();
-
-    int divX  = (nChannel+1)/2 ;
-    int divY = 2;
-    if( nChannel == 1 ) divY = 1;
-
+    fCanvas->Clear();
+    
+    int divX, divY;
+	switch(nChannel){
+		case  1 : divX = 1; divY = 1; break;
+		case  2 : divX = 1; divY = 2; break;
+		case  3 : divX = 2; divY = 2; break;
+		case  4 : divX = 2; divY = 2; break;
+		case  5 : divX = 2; divY = 3; break;
+		case  6 : divX = 2; divY = 3; break;
+		case  7 : divX = 2; divY = 4; break;
+		case  8 : divX = 2; divY = 4; break;
+		case  9 : divX = 3; divY = 3; break;
+		case 10 : divX = 4; divY = 3; break;
+		case 11 : divX = 4; divY = 3; break;
+		case 12 : divX = 4; divY = 3; break;
+		case 13 : divX = 4; divY = 4; break;
+		case 14 : divX = 4; divY = 4; break;
+		case 15 : divX = 4; divY = 4; break;
+		case 16 : divX = 4; divY = 4; break;
+	}
+    
     int xVal[length], yVal[length];
     for( int i = 0; i < length; i++) xVal[i] = i*2;
     std::fill_n(yVal, length, 0);
 
     fCanvas->Divide(divX,divY);
-    for( int i = 1; i <= divX * divY ; i++){
+    for( int i = 1; i <= nChannel ; i++){
        fCanvas->cd(i)->SetGridy();
        fCanvas->cd(i)->SetGridx();
        for(int j = 0; j < length ; j++) {
@@ -765,7 +793,7 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
   int pre_rise_start_ch = 100;
   int post_rise_start_ch = 800;
 
-  for( int ch = 0 ; ch < 8; ch ++){
+  for( int ch = 0 ; ch < numChannel; ch ++){
     if (!(ChannelMask & (1<<ch))) {
       waveEnergy[ch] = 0;
       continue;
@@ -821,7 +849,7 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
 
 void GenericPlane::FillWaves2(int* length, int16_t ** wave){
 
-  for( int ch = 0 ; ch < 8; ch ++){
+  for( int ch = 0 ; ch < numChannel; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
 
     waveForm2[ch]->Clear();
@@ -838,7 +866,7 @@ void GenericPlane::FillWaves2(int* length, int16_t ** wave){
 }
 
 void GenericPlane::FillDigitWave(int* length, uint8_t ** wave){
-  for( int ch = 0 ; ch < 8; ch ++){
+  for( int ch = 0 ; ch < numChannel; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
 
     digitForm[ch]->Clear();
@@ -857,7 +885,7 @@ void GenericPlane::FillDigitWave(int* length, uint8_t ** wave){
 
 void GenericPlane::DrawWaves(){
   int padID = 0;
-  for( int ch = 0 ; ch < 8; ch ++){
+  for( int ch = 0 ; ch < numChannel; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
     padID ++;
     fCanvas->cd(padID);
