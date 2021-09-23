@@ -321,7 +321,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
 
   this->ChannelMask = ChannelMask;
   CalNOpenChannel(ChannelMask);
-  EventAggr = 1;       /// Set how many events to accumulate in the board memory before being available for readout, 0 for auto
+  EventAggr = 0;       /// Set how many events to accumulate in the board memory before being available for readout, 0 for auto
 
   ///===================== end of initization
 
@@ -480,9 +480,11 @@ Digitizer::~Digitizer(){
   printf("======== Closed digitizer\n");
 
   if( isConnected ){
-	for(int ch = 0; ch < MaxNChannels; ch++){
-		delete Events[ch];
-	}
+	
+	//------ somehow it crash
+	//for(int ch = 0; ch < MaxNChannels; ch++){
+	//	delete Events[ch];
+	//}
 
 	delete[] singleChannel;
 	delete[] singleEnergy;

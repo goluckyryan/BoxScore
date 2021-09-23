@@ -184,6 +184,7 @@ int main(int argc, char *argv[]){
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
+    gp->SetTesting();
     rootFileName = "test.root";
   }else if( location == "exit") {
     gp = new GenericPlane();

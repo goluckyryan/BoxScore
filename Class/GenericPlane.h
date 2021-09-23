@@ -49,6 +49,7 @@ public:
   void         SetNChannelForRealEvent(int n) { NChannelForRealEvent = n;};
   void         SetHistogramsRange();
   void         SetChannelsPlotRange(int ** range);
+  void         SetTesting() { isTesting = true; };
 
   void         Fill(UInt_t  dE, UInt_t E);
   virtual void Fill(UInt_t * energy, ULong64_t * times);
@@ -147,6 +148,8 @@ protected:
   TCanvas *fCanvas;
 ///  TCanvas *gCanvas;
 
+  TH1F * hch[numChannel];
+
   TH1F * hE;
   TH1F * hdE;
   TH1F * hdT;
@@ -197,6 +200,7 @@ protected:
 private:
 
   int graphIndex;
+  bool isTesting;
 
 };
 
@@ -225,6 +229,7 @@ GenericPlane::~GenericPlane(){
   delete line;
 
   for(int i = 0; i < numChannel; i++){
+	delete hch[i];
     delete waveForm1[i];
     delete waveForm2[i];
     delete digitForm[i];
@@ -274,7 +279,7 @@ GenericPlane::GenericPlane(){
   chE = 5;   chEGain = 1;
   chT = 7; ///default timing channel
   mode = 1; ///default channel Gain is equal
-
+ 
   hdE     = NULL;
   hE      = NULL;
   hdT     = NULL;
@@ -299,6 +304,8 @@ GenericPlane::GenericPlane(){
   graphIndex = 0;
 
   for( int i = 0 ; i < numChannel ; i++){
+	hch[i] = NULL;
+
     waveForm1[i] = new TGraph();
     waveForm1[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
     waveForm2[i] = new TGraph();
@@ -323,7 +330,7 @@ GenericPlane::GenericPlane(){
   countOfCut.clear();
 
   isHistogramSet = false;
-
+  isTesting = false;
 
 }
 
@@ -404,27 +411,24 @@ void GenericPlane::SetChannelGain(float chGain[], int dynamicRange[], int NChann
 
 void GenericPlane::SetGenericHistograms(){
 
-  //printf("Setting up histogram\n");
   if( isHistogramSet ) return;
-
   float labelSize = 0.07;
 
-  hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ",
-  chE, chEGain),   histBins,  rangeE[0],  rangeE[1]);
-  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d, gain=%.2f) ; dE [ch]; count",
-  chdE, chdEGain), histBins, rangeDE[0], rangeDE[1]);
-  hdT   = new TH1F(  "hdT", Form("raw dT (ch=%d, gain=%.2f) ; dT [ch]; count",
-  chT, 1.0), 500, 0, 1000);
-  hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ",
-  histBins, rangeE[0], rangeE[1], histBins, rangeDE[0], rangeDE[1]);
+  for( int i = 0 ; i < numChannel ; i++){
+    hch[i] = new TH1F(Form("hch%02d",i), Form("E : ch-%02d",i), histBins, rangeE[0], rangeE[1]);
+  }
+
+  hE    = new TH1F(   "hE", Form("raw E (ch=%d, gain=%.2f) ; E [ch] ;count ",   chE,  chEGain), histBins,  rangeE[0],  rangeE[1]);
+  hdE   = new TH1F(  "hdE", Form("raw dE (ch=%d, gain=%.2f) ; dE [ch]; count", chdE, chdEGain), histBins, rangeDE[0], rangeDE[1]);
+  hdT   = new TH1F(  "hdT", Form("raw dT (ch=%d, gain=%.2f) ; dT [ch]; count",  chT,      1.0),      500,          0,       1000);
+  hdEE  = new TH2F("hdEE", "dE - E ; E [ch]; dE [ch] ",  histBins, rangeE[0], rangeE[1], histBins, rangeDE[0], rangeDE[1]);
   
-  htotE = new TH1F("htotE", "total E ; totR [ch]; count",
-  histBins, rangeE[0]+rangeDE[0], rangeE[1]+rangeDE[1]);
+  htotE = new TH1F("htotE", "total E ; totR [ch]; count",  histBins, rangeE[0]+rangeDE[0], rangeE[1]+rangeDE[1]);
   hdEtotE  = new TH2F( "hdEtotE",
-  Form("dE vs. totE = %4.2fdE + %4.2fE; totalE [ch]; dE [ch ",
-  chdEGain, chEGain ), histBins, rangeDE[0] * chdEGain + rangeE[0]* chEGain,
-  rangeDE[1] * chdEGain + rangeE[1]* chEGain, histBins, rangeDE[0] * chdEGain,
-  rangeDE[1] * chdEGain);
+    Form("dE vs. totE = %4.2fdE + %4.2fE; totalE [ch]; dE [ch ",
+    chdEGain, chEGain ), histBins, rangeDE[0] * chdEGain + rangeE[0]* chEGain,
+    rangeDE[1] * chdEGain + rangeE[1]* chEGain, histBins, rangeDE[0] * chdEGain,
+    rangeDE[1] * chdEGain);
 
   hTDiff = new TH1F("hTDiff", "timeDiff [nsec]; time [nsec] ; count", histBins, 0, 2000 /*rangeTime*/);
 
@@ -507,44 +511,55 @@ void GenericPlane::Fill(UInt_t dE, UInt_t E){
 void GenericPlane::Fill(UInt_t * energy, ULong64_t * times){
 
   if ( !isHistogramSet ) return;
-
-  int E = energy[chE] ;// + gRandom->Gaus(0, 500);
-  int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
-  unsigned long long int ET = times[chE]; //
-  unsigned long long int dET = times[chdE]; //
-  //~ printf("chT %d",chT);
-  unsigned long long int T = times[chT]; //
-  float chan2ns = 2.0e-9; //converts times to seconds
-  //~ float dEdT = (float)T*chan2ns - (float)dET*chan2ns; // dE - T time diff only for now
-  float dEdT = (float)(T - dET);// dE - T time diff only for now
-  dEdT = dEdT*2.0; //ch2ns
-  //~ printf("T: %1.12f, dET: %1.12f dEdT: %12.12f\n",
-  //~ (float)T*chan2ns,(float)dET*chan2ns, dEdT);
-
-//'raw' fills
-  hE->Fill(E);
-  hdE->Fill(dE);
-  hdT->Fill(dEdT);
-  hdEE->Fill(E, dE);
-  hdEdT->Fill(dEdT, dE);//
-
-//cal fills  
-  float calE[2] = {1.0,0.0};
-  float totEcal = (float)dE * chdEGain + (float)E * chEGain;
-  totEcal = calE[0]*totEcal + calE[1];
-  float dEcal = (float)dE * chdEGain;
-  dEcal = calE[0]*dEcal + calE[1];
   
-  hdEtotE->Fill(totEcal, dEcal);
-  htotE->Fill(totEcal);
+  if( isTesting ) {
+    
+    for( int ch = 0; ch < numChannel ; ch++){
+      if (  !(ChannelMask & (1<<ch)) ) continue;
+      hch[ch]->Fill(energy[ch]);
+    }
+    
+  }else{
 
-  if( numCut > 0  ){
-    for( int i = 0; i < numCut; i++){
-      cutG = (TCutG *) cutList->At(i);
-      if( cutG->IsInside(E, dE) ){ //only checking dE,E no gains!
-        countOfCut[i] += 1;
+    int E = energy[chE] ;// + gRandom->Gaus(0, 500);
+    int dE = energy[chdE] ;//+ gRandom->Gaus(0, 500);
+    unsigned long long int ET = times[chE]; //
+    unsigned long long int dET = times[chdE]; //
+    //~ printf("chT %d",chT);
+    unsigned long long int T = times[chT]; //
+    float chan2ns = 2.0e-9; //converts times to seconds
+    //~ float dEdT = (float)T*chan2ns - (float)dET*chan2ns; // dE - T time diff only for now
+    float dEdT = (float)(T - dET);// dE - T time diff only for now
+    dEdT = dEdT*2.0; //ch2ns
+    //~ printf("T: %1.12f, dET: %1.12f dEdT: %12.12f\n",
+    //~ (float)T*chan2ns,(float)dET*chan2ns, dEdT);
+
+    //'raw' fills
+    hE->Fill(E);
+    hdE->Fill(dE);
+    hdT->Fill(dEdT);
+    hdEE->Fill(E, dE);
+    hdEdT->Fill(dEdT, dE);//
+
+    //cal fills  
+    float calE[2] = {1.0,0.0};
+    float totEcal = (float)dE * chdEGain + (float)E * chEGain;
+    totEcal = calE[0]*totEcal + calE[1];
+    float dEcal = (float)dE * chdEGain;
+    dEcal = calE[0]*dEcal + calE[1];
+    
+    hdEtotE->Fill(totEcal, dEcal);
+    htotE->Fill(totEcal);
+
+    if( numCut > 0  ){
+      for( int i = 0; i < numCut; i++){
+        cutG = (TCutG *) cutList->At(i);
+        if( cutG->IsInside(E, dE) ){ //only checking dE,E no gains!
+          countOfCut[i] += 1;
+        }
       }
     }
+    
   }
 
 }
@@ -574,32 +589,66 @@ void GenericPlane::FillRateGraph(float x, float y){
 
 void GenericPlane::Draw(){
   if ( !isHistogramSet ) return;
- 
-  //1D - hdE, hE, htotE, hDt
- fCanvas->cd(2)->cd(1); hdE->Draw();
-  fCanvas->cd(2)->cd(2); hE->Draw();
-  fCanvas->cd(4)->cd(1); htotE->Draw();
-  fCanvas->cd(4)->cd(2); hdT->Draw();
   
-  //2D hdEE, hdEtotE, hdEdT 
- fCanvas->cd(1); 
- hdEE->Draw("col");
- if( numCut > 0 ){
-   for( int i = 0; i < numCut; i++){
-     cutG = (TCutG *) cutList->At(i);
-     cutG->Draw("same");
-   }
- }
-fCanvas->cd(3); hdEtotE->Draw("col");
-///  fCanvas->cd(1)->cd(3); hdEdT->Draw("col");
-///
-  fCanvas->Modified();
-  fCanvas->Update();
+  fCanvas->Clear();
+ 
+  if ( isTesting ){
+    int divX, divY;
+    switch(nChannel){
+      case  1 : divX = 1; divY = 1; break;
+      case  2 : divX = 1; divY = 2; break;
+      case  3 : divX = 2; divY = 2; break;
+      case  4 : divX = 2; divY = 2; break;
+      case  5 : divX = 2; divY = 3; break;
+      case  6 : divX = 2; divY = 3; break;
+      case  7 : divX = 2; divY = 4; break;
+      case  8 : divX = 2; divY = 4; break;
+      case  9 : divX = 3; divY = 3; break;
+      case 10 : divX = 4; divY = 3; break;
+      case 11 : divX = 4; divY = 3; break;
+      case 12 : divX = 4; divY = 3; break;
+      case 13 : divX = 4; divY = 4; break;
+      case 14 : divX = 4; divY = 4; break;
+      case 15 : divX = 4; divY = 4; break;
+      case 16 : divX = 4; divY = 4; break;
+    }
+    
+    fCanvas->Divide(divX,divY);
+    for( int i = 1; i <= nChannel ; i++){
+       fCanvas->cd(i)->SetGridy();
+       fCanvas->cd(i)->SetGridx();
+       hch[i-1]->Draw();
+    }
+  
+  }else{
+ 
+    //1D - hdE, hE, htotE, hDt
+    fCanvas->cd(2)->cd(1); hdE->Draw();
+    fCanvas->cd(2)->cd(2); hE->Draw();
+    fCanvas->cd(4)->cd(1); htotE->Draw();
+    fCanvas->cd(4)->cd(2); hdT->Draw();
+    
+    //2D hdEE, hdEtotE, hdEdT 
+    fCanvas->cd(1); 
+    hdEE->Draw("col");
+    if( numCut > 0 ){
+      for( int i = 0; i < numCut; i++){
+    cutG = (TCutG *) cutList->At(i);
+    cutG->Draw("same");
+      }
+    }
+    fCanvas->cd(3); hdEtotE->Draw("col");
+    ///  fCanvas->cd(1)->cd(3); hdEdT->Draw("col");
+    
+  }
   
 ///  gCanvas->cd(); hdEdT->Draw("col");
 ///  gCanvas->Modified();
 ///  gCanvas->Update();
-///  
+///
+
+  fCanvas->Modified();
+  fCanvas->Update(); 
   gSystem->ProcessEvents();
 }
 
@@ -614,6 +663,10 @@ void GenericPlane::ZeroCountOfCut(){
 void GenericPlane::SetHistogramsRange(){
 
   if( !isHistogramSet ) return;
+  
+  for( int ch = 0 ; ch < numChannel ; ch++){
+    hch[ch]->SetBins(histBins, rangeE[0], rangeE[1]);
+  }
 
   ///data is stored in bin
   hE->SetBins(histBins, rangeE[0], rangeE[1]);
