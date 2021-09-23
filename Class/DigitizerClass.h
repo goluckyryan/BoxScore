@@ -320,8 +320,6 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;  /// default
   RecordLength = 2000;
 
-  this->ChannelMask = ChannelMask;
-  CalNOpenChannel(ChannelMask);
   EventAggr = 0;       /// Set how many events to accumulate in the board memory before being available for readout, 0 for auto
 
   ///===================== end of initization
@@ -371,6 +369,9 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
       }
     }
   }
+  
+  this->ChannelMask = ChannelMask & detMask;
+  CalNOpenChannel(this->ChannelMask);
 
   /**************************************************/
   /** Get Channel Setting and Set Digitizer         */
