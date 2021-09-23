@@ -180,7 +180,7 @@ int main(int argc, char *argv[]){
   if( location == "testing") {
     gp = new GenericPlane();
     //gp->SetChannelMask(1,1,1,1,1,1,1,1);
-    gp->SetChannelMask(0x001f);
+    gp->SetChannelMask(0xffff);
     printf(" testing ### dE = ch-0, E = ch-4 \n");
     printf(" testing ### output file is test.root \n");
     gp->SetdEEChannels(0, 4);
@@ -261,6 +261,10 @@ int main(int argc, char *argv[]){
   if( !dig.IsConnected() ) return -1;
   int NChannels = dig.GetNChannel();
   string tag = "tag=" + location; //tag for database
+  
+  if( location == "testing") {
+    gp->SetChannelMask(pow(2,NChannels)-1);
+  }
 
   gp->SetCanvasTitleDivision(location + " | " + rootFileName);
   gp->SetChannelGain(dig.GetChannelGain(), dig.GetInputDynamicRange(), dig.GetNChannel());

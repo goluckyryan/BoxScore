@@ -188,6 +188,7 @@ private:
   int handle;       /// i don't know why, but better separete the handle from boardID
   int ret;          /// return value, refer to CAEN_DGTZ_ErrorCode
   int NChannel;     /// number of channel
+  int detMask ;     /// the channel mask from NChannel
   int nChannelOpen; /// number of open channel
 
   int Nb;                                  /// number of byte
@@ -356,7 +357,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
       printf("Using %s \n", LinkType == CAEN_DGTZ_USB ? "USB" : "Optical Link");
       printf("Connected to CAEN Digitizer Model %s, recognized as board %d with handle %d\n", BoardInfo.ModelName, boardID, handle);
       NChannel = BoardInfo.Channels;
-      printf("Number of Channels : %d\n", NChannel);
+      detMask = pow(2, NChannel)-1;
+      printf("Number of Channels : %d = 0x%X\n", NChannel, detMask);
       serialNumber = BoardInfo.SerialNumber;
       printf("SerialNumber :\e[1m\e[33m %d\e[0m\n", serialNumber);
       printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
@@ -836,8 +838,23 @@ void Digitizer::SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3,
       printf("---- Fail to change ChannelMask \n");
     }
   }
-
 }
+
+void Digitizer::SetChannelMask(uint32_t mask){
+  ChannelMask = mask & detMask;
+
+  CalNOpenChannel(mask & detMask);
+
+  if( isConnected ){
+    ret = CAEN_DGTZ_SetChannelEnableMask(handle, ChannelMask);
+    if( ret == 0 ){
+      printf("---- ChannelMask changed to %d \n", ChannelMask);
+    }else{
+      printf("---- Fail to change ChannelMask \n");
+    }
+  }
+}
+
 
 int Digitizer::SetChannelParity(int ch, bool isPositive){
 
@@ -884,22 +901,6 @@ string Digitizer::GetChannelMaskString(){
   }
   return str;
 }
-
-void Digitizer::SetChannelMask(uint32_t mask){
-  ChannelMask = mask;
-
-  CalNOpenChannel(mask);
-
-  if( isConnected ){
-    ret = CAEN_DGTZ_SetChannelEnableMask(handle, ChannelMask);
-    if( ret == 0 ){
-      printf("---- ChannelMask changed to %d \n", ChannelMask);
-    }else{
-      printf("---- Fail to change ChannelMask \n");
-    }
-  }
-}
-
 
 void Digitizer::SetDCOffset(int ch, float offset){
   DCOffset[ch] = offset;
