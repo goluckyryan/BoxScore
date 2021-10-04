@@ -1,7 +1,7 @@
 //============= Discriminator
-100     //Tigger Threshold (in LSB)
+1200     //Tigger Threshold (in LSB)
 496     // Trigger Hold Off
-32      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
+16      // Fast Discriminator smooth, Trigger Filter smoothing factor (number of samples to average for RC-CR2 filter) Options: 1; 2; 4; 8; 16; 32
 48     // Input Signal Rise time (ch)
 //============= Trapezoid
 496     //Trapezoid Rise Time (ch)
@@ -14,7 +14,7 @@
 3       // Ns baseline, number of samples for baseline average calculation. Options: 1->16 samples; 2->64 samples; 3->256 samples; 4->1024 samples; 5->4096 samples; 6->16384 samples
 0     //input dynamic range, 0 = 2 Vpp, 1 = 0.5 Vpp
 //============= Others
-0.5     // DC offset ( from 0 to 1,  for positive pulse, 1 = baseline bottom )
+0.9     // DC offset ( from 0 to 1,  for positive pulse, 1 = baseline bottom )
 1000    // pre trigger size [ch];
 true    // is pulse positive parity;
 30000   // Energy fine gain, 33900 is roughly equal Compass 10x, 30000 is roughly equal to real voltage at Vpp=2.0x
@@ -26,5 +26,5 @@ true    // is pulse positive parity;
 100     // Rise Time Validation Window (ns)
 //============= software channel gain
 1.0      // if 1.0, use dynamic range, if any channel is not 1, will use gain for its own channel
-0        // plot range min
-8000    // plot range max
+10        // plot range min
+16000    // plot range max

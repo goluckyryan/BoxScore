@@ -1,9 +1,9 @@
 4096    // Num of samples of the waveforms (only for waveform mode)
 400     // nano-sec (int), coincident time for event building
-20      // experiment number [XX]
-40Ar	// primary beam [AAZZ]
-14		// primary beam charge state [X]
-480.0	// primary beam total energy [MeV]
+21      // experiment number [XX]
+14C	// primary beam [AAZZ]
+6		// primary beam charge state [X]
+133.0	// primary beam total energy [MeV]
 1.0		// secondary beam scale factor [X.XX], e.g., 5% = 1.05
 1.0		// primary beam current on FCA001 [enA]
 On		// RF-Sweeper On/Off [On/Off]
