@@ -621,6 +621,10 @@ void GenericPlane::Draw(){
     }
   
   }else{
+    
+    fCanvas->Divide(2, 2);
+    fCanvas->cd(2)->Divide(2,1);
+    fCanvas->cd(4)->Divide(2,1);
  
     //1D - hdE, hE, htotE, hDt
     fCanvas->cd(2)->cd(1); hdE->Draw();
@@ -903,9 +907,9 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
 void GenericPlane::FillWaves2(int* length, int16_t ** wave){
 
   for( int ch = 0 ; ch < numChannel; ch ++){
-    if (!(ChannelMask & (1<<ch))) continue;
-
     waveForm2[ch]->Clear();
+
+    if (!(ChannelMask & (1<<ch))) continue;
 
     if( length[ch] > 0 ) {
       for(int i = 0; i < length[ch]; i++) waveForm2[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
