@@ -10,26 +10,26 @@
 #include <TAxis.h>
 #include <iostream>
 
-bool isDisplay = false; // false = DataProcess
+void ReadWave(TString fileName, bool isDisplay = true){
 
-void ReadWave(){
-
-  TFile * file = new TFile("test.root");
+  TFile * file = new TFile(fileName);
   TTree * tree = (TTree *) file->FindObjectAny("tree");
   
   int numEvent = tree->GetEntries();
   printf("========= num of events : %d \n", numEvent);
   
   //TClonesArray * wave = new TClonesArray();
+  int energy[8];
   TObjArray * wave = new TObjArray();
   tree->SetBranchAddress("wave", &wave);
+  tree->SetBranchAddress("e", &energy);
+  
   
   TCanvas * canvas = new TCanvas("c", "c", 600, 600);
   
   if( isDisplay ) canvas->Divide(2,2);
   
   TH2F * hXY = new TH2F("hXY", "hXY", 300, 0, 3000, 300, 0, 3000);
-  TGraph * g = NULL;
   
   for( int ev = 0 ; ev < numEvent; ev ++ ){
     wave->Clear();
@@ -41,12 +41,24 @@ void ReadWave(){
     ///  gSystem->ProcessEvents();
     ///}
     //=============== Display
+    double A, B, C, D;
     if( isDisplay ){
       for( int i = 0; i < size; i+= 2){
-        g = (TGraph *) wave->At(i);
-        if( g->GetN() == 0 ) continue;
-        g->GetYaxis()->SetRangeUser(4000, 10000);
+        TGraph * g  = (TGraph *) wave->At(i);
         canvas->cd(i/2+1);
+        
+        if( g->GetN() == 0 ) {
+          
+          if( i == 0 ) A = 0;
+          if( i == 2 ) B = 0;
+          if( i == 4 ) C = 0;
+          if( i == 6 ) D = 0;
+          
+          canvas->cd(i/2+1)->Clear();
+          
+          continue;
+        }
+        g->GetYaxis()->SetRangeUser(0, 8000);
         
         //if( g->GetN() == 0 ) continue;
         
@@ -59,13 +71,24 @@ void ReadWave(){
         
         g->Draw("Al");
         
-          
+        if( i == 0 ) A = (yMax-yMin)/2.;
+        if( i == 2 ) B = (yMax-yMin)/2.;
+        if( i == 4 ) C = (yMax-yMin)/2.;
+        if( i == 6 ) D = (yMax-yMin)/2.;
+        
         gSystem->ProcessEvents();
         
       }
       canvas->Modified();
       canvas->Update();
       gSystem->ProcessEvents();
+      
+      printf(" %f, %f, %f, %f \n", A, B, C, D);
+      
+      //for( int i = 0; i < size; i+=2){
+      //  printf("%d, ", energy[i]);
+      //}
+      //printf("|");
       
       cout << "Press Enter to Continue : ";
       cin.ignore();
@@ -76,7 +99,7 @@ void ReadWave(){
       
       double A= 0, B = 0;
       for( int i = 0; i < size; i+=2){
-        g = (TGraph *) wave->At(i);
+        TGraph * g = (TGraph *) wave->At(i);
         
         double p1 = g->Eval(500) + gRandom->Gaus(0, 10);
         double p2 = g->Eval(1500) + gRandom->Gaus(0, 10);
