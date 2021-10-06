@@ -320,7 +320,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;  /// default
   RecordLength = 2000;
 
-  EventAggr = 0;       /// Set how many events to accumulate in the board memory before being available for readout, 0 for auto
+  EventAggr = 1;       /// Set how many events to accumulate in the board memory before being available for readout, 0 for auto
 
   ///===================== end of initization
 
@@ -337,9 +337,11 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   LinkType = CAEN_DGTZ_USB;     /// Link Type
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
   if (ret != 0){ ///---------- try Optical link
-	LinkType = CAEN_DGTZ_PCI_OpticalLink ; 
-	ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
+    LinkType = CAEN_DGTZ_PCI_OpticalLink ; 
+    ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
+    EventAggr = 0;
   }
+  
   if (ret != 0) {
     printf("Can't open digitizer\n");
     isDetected = false;
