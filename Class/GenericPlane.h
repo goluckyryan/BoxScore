@@ -102,9 +102,10 @@ public:
   TH1F * GethTDiff()           {return hTDiff;}
   TH2F * GethdEE()             {return hdEE;}
   TH2F * GethdEtotE()          {return hdEtotE;}
-  TH2F * GethdEdT()           {return hdEdT;}
+  TH2F * GethdEdT()            {return hdEdT;}
   TMultiGraph * GetRateGraph() {return rateGraph;}
-  TGraph ** GetWaveForm1()      {return waveForm1;}
+  TGraph ** GetWaveForm1()     {return waveForm1;}
+  TGraph ** GetWaveForm2()     {return waveForm2;}
   double * GetWaveEnergy()     {return waveEnergy;}
 
   TObjArray * GetCutList()  {return cutList;}
@@ -202,6 +203,8 @@ private:
   int graphIndex;
   bool isTesting;
 
+  void DrawEmptyWave(int length, int padID, int waveIndex);
+
 };
 
 
@@ -229,7 +232,7 @@ GenericPlane::~GenericPlane(){
   delete line;
 
   for(int i = 0; i < numChannel; i++){
-	delete hch[i];
+    delete hch[i];
     delete waveForm1[i];
     delete waveForm2[i];
     delete digitForm[i];
@@ -304,7 +307,7 @@ GenericPlane::GenericPlane(){
   graphIndex = 0;
 
   for( int i = 0 ; i < numChannel ; i++){
-	hch[i] = NULL;
+    hch[i] = NULL;
 
     waveForm1[i] = new TGraph();
     waveForm1[i]->GetXaxis()->SetTitle("time [ch, 1 ch = 2 ns]");
@@ -797,30 +800,41 @@ void GenericPlane::LoadCuts(TString cutFileName){
 
 }
 
+void GenericPlane::DrawEmptyWave(int length, int padID, int waveIndex){
+  fCanvas->cd(padID)->SetGridy();
+  fCanvas->cd(padID)->SetGridx();
+  for(int j = 0; j < length ; j++) {
+    waveForm1[waveIndex]->SetPoint(j, j, 0);
+  }
+  waveForm1[waveIndex]->GetYaxis()->SetRangeUser(-1000, 17000);
+  waveForm1[waveIndex]->GetXaxis()->SetRangeUser(0, length);
+  waveForm1[waveIndex]->Draw("AP");
+  
+}
 
 void GenericPlane::SetWaveCanvas(int length){
 
     fCanvas->Clear();
     
     int divX, divY;
-	switch(nChannel){
-		case  1 : divX = 1; divY = 1; break;
-		case  2 : divX = 1; divY = 2; break;
-		case  3 : divX = 2; divY = 2; break;
-		case  4 : divX = 2; divY = 2; break;
-		case  5 : divX = 2; divY = 3; break;
-		case  6 : divX = 2; divY = 3; break;
-		case  7 : divX = 2; divY = 4; break;
-		case  8 : divX = 2; divY = 4; break;
-		case  9 : divX = 3; divY = 3; break;
-		case 10 : divX = 4; divY = 3; break;
-		case 11 : divX = 4; divY = 3; break;
-		case 12 : divX = 4; divY = 3; break;
-		case 13 : divX = 4; divY = 4; break;
-		case 14 : divX = 4; divY = 4; break;
-		case 15 : divX = 4; divY = 4; break;
-		case 16 : divX = 4; divY = 4; break;
-	}
+    switch(nChannel){
+      case  1 : divX = 1; divY = 1; break;
+      case  2 : divX = 1; divY = 2; break;
+      case  3 : divX = 2; divY = 2; break;
+      case  4 : divX = 2; divY = 2; break;
+      case  5 : divX = 2; divY = 3; break;
+      case  6 : divX = 2; divY = 3; break;
+      case  7 : divX = 2; divY = 4; break;
+      case  8 : divX = 2; divY = 4; break;
+      case  9 : divX = 3; divY = 3; break;
+      case 10 : divX = 4; divY = 3; break;
+      case 11 : divX = 4; divY = 3; break;
+      case 12 : divX = 4; divY = 3; break;
+      case 13 : divX = 4; divY = 4; break;
+      case 14 : divX = 4; divY = 4; break;
+      case 15 : divX = 4; divY = 4; break;
+      case 16 : divX = 4; divY = 4; break;
+    }
     
     int xVal[length], yVal[length];
     for( int i = 0; i < length; i++) xVal[i] = i*2;
@@ -828,14 +842,15 @@ void GenericPlane::SetWaveCanvas(int length){
 
     fCanvas->Divide(divX,divY);
     for( int i = 1; i <= nChannel ; i++){
-       fCanvas->cd(i)->SetGridy();
-       fCanvas->cd(i)->SetGridx();
-       for(int j = 0; j < length ; j++) {
-          waveForm1[i-1]->SetPoint(j, j, 0);
-       }
-       waveForm1[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
-       waveForm1[i-1]->GetXaxis()->SetRangeUser(0, length);
-       waveForm1[i-1]->Draw("AP");
+      DrawEmptyWave(length, i, i-1);
+//       fCanvas->cd(i)->SetGridy();
+//       fCanvas->cd(i)->SetGridx();
+//       for(int j = 0; j < length ; j++) {
+//          waveForm1[i-1]->SetPoint(j, j, 0);
+//       }
+//       waveForm1[i-1]->GetYaxis()->SetRangeUser(-1000, 17000);
+//       waveForm1[i-1]->GetXaxis()->SetRangeUser(0, length);
+//       waveForm1[i-1]->Draw("AP");
     }
 
    fCanvas->Modified();
@@ -863,7 +878,7 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
       //TrapezoidFilter(ch, length[ch], wave[ch]);
 
       ///printf("ch : %d, wave[500] : %d \n", ch, wave[ch][100]);
-
+      
       for(int i = 0; i < length[ch]; i++) waveForm1[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
 
       //TODO CR-RC filter https://doi.org/10.1016/j.nima.2018.05.020
@@ -875,10 +890,10 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
       ///use Trapezoid energy at halfway of flattop
       ///waveEnergy[ch] = trapezoid[ch]->Eval(900+ riseTime[ch]+flatTop[ch]/2); /// it seems that the trigger is always at 900 ch.
 
-      int yMax = waveForm1[ch]->GetYaxis()->GetXmax();
-      //int yMin = waveForm1[ch]->GetYaxis()->GetXmin();
-      int yMin = waveForm1[ch]->Eval(3500);
-      waveEnergy[ch] = (yMax - yMin)/2.;
+      //int yMax = waveForm1[ch]->GetYaxis()->GetXmax();
+      ////int yMin = waveForm1[ch]->GetYaxis()->GetXmin();
+      //int yMin = waveForm1[ch]->Eval(3500);
+      //waveEnergy[ch] = (yMax - yMin)/2.;
 
     }
 
@@ -910,14 +925,14 @@ void GenericPlane::FillWaves2(int* length, int16_t ** wave){
     waveForm2[ch]->Clear();
 
     if (!(ChannelMask & (1<<ch))) continue;
-
+    
     if( length[ch] > 0 ) {
       for(int i = 0; i < length[ch]; i++) waveForm2[ch]->SetPoint(i, i, wave[ch][i]); /// 2 for 1ch = 2 ns
 
       waveForm2[ch]->SetTitle(Form("channel = %d", ch));
       waveForm2[ch]->GetYaxis()->SetRangeUser(-1000, 17000);
       waveForm2[ch]->GetXaxis()->SetRangeUser(0, length[ch]);
-
+      
     }
   }
 }
@@ -946,8 +961,12 @@ void GenericPlane::DrawWaves(){
     if (!(ChannelMask & (1<<ch))) continue;
     padID ++;
     fCanvas->cd(padID);
-    if( waveForm1[ch]->GetN() > 0 ) waveForm1[ch]->Draw("AP");
-    if( waveForm2[ch]->GetN() > 0 ) waveForm2[ch]->Draw("same");
+    if( waveForm1[ch]->GetN() > 0 ) {
+      waveForm1[ch]->Draw("AP");
+      if( waveForm2[ch]->GetN() > 0 ) waveForm2[ch]->Draw("same");
+    }else{
+      DrawEmptyWave(4096, padID, ch);
+    }
     ///if( digitForm[ch]->GetN() > 0 ) digitForm[ch]->Draw("same"); not working??
     ///if( trapezoid[ch]->GetN() > 0 ) trapezoid[ch]->Draw("same");
   }

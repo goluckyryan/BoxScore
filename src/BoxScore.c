@@ -729,23 +729,24 @@ int main(int argc, char *argv[]){
 
     }
 
-
-
+    
     if (ElapsedTime > updatePeriod && dig.GetAcqMode() == "list") {
       if (gp->GetCanvasID() == 2) gp->ClearHistograms();
       //======================== Fill TDiff
       for( int i = 0; i < dig.GetNumRawEvent() - 1; i++){
-        //~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
+        ///~ ULong64_t timeDiff = dig.GetRawTimeStamp(i+1) - dig.GetRawTimeStamp(i);
         float timeDiff = (float)(dig.GetTimeStamp(i+1) - dig.GetTimeStamp(i));
-        //~ printf("timeDiff: %12.12f \n",timeDiff);
+        ///~ printf("timeDiff: %12.12f \n",timeDiff);
         gp->FillTimeDiff((float)timeDiff * 2.0);
       }
 
       file.Append();
       double fileSize = file.GetFileSize() ;
-
+      
+      uint32_t b0 = get_time();
       int buildID = dig.BuildEvent(isDebug);
-
+      uint32_t b1 = get_time();
+      
       ///After 5 cycle and number of build event is zero, flush the remain data.
       if( dig.GetEventBuiltCount() == 0 ) {
         ZeroEventBuildCount ++;
@@ -756,6 +757,8 @@ int main(int argc, char *argv[]){
       if( ZeroEventBuildCount > 4 ) dig.ClearRawData();
 
       gp->ZeroCountOfCut();
+      
+      uint32_t c0 = get_time();
       if( dig.GetNumRawEvent() > 0  && buildID == 1 ) {
         for( int i = 0; i < dig.GetEventBuiltCount(); i++){
           file.FillTree(dig.GetChannel(i), dig.GetEnergy(i), dig.GetTimeStamp(i));
@@ -763,10 +766,10 @@ int main(int argc, char *argv[]){
         }
       }
       file.Close();
-
+      uint32_t c1 = get_time();
+      
+      
       gp->FillHit(dig.GetNChannelEventCount());
-
-     
 
       float timeRangeSec = dig.GetRawTimeRange() * 2e-9;
       string tag = "tag=" + location;
@@ -788,11 +791,21 @@ int main(int argc, char *argv[]){
       }
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
       WriteToDataBase(dbName, "totalRate", tag, totalRate);
+      uint32_t c2 = get_time();
+      
+      //============ Draw histogram
+      gp->Draw();
 
+      uint32_t pTime = get_time();
       //=========================== Display
       if( !isDebug) system("clear");
       PrintCommands();
       printf("\n======== Tree, Histograms, and Table update every ~%.2f sec\n", updatePeriod/1000.);
+      printf("Events building      : %f sec\n", (b1 - b0)/ 1000.);
+      printf("file saving          : %f sec\n", (c1 - c0)/ 1000.);
+      printf("database             : %f sec\n", (c2 - c1)/ 1000.);
+      printf("Drawing              : %f sec\n", (pTime - c2)/ 1000.);
+      printf("Processing Time      : %f sec\n", (pTime - CurrentTime)/ 1000.);
       printf("Time Elapsed         = %.3f sec = %.1f min\n", (CurrentTime - StartTime)/1e3, (CurrentTime - StartTime)/1e3/60.);
       printf("Built-event save to  : %s \n", rootFileName.Data());
       printf("File size            : %.4f MB \n", fileSize );
@@ -810,12 +823,8 @@ int main(int argc, char *argv[]){
           WriteToDataBase(dbName, gp->GetCutName(i).Data(), tag, count);
         }
       }
-
-      //============ Draw histogram
-      gp->Draw();
-
+      
       dig.ClearData();
-
       PreviousTime = CurrentTime;
 
     }
