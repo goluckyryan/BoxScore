@@ -963,8 +963,6 @@ void GenericPlane::DrawWaves(){
     padID ++;
     fCanvas->cd(padID);
     
-    printf("padID %d, ch %d , %d \n", padID, ch, waveForm1[ch]->GetN());
-    
     if( waveForm1[ch]->GetN() > 0 ) {
       waveForm1[ch]->Draw("AP");
       if( waveForm2[ch]->GetN() > 0 ) waveForm2[ch]->Draw("same");
