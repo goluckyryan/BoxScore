@@ -122,10 +122,10 @@ int main(int argc, char *argv[]){
     printf("$./BoxScore  boardID location (tree.root) (debug)\n");
     printf("                        | \n");
     printf("                        +-- testing (all ch)\n");
-    printf("                        +-- exit \n");
-    printf("                        +-- cross \n");
-    printf("                        +-- crosstime \n");
-    printf("                        +-- ZD (zero-degree) \n");
+    printf("                        +-- exit (1, 3) \n");
+    printf("                        +-- cross (1, 4)\n");
+    printf("                        +-- crosstime (1, 4) \n");
+    printf("                        +-- ZD (zero-degree) (2, 5)\n");
     printf("                        +-- XY \n");
     printf("                        +-- XYede (XY de-e only) \n");
     printf("                        +-- XYpos (X,Y 1-D only) \n");
@@ -777,20 +777,20 @@ int main(int argc, char *argv[]){
       double totalRate = 0;
       double aveRate = 0; //ave rate over run
 
-      for (int ch = 0; ch < NChannels; ch++) {
-        if (!(ChannelMask & (1<<ch))) continue;
-        WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
-      }
-      if( gp->GetClassID() == 2 ){
-        totalRate = gp->GetdEECount()/timeRangeSec;
-        //aveRate = gp->GetdEECount(10.0);
-      }else{
+      //for (int ch = 0; ch < NChannels; ch++) {
+      //  if (!(ChannelMask & (1<<ch))) continue;
+      //  WriteToDataBase(dbName, Form("ch%d", ch), tag, dig.GetChannelGet(ch)*1.0/timeRangeSec);
+      //}
+      //if( gp->GetClassID() == 2 ){
+      //  totalRate = gp->GetdEECount()/timeRangeSec;
+      //  //aveRate = gp->GetdEECount(10.0);
+      //}else{
          int nCH = gp->GetNChannelForRealEvent(); /// get the event count for N-channels
          totalRate = dig.GetNChannelEventCount(nCH)*1.0/timeRangeSec;
          //aveRate = dig.GetNChannelEventCount(nCH,10.0): //average over run
-      }
+      //}
       if( totalRate >= 0.)gp->FillRateGraph((CurrentTime - StartTime)/1e3, totalRate);
-      WriteToDataBase(dbName, "totalRate", tag, totalRate);
+      //WriteToDataBase(dbName, "totalRate", tag, totalRate);
       uint32_t c2 = get_time();
       
       //============ Draw histogram

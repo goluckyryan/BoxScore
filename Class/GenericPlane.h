@@ -866,12 +866,12 @@ void GenericPlane::FillWaves1(int* length, int16_t ** wave){
   int post_rise_start_ch = 800;
 
   for( int ch = 0 ; ch < numChannel; ch ++){
+    
+    waveForm1[ch]->Clear();
     if (!(ChannelMask & (1<<ch))) {
       waveEnergy[ch] = 0;
       continue;
     }
-
-    waveForm1[ch]->Clear();
 
     if( length[ch] > 0 ) {
 
@@ -959,8 +959,12 @@ void GenericPlane::DrawWaves(){
   int padID = 0;
   for( int ch = 0 ; ch < numChannel; ch ++){
     if (!(ChannelMask & (1<<ch))) continue;
+  
     padID ++;
     fCanvas->cd(padID);
+    
+    printf("padID %d, ch %d , %d \n", padID, ch, waveForm1[ch]->GetN());
+    
     if( waveForm1[ch]->GetN() > 0 ) {
       waveForm1[ch]->Draw("AP");
       if( waveForm2[ch]->GetN() > 0 ) waveForm2[ch]->Draw("same");
