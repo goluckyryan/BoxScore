@@ -60,6 +60,23 @@ bool isDataBaseExist = false;
 string location;
 bool  QuitFlag = false;
 
+uint32_t StartTime = 0, StopTime, CurrentTime, ElapsedTime;
+Digitizer * dig;
+GenericPlane * gp;
+FileIO * file;
+string folder; 
+TString rootFileName;
+TString cutopt, cutFileName, archiveCutFile; 
+string dbName = "db";
+bool isDebug= false;
+
+int ZeroEventBuildCount = 0;
+bool isIntegrateWave = false;
+bool isTimedACQ = false;
+int timeLimitSec = -1;
+
+TApplication * app = NULL; 
+
 /* ###########################################################################
 *  Functions
 *  ########################################################################### */
@@ -77,12 +94,8 @@ void WriteToDataBaseString(string databaseName, TString seriesName, TString tag,
 
 void EventLoop();
 
-int ZeroEventBuildCount = 0;
-bool isIntegrateWave = false;
-bool isTimedACQ = false;
-int timeLimitSec = -1;
-
 void PrintCommands(){
+  if (QuitFlag) return;
   printf("\n");
   printf("\e[96m=============  Command List  ===================\e[0m\n");
   printf("s ) Start acquisition   z ) Change Threhsold\n");
@@ -105,27 +118,16 @@ void PrintTrapezoidCommands(){
   printf("------------------------------------------------------------\n");
 }
 
-TApplication * app = NULL; 
 void paintCanvas(){
   ///This function is running in a parrellel thread.
   ///This continously update the Root system with user input
   ///avoid frozen
-  app->Run(kTRUE);
-  //do{
-  //  gSystem->ProcessEvents();
-  //  sleep(0.01); /// 10 mili-sec
-  //}while(!QuitFlag);
+  //app->Run(kTRUE);
+  do{
+    if( !dig->IsRunning() ) gSystem->ProcessEvents();
+    //sleep(0.01); /// 10 mili-sec
+  }while(!QuitFlag);
 }
-
-uint32_t StartTime = 0, StopTime, CurrentTime, ElapsedTime;
-Digitizer * dig;
-GenericPlane * gp;
-FileIO * file;
-string folder; 
-TString rootFileName;
-TString cutopt, cutFileName, archiveCutFile; 
-string dbName = "db";
-bool isDebug= false;
 
 /* ########################################################################### */
 /* MAIN                                                                        */
@@ -266,22 +268,22 @@ int main(int argc, char *argv[]){
     ///rawFile->SetTree("rawTree", 1);
   ///}
 
-  //thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
+  thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
   /* *************************************************************************************** */
   
-  EventLoop();  // somehow cannot thread the EventLoop...
+  EventLoop(); 
 
   //thread looping(EventLoop);
 
-  //paintCanvasThread.detach();
+  paintCanvasThread.detach();
   
   
-  //TRootCanvas *rc = (TRootCanvas *)gp->GetCanvas()->GetCanvasImp();
-  //rc->Connect("CloseWindow()", "TApplication", gApplication, "Terminate()");
-  //app->Run(kTRUE);
+  
+  
+  //looping.detach();
   
   printf("========== bye bye =========== \n");
 
