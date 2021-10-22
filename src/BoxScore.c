@@ -41,6 +41,7 @@
 #include "TRandom.h"
 #include "TLine.h"
 #include "TMacro.h"
+#include "TRootCanvas.h"
 
 #include "../Class/DigitizerClass.h"
 #include "../Class/FileIO.h"
@@ -74,7 +75,7 @@ int keyboardhit();
 void WriteToDataBase(string databaseName, TString seriesName, TString tag, float value);
 void WriteToDataBaseString(string databaseName, TString seriesName, TString tag, TString value);
 
-void EventLoop(bool);
+void EventLoop();
 
 int ZeroEventBuildCount = 0;
 bool isIntegrateWave = false;
@@ -104,14 +105,16 @@ void PrintTrapezoidCommands(){
   printf("------------------------------------------------------------\n");
 }
 
+TApplication * app = NULL; 
 void paintCanvas(){
   ///This function is running in a parrellel thread.
   ///This continously update the Root system with user input
   ///avoid frozen
-  do{
-    gSystem->ProcessEvents();
-    sleep(0.01); /// 10 mili-sec
-  }while(!QuitFlag);
+  app->Run(kTRUE);
+  //do{
+  //  gSystem->ProcessEvents();
+  //  sleep(0.01); /// 10 mili-sec
+  //}while(!QuitFlag);
 }
 
 uint32_t StartTime = 0, StopTime, CurrentTime, ElapsedTime;
@@ -122,6 +125,7 @@ string folder;
 TString rootFileName;
 TString cutopt, cutFileName, archiveCutFile; 
 string dbName = "db";
+bool isDebug= false;
 
 /* ########################################################################### */
 /* MAIN                                                                        */
@@ -157,7 +161,6 @@ int main(int argc, char *argv[]){
   //string expName = argv[3];
 
   if( argc >= 4 ) rootFileName = argv[3];
-  bool isDebug= false;
   if( argc >= 5 ) isDebug = atoi(argv[4]);
 
   char hostname[100];
@@ -175,7 +178,7 @@ int main(int argc, char *argv[]){
   ///==== default root file name based on datetime and plane
   if( argc == 3 ) rootFileName.Form("%4d%02d%02d_%02d%02d%02d%s.root", year, month, day, hour, minute, secound, location.c_str());
 
-  TApplication app ("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
+  app = new TApplication("app", &argc, argv); /// this must be before Plane class, and this would change argc and argv value;
 
   //############ The Class Selection should be the only thing change
   gp = NULL ;
@@ -263,18 +266,23 @@ int main(int argc, char *argv[]){
     ///rawFile->SetTree("rawTree", 1);
   ///}
 
- // thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
+  //thread paintCanvasThread(paintCanvas); /// using thread and loop keep Canvas responding
 
   /* *************************************************************************************** */
   /* Readout Loop                                                                            */
   /* *************************************************************************************** */
   
-  EventLoop(isDebug);  // somehow cannot thread the EventLoop...
+  EventLoop();  // somehow cannot thread the EventLoop...
+
+  //thread looping(EventLoop);
 
   //paintCanvasThread.detach();
   
-  //app.Run();
-
+  
+  //TRootCanvas *rc = (TRootCanvas *)gp->GetCanvas()->GetCanvasImp();
+  //rc->Connect("CloseWindow()", "TApplication", gApplication, "Terminate()");
+  //app->Run(kTRUE);
+  
   printf("========== bye bye =========== \n");
 
   return 0;
@@ -287,7 +295,7 @@ int main(int argc, char *argv[]){
  *
  * ******************************************/
  
-void EventLoop(bool isDebug){
+void EventLoop(){
    
   uint32_t PreviousTime = get_time();
   PrintCommands();

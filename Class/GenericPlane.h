@@ -74,6 +74,7 @@ public:
   int          GetBaseLineEnd(int ch) { return baseLineEnd[ch]; }
   void         SetCanvasID(int id) { this->canID = id; }
   int          GetCanvasID() { return canID; }
+  TCanvas *    GetCanvas() {return fCanvas;}
 
   virtual void Draw();
   virtual void DrawWaves();
