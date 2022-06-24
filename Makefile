@@ -33,7 +33,7 @@ ROOTLIBS = `root-config --cflags --glibs`
 all	:	$(OUT2) CutsCreator BoxScore BoxScoreReader
 
 clean	:
-		/bin/rm -f $(OBJS1) $(OBJS2) $(OUT2)
+		/bin/rm -f $(OBJS1) $(OBJS2) $(OUT2) ./CutsCreator ./BoxScore ./BoxScoreReader
 
 $(OUT2)	:	$(OBJS2)
 		$(CC) -o $(OUT2) $(OBJS2) $(DEPLIBS)
@@ -44,11 +44,11 @@ $(OBJS2)	:	$(INCLUDES) Makefile
 		$(CC) $(COPTS) $(INCLUDEDIR) -c -o $@ $<
 
 CutsCreator:	$(OBJS3) src/CutsCreator.c
-		g++ -std=c++11 -pthread src/CutsCreator.c -o CutsCreator $(ROOTLIBS)
+		g++ -std=c++17 -pthread src/CutsCreator.c -o CutsCreator $(ROOTLIBS)
 
 BoxScore	: src/BoxScore.c Class/DigitizerClass.h Class/FileIO.h Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h Class/HelioArray.h Class/MCPClass.h
-		g++ -std=c++11 -pthread src/BoxScore.c -o BoxScore  $(DEPLIBS) $(ROOTLIBS)
+		g++ -std=c++17 -pthread src/BoxScore.c -o BoxScore  $(DEPLIBS) $(ROOTLIBS)
 
 BoxScoreReader: src/BoxScoreReader.c Class/GenericPlane.h Class/HelioTarget.h Class/IsoDetect.h Class/HelioArray.h
-		g++ -std=c++11 src/BoxScoreReader.c -o BoxScoreReader $(ROOTLIBS)
+		g++ -std=c++17 src/BoxScoreReader.c -o BoxScoreReader $(ROOTLIBS)
 

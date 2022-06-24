@@ -337,7 +337,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   LinkType = CAEN_DGTZ_USB;     /// Link Type
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
   if (ret != 0){ ///---------- try Optical link
-    LinkType = CAEN_DGTZ_PCI_OpticalLink ; 
+    LinkType = CAEN_DGTZ_OpticalLink ; 
     ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
     EventAggr = 0;
   }
