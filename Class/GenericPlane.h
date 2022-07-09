@@ -119,15 +119,15 @@ public:
 
   //=========== empty method for adding back from derivative Class
   virtual void SetOthersHistograms(){} /// this can be overwrite by derived class
-  virtual int  GetChG1() {}
-  virtual int  GetChG2() {}
-  virtual int  GetChG3() {}
-  virtual int  GetChG4() {}
-  virtual int GetG1Count()  {}
-  virtual int GetG2Count()  {}
-  virtual int GetG3Count()  {}
-  virtual int GetG4Count()  {}
-  virtual int GetdEECount() {}
+  virtual int  GetChG1() { return 0; } //GWM: Modern compilers will be pissed if you don't return an int on something like this
+  virtual int  GetChG2() { return 0; } //GWM: Could also go pure virtual and force a user implementation of GenericPlane, which might make more sense given the name of the class
+  virtual int  GetChG3() { return 0; }
+  virtual int  GetChG4() { return 0; }
+  virtual int GetG1Count()  { return 0; }
+  virtual int GetG2Count()  { return 0; }
+  virtual int GetG3Count()  { return 0; }
+  virtual int GetG4Count()  { return 0; }
+  virtual int GetdEECount() { return 0; }
   virtual void SetCountZero() {}
 
 
