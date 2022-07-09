@@ -12,11 +12,29 @@
 
 namespace BoxScore {
 
-    void SetChainSynchronize(const std::vector<std::shared_ptr<Digitizer>>& chain);
+    enum class SyncStartType
+    {
+        HardwareControlled,
+        SoftwareControlled
+    };
 
-    void StartSynchronizedRun(const std::vector<std::shared_ptr<Digitizer>>& chain);
+    //Add more later, right now only accept SPS standard
+    enum class SyncMethod
+    {
+        SIn_TrigOut
+    };
 
-    void StopSynchronizedRun(const std::vector<std::shared_ptr<Digitizer>>& chain);
+    struct SyncArgs
+    {
+        SyncStartType startType = SyncStartType::SoftwareControlled;
+        SyncMethod syncMethod = SyncMethod::SIn_TrigOut;
+    };
+
+    int SetChainSynchronize(const SyncArgs& args, const std::vector<std::shared_ptr<Digitizer>>& chain);
+
+    int StartSynchronizedRun(const SyncArgs& args, const std::vector<std::shared_ptr<Digitizer>>& chain);
+
+    int StopSynchronizedRun(const SyncArgs& args, const std::vector<std::shared_ptr<Digitizer>>& chain);
 
 }
 
