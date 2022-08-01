@@ -99,6 +99,7 @@ int main(int argc, char* argv[]){
   int numBoardDetected = 0;
 
   for(p = 0; p < MAXNPORT; p ++){
+    printf("#################### Optical Link Port : %d \n", p);
     for(b = 0; b < MAXNB; b++){
       /* IMPORTANT: The following function identifies the different boards with a system which may change
       for different connection methods (USB, Conet, ecc). Refer to CAENDigitizer user manual for more info.
@@ -140,11 +141,13 @@ int main(int argc, char* argv[]){
        
       /* Once we have the handler to the digitizer, we use it to call the other functions */
       ret = CAEN_DGTZ_GetInfo(handle[p][b], &BoardInfo);
-      printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
+      printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d at port %d\n", BoardInfo.ModelName, b, p);
       printf("\tBoard Model Familty %d\n", BoardInfo.FamilyCode);
       printf("\tSerialNumber :\e[33m %d \e[0m\n", BoardInfo.SerialNumber);
       printf("\tR0C (Read-out-Controller) FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
       printf("\tAMC (ADC & Memory Controller) FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
+      printf("\tADC bit is \e[33m%d\e[0m\n", BoardInfo.ADC_NBits);
+      
       numBoardDetected ++;
       
       NCHANNELS = BoardInfo.Channels;
