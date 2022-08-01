@@ -32,72 +32,72 @@ namespace BoxScore {
 
     enum PHAVirtualProbe1Options
     {
-        Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
-        Delta = CAEN_DGTZ_DPP_VIRTUALPROBE_Delta,
-        Delta2 = CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2,
-        Trapezoid = CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid
+        PHAVP1_Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
+        PHAVP1_Delta = CAEN_DGTZ_DPP_VIRTUALPROBE_Delta,
+        PHAVP1_Delta2 = CAEN_DGTZ_DPP_VIRTUALPROBE_Delta2,
+        PHAVP1_Trapezoid = CAEN_DGTZ_DPP_VIRTUALPROBE_Trapezoid
     };
 
     enum PHAVirtualProbe2Options
     {
-        Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
-        Threshold = CAEN_DGTZ_DPP_VIRTUALPROBE_Threshold,
-        Baseline = CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline,
-        TrapezoidReduced = CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced,
-        None = CAEN_DGTZ_DPP_VIRTUALPROBE_None
+        PHAVP2_Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
+        PHAVP2_Threshold = CAEN_DGTZ_DPP_VIRTUALPROBE_Threshold,
+        PHAVP2_Baseline = CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline,
+        PHAVP2_TrapezoidReduced = CAEN_DGTZ_DPP_VIRTUALPROBE_TrapezoidReduced,
+        PHAVP2_None = CAEN_DGTZ_DPP_VIRTUALPROBE_None
     };
 
     enum PHADigitalProbe1Options
     {
-        TriggerWindow = CAEN_DGTZ_DPP_DIGITALPROBE_TRGWin,
-        Armed = CAEN_DGTZ_DPP_DIGITALPROBE_Armed,
-        PkRun = CAEN_DGTZ_DPP_DIGITALPROBE_PkRun,
-        PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
-        Peaking = CAEN_DGTZ_DPP_DIGITALPROBE_Peaking,
-        CoincidenceWindow = CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin,
-        BaselineFreeze = CAEN_DGTZ_DPP_DIGITALPROBE_BLFreeze,
-        TriggerHoldoff = CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff,
-        TriggerValue = CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal,
-        ACQVeto = CAEN_DGTZ_DPP_DIGITALPROBE_ACQVeto,
-        BFMVeto = CAEN_DGTZ_DPP_DIGITALPROBE_BFMVeto,
-        ExternalTrig = CAEN_DGTZ_DPP_DIGITALPROBE_ExtTRG,
-        Busy = CAEN_DGTZ_DPP_DIGITALPROBE_Busy,
-        PrgVeto = CAEN_DGTZ_DPP_DIGITALPROBE_PrgVeto
+        PHADP_TriggerWindow = CAEN_DGTZ_DPP_DIGITALPROBE_TRGWin,
+        PHADP_Armed = CAEN_DGTZ_DPP_DIGITALPROBE_Armed,
+        PHADP_PkRun = CAEN_DGTZ_DPP_DIGITALPROBE_PkRun,
+        PHADP_PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
+        PHADP_Peaking = CAEN_DGTZ_DPP_DIGITALPROBE_Peaking,
+        PHADP_CoincidenceWindow = CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin,
+        PHADP_BaselineFreeze = CAEN_DGTZ_DPP_DIGITALPROBE_BLFreeze,
+        PHADP_TriggerHoldoff = CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff,
+        PHADP_TriggerValue = CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal,
+        PHADP_ACQVeto = CAEN_DGTZ_DPP_DIGITALPROBE_ACQVeto,
+        PHADP_BFMVeto = CAEN_DGTZ_DPP_DIGITALPROBE_BFMVeto,
+        PHADP_ExternalTrig = CAEN_DGTZ_DPP_DIGITALPROBE_ExtTRG,
+        PHADP_Busy = CAEN_DGTZ_DPP_DIGITALPROBE_Busy,
+        PHADP_PrgVeto = CAEN_DGTZ_DPP_DIGITALPROBE_PrgVeto
     };
 
     enum PSDVirtualProbe1Options
     {
-        Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
-        CFD = CAEN_DGTZ_DPP_VIRTUALPROBE_CFD
+        PSDVP1_Input = CAEN_DGTZ_DPP_VIRTUALPROBE_Input,
+        PSDVP1_CFD = CAEN_DGTZ_DPP_VIRTUALPROBE_CFD
     };
 
     enum PSDVirtualProbe2Options
     {
-        Baseline = CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline,
-        CFD = CAEN_DGTZ_DPP_VIRTUALPROBE_CFD,
-        None = CAEN_DGTZ_DPP_VIRTUALPROBE_None
+        PSDVP2_Baseline = CAEN_DGTZ_DPP_VIRTUALPROBE_Baseline,
+        PSDVP2_CFD = CAEN_DGTZ_DPP_VIRTUALPROBE_CFD,
+        PSDVP2_None = CAEN_DGTZ_DPP_VIRTUALPROBE_None
     };
 
     enum PSDDigitalProbe1Options
     {
-        Gate = CAEN_DGTZ_DPP_DIGITALPROBE_Gate,
-        OverThreshold = CAEN_DGTZ_DPP_DIGITALPROBE_OverThr,
-        TriggerOut = CAEN_DGTZ_DPP_DIGITALPROBE_TRGOut,
-        CoincidenceWindow = CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin,
-        PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
-        Coincidence = CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence,
-        Trigger = CAEN_DGTZ_DPP_DIGITALPROBE_Trigger
+        PSDDP1_Gate = CAEN_DGTZ_DPP_DIGITALPROBE_Gate,
+        PSDDP1_OverThreshold = CAEN_DGTZ_DPP_DIGITALPROBE_OverThr,
+        PSDDP1_TriggerOut = CAEN_DGTZ_DPP_DIGITALPROBE_TRGOut,
+        PSDDP1_CoincidenceWindow = CAEN_DGTZ_DPP_DIGITALPROBE_CoincWin,
+        PSDDP1_PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
+        PSDDP1_Coincidence = CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence,
+        PSDDP1_Trigger = CAEN_DGTZ_DPP_DIGITALPROBE_Trigger
     };
 
     enum PSDDigitalProbe2Options
     {
-        GateShort = CAEN_DGTZ_DPP_DIGITALPROBE_GateShort,
-        OverThreshold = CAEN_DGTZ_DPP_DIGITALPROBE_OverThr,
-        TriggerVal = CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal,
-        TriggerHoldoff = CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff,
-        PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
-        Coincidence = CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence,
-        Trigger = CAEN_DGTZ_DPP_DIGITALPROBE_Trigger 
+        PSDDP2_GateShort = CAEN_DGTZ_DPP_DIGITALPROBE_GateShort,
+        PSDDP2_OverThreshold = CAEN_DGTZ_DPP_DIGITALPROBE_OverThr,
+        PSDDP2_TriggerVal = CAEN_DGTZ_DPP_DIGITALPROBE_TRGVal,
+        PSDDP2_TriggerHoldoff = CAEN_DGTZ_DPP_DIGITALPROBE_TRGHoldoff,
+        PSDDP2_PileUp = CAEN_DGTZ_DPP_DIGITALPROBE_PileUp,
+        PSDDP2_Coincidence = CAEN_DGTZ_DPP_DIGITALPROBE_Coincidence,
+        PSDDP2_Trigger = CAEN_DGTZ_DPP_DIGITALPROBE_Trigger 
     };
 
     //Data vital to status/exsistance of digitizer
@@ -186,18 +186,18 @@ namespace BoxScore {
     struct PHAWaveParameters
     {
         CAEN_DGTZ_DPP_VirtualProbe_t isDual = CAEN_DGTZ_DPP_VIRTUALPROBE_SINGLE; //Default to a single analog trace
-        PHAVirtualProbe1Options analogProbe1 = PHAVirtualProbe1Options::Input; //Main analog trace defaults to input signal;
-        PHAVirtualProbe2Options analogProbe2 = PHAVirtualProbe2Options::None; //Default val; in default config wont be displayed
-        PHADigitalProbe1Options digitalProbe1 = PHADigitalProbe1Options::TriggerWindow; //Idk guess this is good default
+        PHAVirtualProbe1Options analogProbe1 = PHAVirtualProbe1Options::PHAVP1_Input; //Main analog trace defaults to input signal;
+        PHAVirtualProbe2Options analogProbe2 = PHAVirtualProbe2Options::PHAVP2_None; //Default val; in default config wont be displayed
+        PHADigitalProbe1Options digitalProbe1 = PHADigitalProbe1Options::PHADP_TriggerWindow; //Idk guess this is good default
     };
 
     struct PSDWaveParameters
     {
         CAEN_DGTZ_DPP_VirtualProbe_t isDual = CAEN_DGTZ_DPP_VIRTUALPROBE_SINGLE; //Default to a single analog trace
-        PSDVirtualProbe1Options analogProbe1 = PSDVirtualProbe1Options::Input; //Main trace defaults to input
-        PSDVirtualProbe2Options analogProbe2 = PSDVirtualProbe2Options::None; //Defaults to off
-        PSDDigitalProbe1Options digitalProbe1 = PSDDigitalProbe1Options::Gate; //Defaults to long gate
-        PSDDigitalProbe2Options digitalProbe2 = PSDDigitalProbe2Options::GateShort; //Defaults to short gate
+        PSDVirtualProbe1Options analogProbe1 = PSDVirtualProbe1Options::PSDVP1_Input; //Main trace defaults to input
+        PSDVirtualProbe2Options analogProbe2 = PSDVirtualProbe2Options::PSDVP2_None; //Defaults to off
+        PSDDigitalProbe1Options digitalProbe1 = PSDDigitalProbe1Options::PSDDP1_Gate; //Defaults to long gate
+        PSDDigitalProbe2Options digitalProbe2 = PSDDigitalProbe2Options::PSDDP2_GateShort; //Defaults to short gate
     };
 }
 
