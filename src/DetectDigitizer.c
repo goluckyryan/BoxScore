@@ -125,14 +125,14 @@ int main(int argc, char* argv[])
         ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_USB, b,0,0,&handle[b]);
         
         if ( ret != CAEN_DGTZ_Success) {
-			printf("          USD : can't open digitizer. probably not connected.\n");
-			ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_PCI_OpticalLink, b,0,0,&handle[b]);
-			if(ret != CAEN_DGTZ_Success) {
-				printf(" Optical Link : can't open digitizer. probably not connected.\n");
-				continue;
-				if( b == MAXNB-1 ) goto QuitProgram;
-			}
-		}
+          printf("          USD : can't open digitizer. probably not connected.\n");
+          ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_OpticalLink, 0,b,0,&handle[b]);
+        if(ret != CAEN_DGTZ_Success) {
+          printf(" Optical Link : can't open digitizer. probably not connected.\n");
+          continue;
+          if( b == MAXNB-1 ) goto QuitProgram;
+        }
+      }
        
         /* Once we have the handler to the digitizer, we use it to call the other functions */
         ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);

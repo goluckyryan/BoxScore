@@ -337,8 +337,8 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   LinkType = CAEN_DGTZ_USB;     /// Link Type
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
   if (ret != 0){ ///---------- try Optical link
-    LinkType = CAEN_DGTZ_PCI_OpticalLink ; 
-    ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
+    LinkType = CAEN_DGTZ_OpticalLink ; 
+    ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, 0, boardID, VMEBaseAddress, &handle);
     EventAggr = 0;
   }
   
@@ -363,6 +363,11 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
       printf("SerialNumber :\e[1m\e[33m %d\e[0m\n", serialNumber);
       printf("ROC FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
       printf("AMC FPGA Release is %s\n", BoardInfo.AMC_FirmwareRel);
+
+      switch(BoardInfo.Model){
+            case CAEN_DGTZ_V1730: ch2ns = 2; break; ///ns -> 500 MSamples/s
+            case CAEN_DGTZ_V1725: ch2ns = 4; break; ///ns -> 250 MSamples/s
+      }
 
       int MajorNumber;
       sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
@@ -412,11 +417,15 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
     to allocate the right memory amount */
     /// Allocate memory for the readout buffer
     ret = CAEN_DGTZ_MallocReadoutBuffer(handle, &buffer, &AllocatedSize);
+    printf("allowcated %d byte for buffer\n", AllocatedSize);
     /// Allocate memory for the events
     ret |= CAEN_DGTZ_MallocDPPEvents(handle, reinterpret_cast<void**>(&Events), &AllocatedSize) ;
+    printf("allowcated %d byte for Events\n", AllocatedSize);
+
     /// Allocate memory for the waveforms
     for( int i = 0 ; i < NChannel; i++){
       ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, reinterpret_cast<void**>(&Waveform[i]), &AllocatedSize);
+      printf("allowcated %d byte for waveform\n", AllocatedSize);
     }
 
     if (ret != 0) {
@@ -977,19 +986,19 @@ void Digitizer::GetChannelSetting(int ch){
 
   printf("==========----- discriminator \n");
   CAEN_DGTZ_ReadRegister(handle, 0x106C + (ch << 8), value); printf("%20s  %d LSB\n", "Threshold",  value[0]); ///Threshold
-  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ch \n", "trigger hold off *",  value[0] * 8); ///Trigger Hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1074 + (ch << 8), value); printf("%20s  %d ch \n", "trigger hold off *",  value[0] * 4 * ch2ns); ///Trigger Hold off
   CAEN_DGTZ_ReadRegister(handle, 0x1054 + (ch << 8), value); printf("%20s  %d sample \n", "Fast Dis. smoothing",  value[0] ); ///Fast Discriminator smoothing
-  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ns \n", "Input rise time **",  value[0] * 8 * ch2ns); ///Input rise time
+  CAEN_DGTZ_ReadRegister(handle, 0x1058 + (ch << 8), value); printf("%20s  %d ns \n", "Input rise time **",  value[0] * 4 * ch2ns); ///Input rise time
 
   printf("==========----- Trapezoid \n");
   CAEN_DGTZ_ReadRegister(handle, 0x1080 + (ch << 8), value); printf("%20s  %d bit = Floor( rise x decay / 64 )\n", "Trap. Rescaling",  trapRescaling ); ///Trap. Rescaling Factor
-  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 8 * ch2ns  ); ///Trap. rise time, 2 for 1 ch to 2ns
+  CAEN_DGTZ_ReadRegister(handle, 0x105C + (ch << 8), value); printf("%20s  %d ns \n", "Trap. rise time **",  value[0] * 4 * ch2ns  ); ///Trap. rise time, 2 for 1 ch to 2ns
   CAEN_DGTZ_ReadRegister(handle, 0x1060 + (ch << 8), value);
-  int flatTopTime = value[0] * 8 * ch2ns;  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); ///Trap. flat time
-  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 8 * ch2ns); ///Trap. pole zero
-  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 8 * ch2ns, value[0] * 800. * ch2ns / flatTopTime ); //Peaking time
+  int flatTopTime = value[0] * 4 * ch2ns;  printf("%20s  %d ns \n", "Trap. flat time **",  flatTopTime); ///Trap. flat time
+  CAEN_DGTZ_ReadRegister(handle, 0x1068 + (ch << 8), value); printf("%20s  %d ns \n", "Decay time **",  value[0] * 4 * ch2ns); ///Trap. pole zero
+  CAEN_DGTZ_ReadRegister(handle, 0x1064 + (ch << 8), value); printf("%20s  %d ns = %.2f %% \n", "peaking time **",  value[0] * 4 * ch2ns, value[0] * 400. * ch2ns / flatTopTime ); //Peaking time
   printf("%20s  %.0f sample\n", "Ns peak",  pow(4, NsPeak & 3)); //Ns peak
-  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off **",  value[0] * 8 *ch2ns ); ///Peak hold off
+  CAEN_DGTZ_ReadRegister(handle, 0x1078 + (ch << 8), value); printf("%20s  %d ns \n", "Peak hole off **",  value[0] * 4 *ch2ns ); ///Peak hold off
 
   printf("==========----- Other \n");
   CAEN_DGTZ_ReadRegister(handle, 0x10C4 + (ch << 8), value); printf("%20s  %d \n", "Energy fine gain ?",  value[0]); ///Energy fine gain
@@ -1135,13 +1144,13 @@ void Digitizer::LoadChannelSetting (const int ch, string fileName) {
         if( count ==  0 ) DPPParams.thr[ch]        = atoi(line.substr(0, pos).c_str());
         if( count ==  1 ) DPPParams.trgho[ch]      = atoi(line.substr(0, pos).c_str());
         if( count ==  2 ) DPPParams.a[ch]          = atoi(line.substr(0, pos).c_str());
-        if( count ==  3 ) DPPParams.b[ch]          = atoi(line.substr(0, pos).c_str())/8*8; /// digitizer only accept multiple of 8
-        if( count ==  4 ) DPPParams.k[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
-        if( count ==  5 ) DPPParams.m[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
-        if( count ==  6 ) DPPParams.M[ch]          = atoi(line.substr(0, pos).c_str())/8*8;
-        if( count ==  7 ) DPPParams.ftd[ch]        = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  3 ) DPPParams.b[ch]          = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns; /// digitizer only accept multiple of 4 * ch2ns
+        if( count ==  4 ) DPPParams.k[ch]          = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns;
+        if( count ==  5 ) DPPParams.m[ch]          = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns;
+        if( count ==  6 ) DPPParams.M[ch]          = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns;
+        if( count ==  7 ) DPPParams.ftd[ch]        = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns;
         if( count ==  8 ) DPPParams.nspk[ch]       = atoi(line.substr(0, pos).c_str());
-        if( count ==  9 ) DPPParams.pkho[ch]       = atoi(line.substr(0, pos).c_str())/8*8;
+        if( count ==  9 ) DPPParams.pkho[ch]       = atoi(line.substr(0, pos).c_str())/4/ch2ns*4*ch2ns;
         if( count == 10 ) DPPParams.nsbl[ch]       = atoi(line.substr(0, pos).c_str());
         if( count == 11 ) inputDynamicRange[ch]    = atoi(line.substr(0, pos).c_str());
         if( count == 12 ) DCOffset[ch]             = atof(line.substr(0, pos).c_str());
