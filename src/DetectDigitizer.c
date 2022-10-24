@@ -94,8 +94,11 @@ int main(int argc, char* argv[])
     uint32_t size,bsize;
     uint32_t numEvents;
     i = sizeof(CAEN_DGTZ_TriggerMode_t);
+    int port;
 
-    for(b=0; b<MAXNB; b++){
+    for( port = 0; port < 3; port ++){
+
+      for(b=0; b<MAXNB; b++){
         /* IMPORTANT: The following function identifies the different boards with a system which may change
         for different connection methods (USB, Conet, ecc). Refer to CAENDigitizer user manual for more info.
         brief:
@@ -121,22 +124,23 @@ int main(int argc, char* argv[])
         <VMEBaseAddress>[b-1] = <0xZZZZZZZZ> (address of last board)
         See the manual for details */
         
-        printf("========================= boardID = %d / %d \n", b, MAXNB-1);
+        printf("========================= boardID = %d / %d, portID = %d / %d\n", b, MAXNB-1, port, 3);
         ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_USB, b,0,0,&handle[b]);
-        
-        if ( ret != CAEN_DGTZ_Success) {
+        if ( ret == CAEN_DGTZ_Success) {
+          port = 4; /// to break port loop
+        }else{
           printf("          USD : can't open digitizer. probably not connected.\n");
-          ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_OpticalLink, 0,b,0,&handle[b]);
-        if(ret != CAEN_DGTZ_Success) {
-          printf(" Optical Link : can't open digitizer. probably not connected.\n");
-          continue;
-          if( b == MAXNB-1 ) goto QuitProgram;
+          ret = CAEN_DGTZ_OpenDigitizer(CAEN_DGTZ_OpticalLink, port,b,0,&handle[b]);
+          if(ret != CAEN_DGTZ_Success) {
+            printf(" Optical Link : can't open digitizer. probably not connected.\n");
+            continue;
+            if( b == MAXNB-1 ) goto QuitProgram;
+          }
         }
-      }
        
         /* Once we have the handler to the digitizer, we use it to call the other functions */
         ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);
-        printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d\n", BoardInfo.ModelName, b);
+        printf("\nConnected to CAEN Digitizer Model %s, recognized as board %d, port %d\n", BoardInfo.ModelName, b, port);
         printf("\tBoard Model Familty %d\n", BoardInfo.FamilyCode);
         printf("\tSerialNumber :\e[33m %d \e[0m\n", BoardInfo.SerialNumber);
         printf("\tR0C (Read-out-Controller) FPGA Release is %s\n", BoardInfo.ROC_FirmwareRel);
@@ -225,7 +229,9 @@ int main(int argc, char* argv[])
         //    goto QuitProgram;
         //}
         //printf("\n");
+      }
     }
+    
     printf("\n\nPress 's' to start the acquisition\n"); // c = 9
     printf("Press 'k' to stop  the acquisition\n");   // c  = 1
     printf("Press 'r' to read  a register\n");         // c = 3

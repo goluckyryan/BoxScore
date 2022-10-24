@@ -48,7 +48,7 @@ enum DigiReg {
 class Digitizer{
   RQ_OBJECT("Digitizer")
 public:
-  Digitizer(int ID, uint32_t ChannelMask, string expName);
+  Digitizer(int portID, int ID, uint32_t ChannelMask, string expName);
   ~Digitizer();
 
   void SetChannelMask(bool ch7, bool ch6, bool ch5, bool ch4, bool ch3, bool ch2, bool ch1, bool ch0);
@@ -184,6 +184,7 @@ private:
 
   int serialNumber;
 
+  int portID;
   int boardID;      /// board identity
   int handle;       /// i don't know why, but better separete the handle from boardID
   int ret;          /// return value, refer to CAEN_DGTZ_ErrorCode
@@ -283,11 +284,12 @@ private:
   int CalNOpenChannel(uint32_t mask);
 };
 
-Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
+Digitizer::Digitizer(int portID, int ID, uint32_t ChannelMask, string expName){
 
   this->expName = expName;
 
   ///================== initialization
+  this->portID = portID;
   boardID  = ID;
   handle   = -1;
   NChannel = 0;
@@ -338,7 +340,7 @@ Digitizer::Digitizer(int ID, uint32_t ChannelMask, string expName){
   ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, boardID, 0, VMEBaseAddress, &handle);
   if (ret != 0){ ///---------- try Optical link
     LinkType = CAEN_DGTZ_OpticalLink ; 
-    ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, 0, boardID, VMEBaseAddress, &handle);
+    ret = (int) CAEN_DGTZ_OpenDigitizer(LinkType, portID, boardID, VMEBaseAddress, &handle);
     EventAggr = 0;
   }
   

@@ -134,22 +134,22 @@ void paintCanvas(){
 /* ########################################################################### */
 int main(int argc, char *argv[]){
 
-  if( argc != 3 && argc != 4 && argc != 5 && argc != 6 ) {
+  if( argc != 4 && argc != 5 && argc != 6 && argc != 7 ) {
     printf("usage:\n");
     printf("                + use DetectDigitizer   \n");
     printf("                |\n");
-    printf("$./BoxScore  boardID location (tree.root) (debug)\n");
-    printf("                        | \n");
-    printf("                        +-- testing (all ch)\n");
-    printf("                        +-- exit (1, 3) \n");
-    printf("                        +-- cross (1, 4)\n");
-    printf("                        +-- crosstime (1, 4) \n");
-    printf("                        +-- ZD (zero-degree) (2, 5)\n");
-    printf("                        +-- XY \n");
-    printf("                        +-- XYede (XY de-e only) \n");
-    printf("                        +-- XYpos (X,Y 1-D only) \n");
-    printf("                        +-- IonCh (IonChamber)  \n");
-    printf("                        +-- MCP (Micro Channel Plate) \n");
+    printf("$./BoxScore  portID boardID location (tree.root) (debug)\n");
+    printf("                               | \n");
+    printf("                               +-- testing (all ch)\n");
+    printf("                               +-- exit (1, 3) \n");
+    printf("                               +-- cross (1, 4)\n");
+    printf("                               +-- crosstime (1, 4) \n");
+    printf("                               +-- ZD (zero-degree) (2, 5)\n");
+    printf("                               +-- XY \n");
+    printf("                               +-- XYede (XY de-e only) \n");
+    printf("                               +-- XYpos (X,Y 1-D only) \n");
+    printf("                               +-- IonCh (IonChamber)  \n");
+    printf("                               +-- MCP (Micro Channel Plate) \n");
     return -1;
   }
 
@@ -157,13 +157,14 @@ int main(int argc, char *argv[]){
   cutFileName = "data/cutsFile.root"; // default
 
   const int nInput = argc;
-  const int boardID = atoi(argv[1]);
-  string location = argv[2];
+  const int portID = atoi(argv[1]);
+  const int boardID = atoi(argv[2]);
+  string location = argv[3];
 
   //string expName = argv[3];
 
-  if( argc >= 4 ) rootFileName = argv[3];
-  if( argc >= 5 ) isDebug = atoi(argv[4]);
+  if( argc >= 4 ) rootFileName = argv[4];
+  if( argc >= 5 ) isDebug = atoi(argv[5]);
 
   char hostname[100];
   gethostname(hostname, 100);
@@ -192,7 +193,7 @@ int main(int argc, char *argv[]){
   string expName = "infl21";
 
   printf("******************************************** \n");
-  printf("****          BoxScoreXY                **** \n");
+  printf("****          BoxScore                  **** \n");
   printf("******************************************** \n");
   printf(" Current DateTime : %d-%02d-%02d, %02d:%02d:%02d\n", year, month, day, hour, minute, secound);
   printf("         hostname : %s \n", hostname);
@@ -210,7 +211,7 @@ int main(int argc, char *argv[]){
 
   uint ChannelMask = gp->GetChannelMask();
 
-  dig = new Digitizer(boardID, ChannelMask, expName);
+  dig = new Digitizer(portID, boardID, ChannelMask, expName);
   if( !dig->IsConnected() ) return -1;
   int NChannels = dig->GetNChannel();
   string tag = "tag=" + location; //tag for database
